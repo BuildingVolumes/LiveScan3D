@@ -150,14 +150,15 @@ bool Calibration::LoadCalibration(const string &serialNumber)
 void Calibration::SaveCalibration(const string &serialNumber)
 {
 	ofstream file;
-	file.open("calibration_" + serialNumber + ".txt");
+	string fileName = "calibration_" + serialNumber + ".txt";
+	file.open(fileName);
 	for (int i = 0; i < 3; i++)
 		file << worldT[i] << " ";
 	file << endl;
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 3; j++)
-			file << worldR[i][j];
+			file << worldR[i][j] << " ";
 		file << endl;
 	}
 	file << iUsedMarkerId << endl;

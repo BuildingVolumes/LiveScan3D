@@ -197,6 +197,7 @@ if (state != Subordinate)
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
 	serialNumber = std::string(serialNoSize, '\0');
 	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
+	serialNumber = std::string(serialNumber).erase(serialNumber.find('\0')); //Erase the 0 terminator we get from the C code
 
 	deviceIDForRestart = deviceIdx;
 	restartAttempts = 0;
