@@ -20,6 +20,7 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Windows.Forms;
@@ -57,6 +58,8 @@ namespace KinectServer
         bool bServerRunning = false;
         bool bRecording = false;
         bool bSaving = false;
+
+        const string takeDirPath = "out" + "\\";
 
         //Live view open or not
         bool bLiveViewRunning = false;
@@ -194,7 +197,15 @@ namespace KinectServer
         {
             int nFrames = 0;
 
-            string outDir = "out" + "\\" + txtSeqName.Text + "\\";
+            if (txtSeqName.Text == string.Empty)
+            {
+                txtSeqName.Text = "Take";
+            }
+
+            int currentTakeIndex = GetCurrentTakeIndex(txtSeqName.Text);
+
+            //Creates a new directory, with the notation: SequenceName_TakeIndex_YYYY-MM-DD_HH-MM (Example: Take_1_2021_05_27_14-52)
+            string outDir = takeDirPath + txtSeqName.Text + "_" + (currentTakeIndex + 1) + "_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm") + "\\";
             DirectoryInfo di = Directory.CreateDirectory(outDir);
 
             BackgroundWorker worker = (BackgroundWorker)sender;
@@ -510,6 +521,49 @@ namespace KinectServer
 
 
             lClientListBox.DataSource = listBoxItems;
+        }
+
+
+        /// <summary>
+        /// Looks up all the directorys in the takeDirPath and gets the highest take index
+        /// for the specific sequence Name. The take index are the digits between the first and second underscore
+        /// of the Directory Name
+        /// </summary>
+        /// <param name="sequenceName"></param>
+        /// <returns></returns>
+        private int GetCurrentTakeIndex(string sequenceName)
+        {
+            int currentTakeIndex = 0;
+
+            string[] takeDirs = Directory.GetDirectories(takeDirPath);
+
+            Regex firstDigitrx = new Regex("^[^\\d]*(\\d+)");
+
+            foreach (string dir in takeDirs)
+            {
+                if (dir.Contains(sequenceName))
+                {
+                    Match match = firstDigitrx.Match(dir);
+
+                    int index = int.Parse(match.Groups[1].Value);
+
+                    if (index > currentTakeIndex)
+                    {
+                        currentTakeIndex = index;
+                    }
+                }              
+                
+            }
+
+            return currentTakeIndex;
+        }
+
+
+
+        private void txtSeqName_TextChanged(object sender, EventArgs e)
+        {
+            //Only allow Chars from A-Z to be stored as name, to avoid invalid directory naming
+            txtSeqName.Text = Regex.Replace(txtSeqName.Text, "[^[a-zA-Z]", string.Empty);
         }
     }
 }

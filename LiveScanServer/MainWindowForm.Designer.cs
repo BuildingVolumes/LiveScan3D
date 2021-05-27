@@ -114,7 +114,8 @@
             this.txtSeqName.Name = "txtSeqName";
             this.txtSeqName.Size = new System.Drawing.Size(106, 20);
             this.txtSeqName.TabIndex = 7;
-            this.txtSeqName.Text = "noname";
+            this.txtSeqName.Text = "Take";
+            this.txtSeqName.TextChanged += new System.EventHandler(this.txtSeqName_TextChanged);
             // 
             // btRefineCalib
             // 
