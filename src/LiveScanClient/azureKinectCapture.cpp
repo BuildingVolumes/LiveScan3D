@@ -28,8 +28,9 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <param name="asMaster">Initializes this device as master</param>
 /// <param name="asSubordinate">Initalizes this devices as subordinate</param>
 /// <param name="syncOffsetMultiplier">Should only be set when initializing as Subordinate. Each subordinate should have a unique, ascending value</param>
+/// <param name="depthMode">The depth mode we should be calling. Default should be K4A_DEPTH_MODE_NFOV_UNBINNED.</param>
 /// <returns></returns>
-bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier)
+bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier, k4a_depth_mode_t depthMode)
 {
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -80,7 +81,7 @@ bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier)
 	config.camera_fps = K4A_FRAMES_PER_SECOND_30;
 	config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 	config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-	config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+	config.depth_mode = depthMode;
 	config.synchronized_images_only = true;
 
 	if (state == Master) 

@@ -14,7 +14,7 @@ public:
 	AzureKinectCapture();
 	~AzureKinectCapture();
 
-	bool Initialize(SYNC_STATE state, int syncOffset);
+	bool Initialize(SYNC_STATE state, int syncOffset, k4a_depth_mode_t depthMode);
 	bool AcquireFrame();
 	bool Close();
 	void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints);

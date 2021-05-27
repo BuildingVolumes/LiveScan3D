@@ -15,6 +15,7 @@
 #pragma once
 
 #include "utils.h"
+#include <k4a/k4atypes.h>
 
 struct Joint
 {
@@ -40,7 +41,7 @@ public:
 	ICapture();
 	~ICapture();
 
-	virtual bool Initialize(SYNC_STATE state, int syncOffset) = 0;
+	virtual bool Initialize(SYNC_STATE state, int syncOffset, k4a_depth_mode_t depthMode) = 0;
 	virtual bool AcquireFrame() = 0;
 	virtual bool Close() = 0;
 	virtual void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints) = 0;

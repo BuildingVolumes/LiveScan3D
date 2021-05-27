@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+
+//Do not change order of enums, they are referenced by index in KinectSocket.cs on the server.
 enum INCOMING_MESSAGE_TYPE
 {
 	MSG_CAPTURE_FRAME,
@@ -32,6 +34,8 @@ enum INCOMING_MESSAGE_TYPE
 	MSG_SET_TEMPSYNC_OFF,
 	MSG_START_MASTER,
 	MSG_REQUEST_SYNC_JACK_STATE,
+	MSG_REINITIALIZE_WITH_CURRENT_SETTINGS,
+	MSG_SET_DEPTHMODE
 };
 
 enum OUTGOING_MESSAGE_TYPE
