@@ -312,6 +312,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
         // If the titlebar X is clicked, destroy app
 		case WM_CLOSE:
+			pCapture->Close();
 			WriteIPToFile();
 			DestroyWindow(hWnd);
 			break;
