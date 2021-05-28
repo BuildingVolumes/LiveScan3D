@@ -50,11 +50,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="KinectSettingsForm.cs">
+    <Compile Include="KinectConfigurationForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="KinectSettingsForm.Designer.cs">
-      <DependentUpon>KinectSettingsForm.cs</DependentUpon>
+    <Compile Include="KinectConfigurationForm.Designer.cs">
+      <DependentUpon>KinectConfigurationForm.cs</DependentUpon>
     </Compile>
     <Compile Include="MainWindowForm.cs">
       <SubType>Form</SubType>
@@ -78,8 +78,8 @@
     <Compile Include="TransferSocket.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="ZSTDDecompressor.cs" />
-    <EmbeddedResource Include="KinectSettingsForm.resx">
-      <DependentUpon>KinectSettingsForm.cs</DependentUpon>
+    <EmbeddedResource Include="KinectConfigurationForm.resx">
+      <DependentUpon>KinectConfigurationForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainWindowForm.resx">
       <DependentUpon>MainWindowForm.cs</DependentUpon>
