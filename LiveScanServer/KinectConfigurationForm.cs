@@ -10,7 +10,7 @@ using System.Windows.Forms;
 
 namespace KinectServer
 {
-    public partial class KinectSettingsForm : Form
+    public partial class KinectConfigurationForm : Form
     {
         public KinectServer oServer;
         public KinectSettings oSettings;
@@ -31,7 +31,7 @@ namespace KinectServer
                 return depthModeName;
             }
         }
-        public KinectSettingsForm()
+        public KinectConfigurationForm()
         {
             InitializeComponent();
             CreateDepthModesList();

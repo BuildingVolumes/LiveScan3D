@@ -1,7 +1,7 @@
 ﻿
 namespace KinectServer
 {
-    partial class KinectSettingsForm
+    partial class KinectConfigurationForm
     {
         /// <summary>
         /// Required designer variable.

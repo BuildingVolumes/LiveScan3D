@@ -40,7 +40,7 @@ namespace KinectServer
 
         KinectSettings oSettings;
         SettingsForm fSettingsForm;
-        Dictionary<int, KinectSettingsForm> kinectSettingsForms;
+        Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
         MainWindowForm fMainWindowForm;
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
@@ -139,14 +139,14 @@ namespace KinectServer
         public KinectServer(KinectSettings settings)
         {
             this.oSettings = settings;
-            kinectSettingsForms = new Dictionary<int, KinectSettingsForm>();
+            kinectSettingsForms = new Dictionary<int, KinectConfigurationForm>();
         }
 
         public void SetSettingsForm(SettingsForm settings)
         {
             fSettingsForm = settings;
         }
-        public void SetKinectSettingsForm(int id, KinectSettingsForm form)
+        public void SetKinectSettingsForm(int id, KinectConfigurationForm form)
         {
             if(kinectSettingsForms.ContainsKey(id))
             {
@@ -171,7 +171,7 @@ namespace KinectServer
             return fSettingsForm;
         }
 
-        public KinectSettingsForm GetKinectSettingsForm(int id)
+        public KinectConfigurationForm GetKinectSettingsForm(int id)
         {
             if(kinectSettingsForms.TryGetValue(id, out var value))
             {

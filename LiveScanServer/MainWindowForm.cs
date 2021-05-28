@@ -519,10 +519,10 @@ namespace KinectServer
                 return;
             }
             //
-            KinectSettingsForm form = oServer.GetKinectSettingsForm(lClientListBox.SelectedIndex);
+            KinectConfigurationForm form = oServer.GetKinectSettingsForm(lClientListBox.SelectedIndex);
             if (form == null)
             {
-                form = new KinectSettingsForm();
+                form = new KinectConfigurationForm();
             }
             //
             form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
