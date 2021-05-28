@@ -64,6 +64,7 @@ namespace KinectServer
         System.Timers.Timer oStatusBarTimer = new System.Timers.Timer();
 
         KinectSettings oSettings = new KinectSettings();
+
         //The live view window class
         OpenGLWindow oOpenGLWindow;
 
@@ -134,7 +135,6 @@ namespace KinectServer
                 oServer.SetSettingsForm(form);
                 oServer.SetMainWindowForm(this);
             }
-            
         }
 
         //Performs recording which is synchronized frame capture.
@@ -510,6 +510,25 @@ namespace KinectServer
 
 
             lClientListBox.DataSource = listBoxItems;
+        }
+
+        private void btKinectSettingsOpenButton_Click(object sender, EventArgs e)
+        {
+            if(lClientListBox.SelectedIndex == -1)
+            {
+                return;
+            }
+            //
+            KinectSettingsForm form = oServer.GetKinectSettingsForm(lClientListBox.SelectedIndex);
+            if (form == null)
+            {
+                form = new KinectSettingsForm();
+            }
+            //
+            form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
+            form.Show();
+            oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
+            oServer.SetMainWindowForm(this);            
         }
     }
 }

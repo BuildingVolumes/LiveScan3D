@@ -40,6 +40,7 @@ namespace KinectServer
 
         KinectSettings oSettings;
         SettingsForm fSettingsForm;
+        Dictionary<int, KinectSettingsForm> kinectSettingsForms;
         MainWindowForm fMainWindowForm;
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
@@ -138,13 +139,28 @@ namespace KinectServer
         public KinectServer(KinectSettings settings)
         {
             this.oSettings = settings;
+            kinectSettingsForms = new Dictionary<int, KinectSettingsForm>();
         }
 
         public void SetSettingsForm(SettingsForm settings)
         {
             fSettingsForm = settings;
         }
-
+        public void SetKinectSettingsForm(int id, KinectSettingsForm form)
+        {
+            if(kinectSettingsForms.ContainsKey(id))
+            {
+                kinectSettingsForms[id] = form;
+            }
+            else
+            {
+                kinectSettingsForms.Add(id, form);
+            }
+        }
+        public KinectSocket GetKinectSocketByIndex(int socketIndex)
+        {
+            return lClientSockets[socketIndex];
+        }
         public void SetMainWindowForm(MainWindowForm main)
         {
             fMainWindowForm = main;
@@ -155,6 +171,18 @@ namespace KinectServer
             return fSettingsForm;
         }
 
+        public KinectSettingsForm GetKinectSettingsForm(int id)
+        {
+            if(kinectSettingsForms.TryGetValue(id, out var value))
+            {
+                return value;
+            }
+            else
+            {
+                //Uh Oh. Have we removed or added a camera in an odd way?
+                return null;
+            }
+        }
         private void SocketListChanged()
         {
             if (eSocketListChanged != null)
@@ -646,7 +674,10 @@ namespace KinectServer
                             {
                                 lClientSockets[i].RecieveDeviceSyncState();
                             }
-
+                            else if(buffer[0] == 7)
+                            {
+                                lClientSockets[i].RecieveConfiguration();
+                            }
                             buffer = lClientSockets[i].Receive(1);
                         }
                     }

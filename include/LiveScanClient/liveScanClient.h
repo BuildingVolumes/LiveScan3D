@@ -64,8 +64,7 @@ private:
 	int m_iCompressionLevel;
 	bool m_bAutoExposureEnabled;
 	int m_nExposureStep;
-	k4a_depth_mode_t m_depthMode;
-	int m_nSyncOffset;
+	KinectConfiguration configuration;
 
 	enum tempSyncConfig { MASTER, SUBORDINATE, STANDALONE };
 	tempSyncConfig currentTempSyncState;
@@ -104,7 +103,7 @@ private:
 
 	void HandleSocket();
 	void Reinitialize();
-	void Reinitialize(int jackState);
+	void Reinitialize(LiveScanClient::tempSyncConfig syncState, int syncOffset, k4a_depth_mode_t depthMode);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
 
 	void SocketThreadFunction();

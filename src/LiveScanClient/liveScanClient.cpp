@@ -20,6 +20,7 @@
 #include <strsafe.h>
 #include <fstream>
 #include "zstd.h"
+#include <KinectConfiguration.h>
 
 std::mutex m_mSocketThreadMutex;
 
@@ -66,9 +67,7 @@ LiveScanClient::LiveScanClient() :
 	m_fFilterThreshold(0.01f),
 	m_bRestartingCamera(false),
 	m_bAutoExposureEnabled(true), // Which state the Auto Exposure should be set to
-	m_nExposureStep(-5),
-	m_depthMode(K4A_DEPTH_MODE_NFOV_UNBINNED),//Depth mode.
-	m_nSyncOffset(0)
+	m_nExposureStep(-5)
 {
 	pCapture = new AzureKinectCapture();
 
@@ -283,7 +282,10 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
             D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
 
             // Get and initialize the default Kinect sensor as standalone
-			bool res = pCapture->Initialize(Standalone, 0, m_depthMode);
+			configuration = *new KinectConfiguration();
+			configuration.state = Standalone;
+			configuration.sync_offset = 0;
+			bool res = pCapture->Initialize(configuration);
 			if (res)
 			{
 				calibration.LoadCalibration(pCapture->serialNumber);
@@ -461,20 +463,63 @@ void LiveScanClient::HandleSocket()
 		else if (received[i] == MSG_SET_TEMPSYNC_ON) {
 
 			i++; //Get next byte (the sync Offset)
-			m_nSyncOffset = received[i];
-			
-			Reinitialize();
+			configuration.sync_offset = received[i];
 
-			m_bConfirmTempSyncState = true;
+			//Determine if this device is a subordinate, master, or standalone
+			int jackState = pCapture->GetSyncJackState();
+
+			bool res = false;
+
+			switch (jackState)
+			{
+			case -1:
+				configuration.state = Subordinate;
+
+				//Restart this device as Subordinate, with a unique syncOffset (send by the server)
+				m_bRestartingCamera = true;
+
+				Reinitialize();
+				//Confirm to the server, that we set this device as subordinate
+				m_bConfirmTempSyncState = true;
+				break;
+
+			case 0:
+				configuration.state = Master;
+
+				//Only Close this device, as it needs to wait for all subordinates to start, before starting itself
+				m_bRestartingCamera = true;
+
+				res = pCapture->Close();
+				if (!res) {
+					SetStatusMessage(L"Master device failed to close! Restart Application!", 10000, true);
+					return;
+				}
+
+				m_bConfirmTempSyncState = true;
+				break;
+
+			case 1://Device is Standalone
+				configuration.state = Standalone;
+
+				Reinitialize();
+
+				m_bConfirmTempSyncState = true;
+				m_bRestartingCamera = false;
+				break;
+			default:
+				break;
+			}
+
 		}
 
 		//Sets this device as Standalone
 		else if (received[i] == MSG_SET_TEMPSYNC_OFF) {
-			m_nSyncOffset = 0;
-			
-			Reinitialize(1);
+			configuration.sync_offset = 0;
+			configuration.state = Standalone;
+			Reinitialize();
 			
 			m_bConfirmTempSyncState = true;
+			m_bRestartingCamera = false;
 		}
 
 		else if (received[i] == MSG_SET_DEPTHMODE) {
@@ -487,17 +532,33 @@ void LiveScanClient::HandleSocket()
 			k4a_depth_mode_t newDepthMode = static_cast<k4a_depth_mode_t>(depthMode);
 
 			//Check if we actually changed anything before restarting.
-			if (newDepthMode != m_depthMode) {
-				m_depthMode = newDepthMode;
+			if (newDepthMode != configuration.config.depth_mode) {
+				configuration.config.depth_mode = newDepthMode;
 				Reinitialize();
 			}
+		}
+		else if (received[i] == MSG_SET_CONFIGURATION)
+		{
+			i++;
+			std:string message;
+			//TODO: this can be done with substrings, im sure.
+			for (int x = 0; x < KinectConfiguration::byteLength; x++)
+			{
+				message.push_back(received[i+x]);
+			}
+
+			i += KinectConfiguration::byteLength;
+			configuration.SetFromBytes(message);
+			Reinitialize();
 		}
 
 		//Got confirmation from the server that all subs have started, and we can now start the master 
 		else if (received[i] == MSG_START_MASTER) {
 			if (currentTempSyncState == MASTER) 
 			{
-				bool res = pCapture->Initialize(Master, 0, m_depthMode);
+				configuration.state = Master;
+				configuration.sync_offset = 0;
+				bool res = pCapture->Initialize(configuration);
 				if (!res) {
 					SetStatusMessage(L"Master device failed to initialize! Restart Application!", 10000, true);
 					return;
@@ -581,6 +642,13 @@ void LiveScanClient::HandleSocket()
 			//so that we do not lose the next character in the stream
 			i--;
 		}
+		//send configuration
+		else if (received[i] == MSG_REQUEST_CONFIGURATION)
+		{
+			byteToSend = MSG_CONFIGURATION;
+			m_pClientSocket->SendBytes(&byteToSend, 1);
+			m_pClientSocket->SendBytes(configuration.ToBytes(), KinectConfiguration::byteLength);
+		}
 		//send stored frame
 		else if (received[i] == MSG_REQUEST_STORED_FRAME)
 		{
@@ -658,7 +726,7 @@ void LiveScanClient::HandleSocket()
 		char* buffer = new char[size];
 		buffer[0] = MSG_CONFIRM_TEMP_SYNC_STATUS;
 
-		switch (currentTempSyncState)
+		switch (currentTempSyncState)//TODO: extract to helper method.
 		{
 		case SUBORDINATE: buffer[1] = 0; break;
 		case MASTER: buffer[1] = 1; break;
@@ -701,89 +769,24 @@ void LiveScanClient::HandleSocket()
 	}
 }
 
-//Overload to make refator simpler elsewhere.
+/// <summary>
+/// Reinitialize. Must be called after changing depthMode or afer changing temporal sync mode.
+/// </summary>
 void LiveScanClient::Reinitialize()
 {
-	Reinitialize(pCapture->GetSyncJackState());
-}
-
-/// <summary>
-/// Reinitialize with current settings. Settings to care about are m_nSyncOffset and m_depthMode.
-/// </summary>
-void LiveScanClient::Reinitialize(int jackState)
-{
-	//Restart this device as Subordinate, with a unique syncOffset (send by the server)
-
-	//See temporal sync code. Basically, it does all of the restarting in the appropriate way, with various settings.
-	//Determine if this device is a subordinate, master, or standalone
-
 	//override for when turning off temporal sync, as the jackState is set to something else and needs to be reset to this.
 
 	bool res = false;
+	res = pCapture->Close();
+	if (!res) {
+		SetStatusMessage(L"device failed to close! Restart Application!", 10000, true);
+		return;
+	}
 
-	//TODO: this can probably be refactored to call the close/initialize function only once, now that syncOffset is stored in a variable.
-	switch (jackState)
-	{
-	case -1:
-		currentTempSyncState = SUBORDINATE;
-
-		//Restart this device as Subordinate, with a unique syncOffset (send by the server)
-		m_bRestartingCamera = true;
-
-		res = pCapture->Close();
-		if (!res) {
-			SetStatusMessage(L"Subordinate device failed to close! Restart Application!", 10000, true);
-			return;
-		}
-
-		res = pCapture->Initialize(Subordinate, m_nSyncOffset, m_depthMode);
-		if (!res) {
-			SetStatusMessage(L"Subordinate device failed to reinitialize! Restart Application!", 10000, true);
-			return;
-		}
-		//Confirm to the server, that we set this device as subordinate
-		m_bConfirmTempSyncState = true;
-		m_bRestartingCamera = false;
-		break;
-
-	case 0:
-		currentTempSyncState = MASTER;
-
-		//Only Close this device, as it needs to wait for all subordinates to start, before starting itself
-		m_bRestartingCamera = true;
-
-		res = pCapture->Close();
-		if (!res) {
-			SetStatusMessage(L"Master device failed to close! Restart Application!", 10000, true);
-			return;
-		}
-
-		m_bConfirmTempSyncState = true;
-		break;
-
-	case 1://Device is Standalone
-		currentTempSyncState = STANDALONE;
-		m_nSyncOffset = 0;
-		//Restart this device as Standalone
-		m_bRestartingCamera = true;
-
-		res = pCapture->Close();
-		if (!res) {
-			SetStatusMessage(L"Capture device failed to close! Restart Application!", 10000, true);
-			return;
-		}
-
-		res = pCapture->Initialize(Standalone, m_nSyncOffset, m_depthMode);
-
-		if (!res) {
-			SetStatusMessage(L"Capture device failed to reinitialize! Restart Application!", 10000, true);
-			return;
-		}
-
-		m_bRestartingCamera = false;
-		break;
-	default:
-		break;
+	res = pCapture->Initialize(configuration);
+	if (!res) {
+		SetStatusMessage(L"device failed to reinitialize! Restart Application!", 10000, true);
+		return;
 	}
 }
 

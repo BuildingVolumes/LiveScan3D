@@ -36,9 +36,14 @@ namespace KinectServer
         public bool bLatestFrameReceived = false;
         public bool bStoredFrameReceived = false;
         public bool bNoMoreStoredFrames = true;
+        public bool bConfigurationReceived = false;
+
+
         public bool bCalibrated = false;
         public bool bSubStarted = false;
         public bool bMasterStarted = false;
+
+        public KinectConfiguration configuration;
 
         public enum eTempSyncConfig { MASTER, SUBORDINATE, STANDALONE, UNKNOWN }
 
@@ -66,6 +71,46 @@ namespace KinectServer
         public event RecievedSyncJackState eSyncJackstate;
         public event StandAloneInitialized eStandAloneInitialized;
 
+        public Action<KinectConfiguration> configurationUpdated;
+        public struct KinectConfiguration
+        {
+            //these can just be bytes.
+            public int SyncState;
+            public int SyncOffset;
+            public int DepthMode;
+            //Matches KinectConfiguration.cpp
+            public KinectConfiguration(byte[] bytes)
+            {
+                DepthMode = (int)bytes[0];
+                SyncState = (int)bytes[1];
+                SyncOffset = (int)bytes[2];
+            }
+
+            public bool RequiresRestart(KinectConfiguration previousConfig)
+            {
+                if(previousConfig.SyncState != SyncState || previousConfig.DepthMode != DepthMode)
+                {
+                    return true;
+                }
+                //Do we need to restart when we change the offset?
+                if(previousConfig.SyncOffset != SyncOffset)
+                {
+                    return true;
+                }
+                return false;
+            }
+
+            public byte[] ToBytes()
+            {
+                byte[] data = new byte[3];
+
+                data[0] = (byte)DepthMode;
+                data[1] = (byte)SyncState;
+                data[2] = (byte)SyncOffset;
+
+                return data;
+            }
+        }
         public KinectSocket(Socket clientSocket)
         {
             oSocket = clientSocket;
@@ -112,6 +157,13 @@ namespace KinectServer
             bStoredFrameReceived = false;
         }
 
+        public void RequestConfiguration()
+        {
+            byteToSend[0] = 14;
+            SendByte();
+            bConfigurationReceived = false;
+        }
+
         public void RequestLastFrame()
         {
             byteToSend[0] = 4;
@@ -119,6 +171,28 @@ namespace KinectServer
             bLatestFrameReceived = false;
         }
 
+
+        public void SendConfiguration(KinectConfiguration newConfig)
+        {
+
+            byte[] data = newConfig.ToBytes();
+            List<byte> message = new List<byte>() { (byte)13 };
+            message.InsertRange(1, data);
+
+            if(SocketConnected())
+            {
+                oSocket.Send(message.ToArray());
+            }
+            //This assumes that we have received configuration recently... is that true? We should do a receive during initiation
+
+            //Check if what we just sent requires a restart compared to previous known configuration.
+            if (newConfig.RequiresRestart(configuration))
+            {
+                Reinitialize();
+            }
+
+            configuration = newConfig;
+        }
         public void SendCalibrationData()
         {
             int size = 1 + (9 + 3) * sizeof(float);
@@ -167,6 +241,36 @@ namespace KinectServer
                 byteToSend[0] = 8;
                 SendByte();
             }
+        }
+
+        /// <summary>
+        /// Send the device its appropriate depth mode.
+        /// </summary>
+        /// <param name="depthMode">
+        /// 1 is K4A_DEPTH_MODE_NFOV_2X2BINNED,
+        /// 2 is K4A_DEPTH_MODE_NFOV_UNBINNED,
+        /// 3 is K4A_DEPTH_MODE_WFOV_2X2BINNED,
+        /// 4 is K4A_DEPTH_MODE_WFOV_UNBINNED.
+        /// 
+        /// 0 (off), and 5 (passive_IR) are not currently supported by the client.
+        /// </param>
+        public void SendDepthMode(int depthMode)
+        {
+            byte[] data = new byte[2];
+            data[0] = 12;//see liveScanClient utils.h
+            data[1] = (byte)depthMode;
+            if (SocketConnected())
+                oSocket.Send(data);
+        }
+
+        /// <summary>
+        /// Send a signal to Reinitialize the device with its current settings.
+        /// We do NOT need to manually re-do this after changing the depthMode or temporal sync, as sending that command will automatically call the reinit function
+        /// </summary>
+        public void Reinitialize()
+        {
+            byteToSend[0] = 11;//see liveScanClient utils.h
+            SendByte();
         }
 
         /// <summary>
@@ -288,11 +392,21 @@ namespace KinectServer
             UpdateSocketState();
 
         }
-
         public void RecieveMasterHasRestarted()
         {
             bMasterStarted = true;
             eMasterRestart?.Invoke();
+        }
+
+        public void RecieveConfiguration()
+        {
+            byte[] buffer = Receive(3);
+            var oldConfiguration = configuration;
+            configuration = new KinectConfiguration(buffer);
+
+            bConfigurationReceived = true;
+            //
+            configurationUpdated?.Invoke(configuration);
         }
 
         public void ReceiveFrame()
@@ -312,9 +426,6 @@ namespace KinectServer
 
             oSocket.Receive(buffer, 8, SocketFlags.None);
             nToRead = BitConverter.ToInt32(buffer, 0);
-
-
-
             int iCompressed = BitConverter.ToInt32(buffer, 4);
 
             if (nToRead == -1)
@@ -469,5 +580,11 @@ namespace KinectServer
 
             eChanged?.Invoke();
         }
+
+        public string GetEndpoint()
+        {
+            return oSocket.RemoteEndPoint.ToString();
+        }
+
     }
 }

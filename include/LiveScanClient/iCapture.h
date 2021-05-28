@@ -16,6 +16,7 @@
 
 #include "utils.h"
 #include <k4a/k4atypes.h>
+#include <KinectConfiguration.h>
 
 struct Joint
 {
@@ -41,7 +42,7 @@ public:
 	ICapture();
 	~ICapture();
 
-	virtual bool Initialize(SYNC_STATE state, int syncOffset, k4a_depth_mode_t depthMode) = 0;
+	virtual bool Initialize(KinectConfiguration configuration) = 0;
 	virtual bool AcquireFrame() = 0;
 	virtual bool Close() = 0;
 	virtual void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints) = 0;
@@ -63,8 +64,5 @@ public:
 	BYTE *pBodyIndex;
 	RGB *pColorRGBX;
 	std::vector<Body> vBodies;
-
-
-
 	std::string serialNumber;
 };

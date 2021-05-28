@@ -14,7 +14,7 @@ public:
 	AzureKinectCapture();
 	~AzureKinectCapture();
 
-	bool Initialize(SYNC_STATE state, int syncOffset, k4a_depth_mode_t depthMode);
+	bool Initialize(KinectConfiguration configuration);
 	bool AcquireFrame();
 	bool Close();
 	void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints);
@@ -42,6 +42,8 @@ private:
 	int colorImageDownscaledWidth;
 	int colorImageDownscaledHeight;
   
+	KinectConfiguration configuration;
+
 	bool syncInConnected = false;
 	bool syncOutConnected = false;
 	uint64_t currentTimeStamp = 0;

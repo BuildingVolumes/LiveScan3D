@@ -31,6 +31,7 @@
     <ClInclude Include="..\include\LiveScanClient\utils.h" />
     <ClInclude Include="..\include\nanoflann.h" />
     <ClInclude Include="..\include\socketCS.h" />
+    <ClInclude Include="KinectConfiguration.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
@@ -46,6 +47,7 @@
     <ClCompile Include="..\src\LiveScanClient\marker.cpp" />
     <ClCompile Include="..\src\LiveScanClient\utils.cpp" />
     <ClCompile Include="..\src\socketCS.cpp" />
+    <ClCompile Include="KinectConfiguration.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LiveScanClient.rc" />

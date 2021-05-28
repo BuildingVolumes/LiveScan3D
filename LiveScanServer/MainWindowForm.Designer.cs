@@ -44,6 +44,7 @@
             this.btSettings = new System.Windows.Forms.Button();
             this.refineWorker = new System.ComponentModel.BackgroundWorker();
             this.lbSeqName = new System.Windows.Forms.Label();
+            this.btKinectSettingsOpenButton = new System.Windows.Forms.Button();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -176,11 +177,22 @@
             this.lbSeqName.TabIndex = 14;
             this.lbSeqName.Text = "Sequence name:";
             // 
+            // btKinectSettingsOpenButton
+            // 
+            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(244, 126);
+            this.btKinectSettingsOpenButton.Name = "btKinectSettingsOpenButton";
+            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(88, 23);
+            this.btKinectSettingsOpenButton.TabIndex = 15;
+            this.btKinectSettingsOpenButton.Text = "Kinect Settings";
+            this.btKinectSettingsOpenButton.UseVisualStyleBackColor = true;
+            this.btKinectSettingsOpenButton.Click += new System.EventHandler(this.btKinectSettingsOpenButton_Click);
+            // 
             // MainWindowForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(344, 209);
+            this.Controls.Add(this.btKinectSettingsOpenButton);
             this.Controls.Add(this.lbSeqName);
             this.Controls.Add(this.btSettings);
             this.Controls.Add(this.btShowLive);
@@ -221,6 +233,7 @@
         private System.ComponentModel.BackgroundWorker refineWorker;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.Label lbSeqName;
+        private System.Windows.Forms.Button btKinectSettingsOpenButton;
     }
 }
 

@@ -57,6 +57,9 @@
     <ClInclude Include="..\include\LiveScanClient\azureKinectCapture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="KinectConfiguration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\socketCS.cpp">
@@ -90,6 +93,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\LiveScanClient\azureKinectCapture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="KinectConfiguration.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

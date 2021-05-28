@@ -30,8 +30,10 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <param name="syncOffsetMultiplier">Should only be set when initializing as Subordinate. Each subordinate should have a unique, ascending value</param>
 /// <param name="depthMode">The depth mode we should be calling. Default should be K4A_DEPTH_MODE_NFOV_UNBINNED.</param>
 /// <returns></returns>
-bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier, k4a_depth_mode_t depthMode)
+bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 {
+	this->configuration = configuration;
+
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
 
@@ -77,36 +79,29 @@ bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier, 
 		
 	}
 
-	k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-	config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-	config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-	config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-	config.depth_mode = depthMode;
-	config.synchronized_images_only = true;
-
-	if (state == Master) 
+	if (configuration.state == Master) 
 	{
-		config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
+		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
 	}
 
-	else if (state == Subordinate) 
+	else if (configuration.state == Subordinate)
 	{
-		config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
+		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
 		//Sets the offset on subordinate devices. Should be a multiple of 160, each subordinate having a different multiplier in ascending order.
 		//This is very important, as it avoids firing the Kinects lasers at the same time.		
-		config.subordinate_delay_off_master_usec = 160 * syncOffsetMultiplier;
+		configuration.config.subordinate_delay_off_master_usec = 160 * configuration.sync_offset;//
 	}
 
 	else
 	{
-		config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
+		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
 	}
 
 	// Start the camera with the given configuration
-	bInitialized = K4A_SUCCEEDED(k4a_device_start_cameras(kinectSensor, &config));
+	bInitialized = K4A_SUCCEEDED(k4a_device_start_cameras(kinectSensor, &configuration.config));
 
 	k4a_calibration_t calibration;
-	if (K4A_FAILED(k4a_device_get_calibration(kinectSensor, config.depth_mode, config.color_resolution, &calibration)))
+	if (K4A_FAILED(k4a_device_get_calibration(kinectSensor, configuration.config.depth_mode, configuration.config.color_resolution, &calibration)))
 	{
 		bInitialized = false;
 		return bInitialized;
@@ -129,30 +124,6 @@ bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier, 
 	transformation = k4a_transformation_create(&calibration);
 
 
-	//No way to get the depth pixel values from the SDK at the moment, so this is hardcoded
-	int depth_camera_width;
-	int depth_camera_height;
-
-	switch (config.depth_mode)
-	{
-	case K4A_DEPTH_MODE_NFOV_UNBINNED:	
-		depth_camera_width = 640;
-		depth_camera_height = 576;
-		break;
-	case K4A_DEPTH_MODE_NFOV_2X2BINNED:
-		depth_camera_width = 320;
-		depth_camera_height = 288;
-		break;
-	case K4A_DEPTH_MODE_WFOV_UNBINNED:
-		depth_camera_width = 1024;
-		depth_camera_height = 1024;
-	case K4A_DEPTH_MODE_WFOV_2X2BINNED:
-		depth_camera_width = 512;
-		depth_camera_height = 512;
-		break;
-	default:
-		break;
-	}
 	
 	//It's crucial for this program to output accurately mapped Pointclouds. The highest accuracy mapping is achieved
 	//by using the k4a_transformation_depth_image_to_color_camera function. However this converts a small depth image 
@@ -160,8 +131,8 @@ bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier, 
 	//We can however scale the color image to the depth images size beforehand, to reduce proccesing power. 
 
 	//We calculate the minimum size that the color Image can be, while preserving its aspect ration
-	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)depth_camera_height;
-	colorImageDownscaledHeight = depth_camera_height;
+	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetCameraHeight();
+	colorImageDownscaledHeight = configuration.GetCameraHeight();
 	colorImageDownscaledWidth = calibration.color_camera_calibration.resolution_width / rescaleRatio;
 
 	//We don't only need the size in pixels of the downscaled color image, but also a new k4a_calibration_t which fits the new 
@@ -177,7 +148,7 @@ bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier, 
 	transformationColorDownscaled = k4a_transformation_create(&calibrationColorDownscaled);
   
 //If this device is a subordinate, it is expected to start capturing at a later time (When the master has started), so we skip this check  
-if (state != Subordinate) 
+if (configuration.state != Subordinate) 
 {
 		std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
 		bool bTemp;
