@@ -17,6 +17,7 @@
 #include "utils.h"
 #include <k4a/k4atypes.h>
 #include <KinectConfiguration.h>
+#include "k4a/k4a.h"
 
 struct Joint
 {
@@ -43,7 +44,8 @@ public:
 	~ICapture();
 
 	virtual bool Initialize(KinectConfiguration configuration) = 0;
-	virtual bool AcquireFrame() = 0;
+	virtual bool AquireRawFrame() = 0;
+	virtual bool AquirePointcloudFrame() = 0;
 	virtual bool Close() = 0;
 	virtual void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints) = 0;
 	virtual void MapColorFrameToCameraSpace(Point3f *pCameraSpacePoints) = 0;
@@ -59,6 +61,9 @@ public:
 
 	int nColorFrameHeight, nColorFrameWidth;
 	int nDepthFrameHeight, nDepthFrameWidth;
+
+	k4a_image_t colorImage;
+	k4a_image_t depthImage;
 
 	UINT16 *pDepth;
 	BYTE *pBodyIndex;

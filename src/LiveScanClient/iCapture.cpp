@@ -26,6 +26,9 @@ ICapture::ICapture()
 	pDepth = NULL;
 	pColorRGBX = NULL;
 	pBodyIndex = NULL;
+
+	colorImage = NULL;
+	depthImage = NULL;
 }
 
 ICapture::~ICapture()
@@ -46,5 +49,17 @@ ICapture::~ICapture()
 	{
 		delete[] pBodyIndex;
 		pBodyIndex = NULL;
+	}
+
+	if (colorImage != NULL) 
+	{
+		delete[] colorImage;
+		colorImage = NULL;
+	}
+
+	if (depthImage != NULL)
+	{
+		delete[] depthImage;
+		depthImage = NULL;
 	}
 }

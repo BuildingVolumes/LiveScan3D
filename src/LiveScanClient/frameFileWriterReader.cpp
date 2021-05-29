@@ -1,6 +1,7 @@
 #include "frameFileWriterReader.h"
-
 #include <ctime>
+#include <fstream>
+#include <assert.h>
 
 FrameFileWriterReader::FrameFileWriterReader()
 {
@@ -103,6 +104,33 @@ void FrameFileWriterReader::writeFrame(std::vector<Point3s> points, std::vector<
 		fwrite((void*)colors.data(), sizeof(colors[0]), nPoints, f);
 	}
 	fprintf(f, "\n");
+}
+
+
+//Creates the general folder in which all recordings will be saved into
+
+bool FrameFileWriterReader::CreateRecordDirectory()
+{
+	if (0 == CreateDirectory(m_sFrameRecordingsDir, NULL) && ERROR_PATH_NOT_FOUND == GetLastError())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+long FrameFileWriterReader::WriteToFile(const char* fileName, void* buffer, size_t bufferSize)
+{
+	assert(buffer != NULL);
+
+	std::ofstream hFile;
+	hFile.open(fileName, std::ios::out | std::ios::trunc | std::ios::binary);
+	if (hFile.is_open())
+	{
+		hFile.write((char*)buffer, static_cast<std::streamsize>(bufferSize));
+		hFile.close();
+	}
+	return 0;
 }
 
 FrameFileWriterReader::~FrameFileWriterReader()

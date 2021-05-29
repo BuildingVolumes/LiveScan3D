@@ -45,6 +45,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 		deviceIdx = deviceIDForRestart;
 	}
 
+	exportPointclouds = enablePointcloudExport;
+
 	kinectSensor = NULL;
 	while (K4A_FAILED(k4a_device_open(deviceIdx, &kinectSensor)))
 	{
@@ -77,6 +79,16 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 			
 		}
 		
+	}
+
+	if (exportPointclouds)
+	{
+		configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32; //For the pointcloud and live preview, we need the raw colors
+	}
+
+	else
+	{
+		configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG; //If we just want to save the raw frames to disk, we can directly get them as jpg frames, which is more efficient
 	}
 
 	if (configuration.state == Master) 
@@ -154,7 +166,10 @@ if (configuration.state != Subordinate)
 		bool bTemp;
 		do
 		{
-			bTemp = AcquireFrame();
+			if (exportPointclouds)
+				bTemp = AquirePointcloudFrame();
+			else
+				bTemp = AquireRawFrame();
 
 			std::chrono::duration<double> elapsedSeconds = std::chrono::system_clock::now() - start;
 			if (elapsedSeconds.count() > 5.0)
@@ -192,7 +207,43 @@ bool AzureKinectCapture::Close()
 	return true;
 }
 
-bool AzureKinectCapture::AcquireFrame()
+bool AzureKinectCapture::AquireRawFrame() {
+
+	if (!bInitialized)
+	{
+		return false;
+	}
+
+	k4a_capture_t capture = NULL;
+
+	k4a_wait_result_t captureResult = k4a_device_get_capture(kinectSensor, &capture, captureTimeoutMs);
+	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
+	{
+		k4a_capture_release(capture);
+		return false;
+	}
+
+	k4a_image_release(colorImage);
+	k4a_image_release(depthImage);
+
+	colorImage = k4a_capture_get_color_image(capture);
+	depthImage = k4a_capture_get_depth_image(capture);
+
+	currentTimeStamp = k4a_image_get_device_timestamp_usec(colorImage);
+
+	if (colorImage == NULL || depthImage == NULL)
+	{
+		k4a_capture_release(capture);
+		return false;
+	}
+
+	k4a_capture_release(capture);
+
+	return true;
+
+}
+
+bool AzureKinectCapture::AquirePointcloudFrame()
 {
 	if (!bInitialized)
 	{
@@ -250,7 +301,7 @@ bool AzureKinectCapture::AcquireFrame()
 		pDepth = new UINT16[nDepthFrameHeight * nDepthFrameWidth];
 	}
 
-	
+
 
 	memcpy(pColorRGBX, k4a_image_get_buffer(colorImageDownscaled), nColorFrameWidth * nColorFrameHeight * sizeof(RGB));
 	memcpy(pDepth, k4a_image_get_buffer(depthImage), nDepthFrameHeight * nDepthFrameWidth * sizeof(UINT16));
@@ -420,6 +471,7 @@ int AzureKinectCapture::GetSyncJackState()
 	}
 }
 
+
 uint64_t AzureKinectCapture::GetTimeStamp() 
 {
 	return currentTimeStamp;
@@ -429,3 +481,4 @@ int AzureKinectCapture::GetDeviceIndex()
 {
 	return deviceIDForRestart;
 }
+

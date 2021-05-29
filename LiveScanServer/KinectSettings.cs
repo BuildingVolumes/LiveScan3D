@@ -45,8 +45,13 @@ namespace KinectServer
         public bool bSyncEnabled = false;
 
         public bool bAutoExposureEnabled = true;
-
         public int nExposureStep = -8;
+
+        public enum ExportMode { Pointcloud = 0, RawFrames = 1}
+        public ExportMode eExportMode = ExportMode.Pointcloud;
+
+        public enum ExtrinsicsStyle { None = 0, Open3D = 1, OpenMVS = 2}
+        public ExtrinsicsStyle eExtrinsicsFormat = ExtrinsicsStyle.None;
 
         public KinectSettings()
         {
@@ -113,6 +118,13 @@ namespace KinectServer
 
             bTemp = BitConverter.GetBytes(nExposureStep);
             lData.AddRange(bTemp);
+
+            bTemp = BitConverter.GetBytes((int)eExportMode);
+            lData.AddRange(bTemp);
+
+            bTemp = BitConverter.GetBytes((int)eExtrinsicsFormat);
+            lData.AddRange(bTemp);
+
 
             return lData;
         }

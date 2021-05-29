@@ -68,8 +68,21 @@ namespace KinectServer
             btSyncDisable.Enabled = false;
 
             chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
-
             trManualExposure.Value = oSettings.nExposureStep;
+
+            cbExtrinsicsFormat.SelectedIndex = (int)oSettings.eExtrinsicsFormat;
+
+            if(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                rExportPointcloud.Checked = true;
+                rExportRawFrames.Checked = false;
+            }
+
+            if(oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
+            {
+                rExportPointcloud.Checked = false;
+                rExportRawFrames.Checked = true;
+            }
 
             if (oSettings.bSaveAsBinaryPLY)
             {
@@ -454,5 +467,23 @@ namespace KinectServer
         {
             oServer.SetSettingsForm(null);
         }
+
+        private void cbExtrinsicsFormat_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            oSettings.eExtrinsicsFormat = (KinectSettings.ExtrinsicsStyle)cbExtrinsicsFormat.SelectedIndex;
+            UpdateClients();
+        }
+
+        private void rExportPointcloud_CheckedChanged(object sender, EventArgs e)
+        {
+            if (rExportPointcloud.Checked)
+                oSettings.eExportMode = KinectSettings.ExportMode.Pointcloud;
+
+            else
+                oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
+
+            UpdateClients();
+        }
+
     }
 }

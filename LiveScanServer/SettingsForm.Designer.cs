@@ -80,6 +80,9 @@
             this.lbFilterNeighbors = new System.Windows.Forms.Label();
             this.lbFilterDistance = new System.Windows.Forms.Label();
             this.txtFilterDistance = new System.Windows.Forms.TextBox();
+            this.exportGroup = new System.Windows.Forms.GroupBox();
+            this.lExtrinsics = new System.Windows.Forms.Label();
+            this.cbExtrinsicsFormat = new System.Windows.Forms.ComboBox();
             this.grServer = new System.Windows.Forms.GroupBox();
             this.cbCompressionLevel = new System.Windows.Forms.ComboBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -88,6 +91,8 @@
             this.rAsciiPly = new System.Windows.Forms.RadioButton();
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
+            this.rExportPointcloud = new System.Windows.Forms.RadioButton();
+            this.rExportRawFrames = new System.Windows.Forms.RadioButton();
             this.grClient.SuspendLayout();
             this.grExposure.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
@@ -96,6 +101,7 @@
             this.grMarkers.SuspendLayout();
             this.grBounding.SuspendLayout();
             this.grFiltering.SuspendLayout();
+            this.exportGroup.SuspendLayout();
             this.grServer.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -623,6 +629,43 @@
             this.txtFilterDistance.TabIndex = 22;
             this.txtFilterDistance.TextChanged += new System.EventHandler(this.txtFilterDistance_TextChanged);
             // 
+            // exportGroup
+            // 
+            this.exportGroup.Controls.Add(this.rExportRawFrames);
+            this.exportGroup.Controls.Add(this.rExportPointcloud);
+            this.exportGroup.Controls.Add(this.lExtrinsics);
+            this.exportGroup.Controls.Add(this.cbExtrinsicsFormat);
+            this.exportGroup.Location = new System.Drawing.Point(341, 400);
+            this.exportGroup.Name = "exportGroup";
+            this.exportGroup.Size = new System.Drawing.Size(210, 142);
+            this.exportGroup.TabIndex = 50;
+            this.exportGroup.TabStop = false;
+            this.exportGroup.Text = "Export";
+            // 
+            // lExtrinsics
+            // 
+            this.lExtrinsics.AutoSize = true;
+            this.lExtrinsics.Location = new System.Drawing.Point(20, 90);
+            this.lExtrinsics.Name = "lExtrinsics";
+            this.lExtrinsics.Size = new System.Drawing.Size(51, 13);
+            this.lExtrinsics.TabIndex = 35;
+            this.lExtrinsics.Text = "Extrinsics";
+            // 
+            // cbExtrinsicsFormat
+            // 
+            this.cbExtrinsicsFormat.AllowDrop = true;
+            this.cbExtrinsicsFormat.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbExtrinsicsFormat.FormattingEnabled = true;
+            this.cbExtrinsicsFormat.Items.AddRange(new object[] {
+            "Don\'t Export",
+            "Open3D Style",
+            "Open MVS Style"});
+            this.cbExtrinsicsFormat.Location = new System.Drawing.Point(77, 87);
+            this.cbExtrinsicsFormat.Name = "cbExtrinsicsFormat";
+            this.cbExtrinsicsFormat.Size = new System.Drawing.Size(114, 21);
+            this.cbExtrinsicsFormat.TabIndex = 33;
+            this.cbExtrinsicsFormat.SelectedIndexChanged += new System.EventHandler(this.cbExtrinsicsFormat_SelectedIndexChanged);
+            // 
             // grServer
             // 
             this.grServer.Controls.Add(this.cbCompressionLevel);
@@ -638,7 +681,7 @@
             this.grServer.Controls.Add(this.lbICPIters);
             this.grServer.Location = new System.Drawing.Point(12, 426);
             this.grServer.Name = "grServer";
-            this.grServer.Size = new System.Drawing.Size(632, 114);
+            this.grServer.Size = new System.Drawing.Size(323, 114);
             this.grServer.TabIndex = 44;
             this.grServer.TabStop = false;
             this.grServer.Text = "KinectServer settings";
@@ -726,11 +769,35 @@
             this.lbOuterIters.TabIndex = 26;
             this.lbOuterIters.Text = "Num of refinement iters:";
             // 
+            // rExportPointcloud
+            // 
+            this.rExportPointcloud.AutoSize = true;
+            this.rExportPointcloud.Checked = true;
+            this.rExportPointcloud.Location = new System.Drawing.Point(6, 26);
+            this.rExportPointcloud.Name = "rExportPointcloud";
+            this.rExportPointcloud.Size = new System.Drawing.Size(75, 17);
+            this.rExportPointcloud.TabIndex = 36;
+            this.rExportPointcloud.TabStop = true;
+            this.rExportPointcloud.Text = "Pointcloud";
+            this.rExportPointcloud.UseVisualStyleBackColor = true;
+            this.rExportPointcloud.CheckedChanged += new System.EventHandler(this.rExportPointcloud_CheckedChanged);
+            // 
+            // rExportRawFrames
+            // 
+            this.rExportRawFrames.AutoSize = true;
+            this.rExportRawFrames.Location = new System.Drawing.Point(83, 26);
+            this.rExportRawFrames.Name = "rExportRawFrames";
+            this.rExportRawFrames.Size = new System.Drawing.Size(127, 17);
+            this.rExportRawFrames.TabIndex = 37;
+            this.rExportRawFrames.Text = "Color + Depth Frames";
+            this.rExportRawFrames.UseVisualStyleBackColor = true;
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(656, 554);
+            this.Controls.Add(this.exportGroup);
             this.Controls.Add(this.grServer);
             this.Controls.Add(this.grClient);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -752,6 +819,8 @@
             this.grBounding.PerformLayout();
             this.grFiltering.ResumeLayout(false);
             this.grFiltering.PerformLayout();
+            this.exportGroup.ResumeLayout(false);
+            this.exportGroup.PerformLayout();
             this.grServer.ResumeLayout(false);
             this.grServer.PerformLayout();
             this.ResumeLayout(false);
@@ -820,5 +889,10 @@
         private System.Windows.Forms.GroupBox grExposure;
         private System.Windows.Forms.Label lbManualExposure;
         private System.Windows.Forms.CheckBox chAutoExposureEnabled;
+        private System.Windows.Forms.GroupBox exportGroup;
+        private System.Windows.Forms.ComboBox cbExtrinsicsFormat;
+        private System.Windows.Forms.Label lExtrinsics;
+        private System.Windows.Forms.RadioButton rExportRawFrames;
+        private System.Windows.Forms.RadioButton rExportPointcloud;
     }
 }
