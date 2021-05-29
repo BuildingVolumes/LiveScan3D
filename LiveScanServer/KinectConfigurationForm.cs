@@ -24,7 +24,7 @@ namespace KinectServer
         {
             public string depthModeName;
             public string depthModeDetails;
-            public int value;//The value that gets sent across the network. It must align with the index of the enum documented in the kinect SDK here: https://microsoft.github.io/Azure-Kinect-Sensor-SDK/master/group___enumerations_ga3507ee60c1ffe1909096e2080dd2a05d.html
+            public byte value;//The value that gets sent across the network. It must align with the index of the enum documented in the kinect SDK here: https://microsoft.github.io/Azure-Kinect-Sensor-SDK/master/group___enumerations_ga3507ee60c1ffe1909096e2080dd2a05d.html
 
             public override string ToString()
             {
