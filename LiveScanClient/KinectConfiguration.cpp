@@ -2,6 +2,7 @@
 #include <k4a/k4atypes.h>
 #include <utils.h>
 
+
 	std::string serialNumber;
 	k4a_device_configuration_t config;
 	SYNC_STATE state;
