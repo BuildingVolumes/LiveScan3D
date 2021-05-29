@@ -27,8 +27,8 @@ ICapture::ICapture()
 	pColorRGBX = NULL;
 	pBodyIndex = NULL;
 
-	colorImage = NULL;
-	depthImage = NULL;
+	colorImage = 0;
+	depthImage = 0;
 }
 
 ICapture::~ICapture()
@@ -51,15 +51,6 @@ ICapture::~ICapture()
 		pBodyIndex = NULL;
 	}
 
-	if (colorImage != NULL) 
-	{
-		delete[] colorImage;
-		colorImage = NULL;
-	}
-
-	if (depthImage != NULL)
-	{
-		delete[] depthImage;
-		depthImage = NULL;
-	}
+	k4a_image_release(colorImage);
+	k4a_image_release(depthImage);
 }
