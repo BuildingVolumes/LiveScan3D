@@ -20,17 +20,7 @@ namespace KinectServer
         private KinectConfiguration displayedConfiguration;
         private DepthModeConfiguration SelectedDepthMode => (DepthModeConfiguration)lDepthModeListBox.SelectedItem;
 
-        private struct DepthModeConfiguration
-        {
-            public string depthModeName;
-            public string depthModeDetails;
-            public byte value;//The value that gets sent across the network. It must align with the index of the enum documented in the kinect SDK here: https://microsoft.github.io/Azure-Kinect-Sensor-SDK/master/group___enumerations_ga3507ee60c1ffe1909096e2080dd2a05d.html
-
-            public override string ToString()
-            {
-                return depthModeName;
-            }
-        }
+       
         public KinectConfigurationForm()
         {
             InitializeComponent();
@@ -68,30 +58,11 @@ namespace KinectServer
         private void CreateDepthModesList()
         {
             lDepthModeListBox.Items.Clear();
-            lDepthModeListBox.Items.Add(new DepthModeConfiguration()
+            //Add the items pre-defined in ServerUtils
+            foreach(var dmc in DepthModeConfiguration.DefaultDepthModes)
             {
-                depthModeName = "1024 WFOV Unbinned",
-                depthModeDetails = "Depth captured at 1024x1024. Passive IR is also captured at 1024x1024.",
-                value = 4
-            });
-            lDepthModeListBox.Items.Add(new DepthModeConfiguration()
-            {
-                depthModeName = "512 WFOV 2x2 Binned",
-                depthModeDetails = "Depth captured at 512x512. Passive IR is also captured at 512x512.",
-                value = 3
-            });
-            lDepthModeListBox.Items.Add(new DepthModeConfiguration()
-            {
-                depthModeName = "640 NFOV Unbinned",
-                depthModeDetails = "Depth captured at 640x576. Passive IR is also captured at 640x576.",
-                value = 2
-            });
-            lDepthModeListBox.Items.Add(new DepthModeConfiguration()
-            {
-                depthModeName = "320 NFOV 2x2 Binned",
-                depthModeDetails = "Depth captured at 320x288. Passive IR is also captured at 320x288.",
-                value = 1
-            });
+                lDepthModeListBox.Items.Add(dmc);
+            }
         }
 
         private void UpdateButton_Click(object sender, EventArgs e)

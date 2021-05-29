@@ -633,42 +633,42 @@ namespace KinectServer
 
                         while (buffer.Length != 0)
                         {
-                            if (buffer[0] == 0)
+                            if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CAPTURED)
                             {
                                 lClientSockets[i].bFrameCaptured = true;
                             }
-                            else if (buffer[0] == 1)
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CALIBRATED)
                             {
                                 lClientSockets[i].ReceiveCalibrationData();
                             }
                             //stored frame
-                            else if (buffer[0] == 2)
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_STORED_FRAME)
                             {
                                 lClientSockets[i].ReceiveFrame();
                                 lClientSockets[i].bStoredFrameReceived = true;
                             }
                             //last frame
-                            else if (buffer[0] == 3)
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_LAST_FRAME)
                             {
                                 lClientSockets[i].ReceiveFrame();
                                 lClientSockets[i].bLatestFrameReceived = true;
                             }
 
-                            else if (buffer[0] == 4)
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_TEMP_SYNC_STATUS)
                             {
                                 lClientSockets[i].ReceiveTemporalSyncStatus();
                             }
 
-                            else if(buffer[0] == 5)
+                            else if(buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_MASTER_RESTART)
                             {
                                 lClientSockets[i].RecieveMasterHasRestarted();
                             }
 
-                            else if(buffer[0] == 6)
+                            else if(buffer[0] == (byte)IncomingMessageType.MSG_SYNC_JACK_STATE)
                             {
                                 lClientSockets[i].RecieveDeviceSyncState();
                             }
-                            else if(buffer[0] == 7)
+                            else if(buffer[0] == (byte)IncomingMessageType.MSG_CONFIGURATION)
                             {
                                 lClientSockets[i].RecieveConfiguration();
                             }

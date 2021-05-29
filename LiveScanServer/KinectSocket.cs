@@ -79,7 +79,7 @@ namespace KinectServer
         public void CaptureFrame()
         {
             bFrameCaptured = false;
-            byteToSend[0] = 0;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_CAPTURE_FRAME;
             SendByte();
         }
         public void Calibrate()
@@ -87,7 +87,7 @@ namespace KinectServer
             bCalibrated = false;
             sSocketState = oSocket.RemoteEndPoint.ToString() + " Calibrated = false";
 
-            byteToSend[0] = 1;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_CALIBRATE;
             SendByte();
 
             UpdateSocketState();
@@ -97,9 +97,10 @@ namespace KinectServer
         {
             List<byte> lData = settings.ToByteList();
 
+            //why is this doing this in a backwards order?
             byte[] bTemp = BitConverter.GetBytes(lData.Count);
             lData.InsertRange(0, bTemp);
-            lData.Insert(0, 2);
+            lData.Insert(0, (byte)OutgoingMessageType.MSG_RECEIVE_SETTINGS);
 
             if (SocketConnected())
                 oSocket.Send(lData.ToArray());
@@ -107,7 +108,7 @@ namespace KinectServer
 
         public void RequestStoredFrame()
         {
-            byteToSend[0] = 3;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_STORED_FRAME;
             SendByte();
             bNoMoreStoredFrames = false;
             bStoredFrameReceived = false;
@@ -115,14 +116,14 @@ namespace KinectServer
 
         public void RequestConfiguration()
         {
-            byteToSend[0] = 14;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_CONFIGURATION;
             SendByte();
             bConfigurationReceived = false;
         }
 
         public void RequestLastFrame()
         {
-            byteToSend[0] = 4;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_LAST_FRAME;
             SendByte();
             bLatestFrameReceived = false;
         }
@@ -131,7 +132,7 @@ namespace KinectServer
         public void SendConfiguration(KinectConfiguration newConfig)
         {
             byte[] data = newConfig.ToBytes();
-            List<byte> message = new List<byte>() { (byte)13 };
+            List<byte> message = new List<byte>() { (byte)OutgoingMessageType.MSG_SET_CONFIGURATION };
             message.InsertRange(1, data);
 
             if(SocketConnected())
@@ -154,7 +155,7 @@ namespace KinectServer
             byte[] data = new byte[size];
             int i = 0;
 
-            data[i] = 5;
+            data[i] = (byte)OutgoingMessageType.MSG_RECEIVE_CALIBRATION;//the MSG_ enums are copied from the client for ease. "Receive" is correct but only because of this convenience in keeping the utils classes matching. We may wish to rename the enums more appropriately, like "MSG_CALIBRATION".
             i++;
 
             Buffer.BlockCopy(oWorldTransform.R, 0, data, i, 9 * sizeof(float));
@@ -168,7 +169,7 @@ namespace KinectServer
 
         public void ClearStoredFrames()
         {
-            byteToSend[0] = 6;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_CLEAR_STORED_FRAMES;
             SendByte();
         }
 
@@ -185,7 +186,7 @@ namespace KinectServer
             if (tempSyncOn)
             {
                 byte[] data = new byte[2];
-                data[0] = 7;
+                data[0] = (byte)OutgoingMessageType.MSG_SET_TEMPSYNC_ON;
                 data[1] = syncOffSetMultiplier;
                 if (SocketConnected())
                     oSocket.Send(data);
@@ -193,7 +194,7 @@ namespace KinectServer
 
             else
             {
-                byteToSend[0] = 8;
+                byteToSend[0] = (byte)OutgoingMessageType.MSG_SET_TEMPSYNC_OFF;
                 SendByte();
             }
         }
@@ -212,7 +213,7 @@ namespace KinectServer
         public void SendDepthMode(int depthMode)
         {
             byte[] data = new byte[2];
-            data[0] = 12;//see liveScanClient utils.h
+            data[0] = (byte)OutgoingMessageType.MSG_SET_DEPTHMODE;
             data[1] = (byte)depthMode;
             if (SocketConnected())
                 oSocket.Send(data);
@@ -224,7 +225,7 @@ namespace KinectServer
         /// </summary>
         public void Reinitialize()
         {
-            byteToSend[0] = 11;//see liveScanClient utils.h
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_REINITIALIZE_WITH_CURRENT_SETTINGS;
             SendByte();
         }
 
@@ -233,7 +234,7 @@ namespace KinectServer
         /// </summary>
         public void SendMasterInitialize()
         {
-            byteToSend[0] = 9;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_START_MASTER;
             SendByte();
         }
 
@@ -244,7 +245,7 @@ namespace KinectServer
         public void RequestTempSyncState()
         {
             currentDeviceTempSyncState = eTempSyncConfig.UNKNOWN;
-            byteToSend[0] = 10;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_SYNC_JACK_STATE;
             SendByte();
         }
 
@@ -322,7 +323,13 @@ namespace KinectServer
             oSocket.Receive(buffer, 3, SocketFlags.None);
             tempSyncState = buffer[0];
 
-            if (tempSyncState == 0)
+            //Two very similar enums...
+            //SYNC_STATE is for syncronizing the messages accross the server, and matches a SYNC_STATE in utils.h, and can be copied/pasted to match.
+            //eTempSyncConfig is declared in this file and can be edited and changed as needed, and may not neccesarily match the one in the client.
+            //for example, it has an UNKNOWN property.
+            //TODO: fix The mismatching capitalization styles, at least.
+
+            if (tempSyncState == (byte)SYNC_STATE.Subordinate)
             {
                 currentClientTempSyncState = eTempSyncConfig.SUBORDINATE;
                 bSubStarted = true;
@@ -330,13 +337,13 @@ namespace KinectServer
                 eSubInitialized?.Invoke();
             }
 
-            else if(tempSyncState == 1)
+            else if(tempSyncState == (byte)SYNC_STATE.Master)
             {
                 currentClientTempSyncState = eTempSyncConfig.MASTER;
                 bSubStarted = false;
             }
 
-            else if (tempSyncState == 2)
+            else if (tempSyncState == (byte)SYNC_STATE.Standalone)
             {
                 currentClientTempSyncState = eTempSyncConfig.STANDALONE;
                 bSubStarted = false;
