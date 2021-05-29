@@ -152,6 +152,9 @@
       <AdditionalDependencies>opencv_world320d.lib;libzstd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>NotSet</SubSystem>
     </Link>
+    <PreBuildEvent>
+      <Command>xcopy /y /d  "$(ProjectDir)external\*.dll" "$(OutDir)"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
