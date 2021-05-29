@@ -17,7 +17,7 @@ namespace KinectServer
         public int socketID;
         
         public KinectSocket kinectSocket;
-        private KinectSocket.KinectConfiguration displayedConfiguration;
+        private KinectConfiguration displayedConfiguration;
         private DepthModeConfiguration SelectedDepthMode => (DepthModeConfiguration)lDepthModeListBox.SelectedItem;
 
         private struct DepthModeConfiguration
@@ -51,7 +51,7 @@ namespace KinectServer
         }
 
         //Will this run or do we need some kind of event listener?
-        private void UpdateFormItemsFromConfiguration(KinectSocket.KinectConfiguration kc)
+        private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
             displayedConfiguration = kc;
             int d = kc.DepthMode;
@@ -109,7 +109,6 @@ namespace KinectServer
         {
             oServer.SetKinectSettingsForm(socketID, null);
             kinectSocket.configurationUpdated -= UpdateFormItemsFromConfiguration;
-
         }
     }
 }

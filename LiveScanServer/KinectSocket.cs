@@ -14,11 +14,7 @@
 //    }
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Net.Sockets;
-using OpenTK.Graphics;
 
 namespace KinectServer
 {
@@ -72,45 +68,6 @@ namespace KinectServer
         public event StandAloneInitialized eStandAloneInitialized;
 
         public Action<KinectConfiguration> configurationUpdated;
-        public struct KinectConfiguration
-        {
-            //these can just be bytes.
-            public int SyncState;
-            public int SyncOffset;
-            public int DepthMode;
-            //Matches KinectConfiguration.cpp
-            public KinectConfiguration(byte[] bytes)
-            {
-                DepthMode = (int)bytes[0];
-                SyncState = (int)bytes[1];
-                SyncOffset = (int)bytes[2];
-            }
-
-            public bool RequiresRestart(KinectConfiguration previousConfig)
-            {
-                if(previousConfig.SyncState != SyncState || previousConfig.DepthMode != DepthMode)
-                {
-                    return true;
-                }
-                //Do we need to restart when we change the offset?
-                if(previousConfig.SyncOffset != SyncOffset)
-                {
-                    return true;
-                }
-                return false;
-            }
-
-            public byte[] ToBytes()
-            {
-                byte[] data = new byte[3];
-
-                data[0] = (byte)DepthMode;
-                data[1] = (byte)SyncState;
-                data[2] = (byte)SyncOffset;
-
-                return data;
-            }
-        }
         public KinectSocket(Socket clientSocket)
         {
             oSocket = clientSocket;
@@ -125,7 +82,6 @@ namespace KinectServer
             byteToSend[0] = 0;
             SendByte();
         }
-
         public void Calibrate()
         {            
             bCalibrated = false;
@@ -174,7 +130,6 @@ namespace KinectServer
 
         public void SendConfiguration(KinectConfiguration newConfig)
         {
-
             byte[] data = newConfig.ToBytes();
             List<byte> message = new List<byte>() { (byte)13 };
             message.InsertRange(1, data);
