@@ -45,8 +45,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 		deviceIdx = deviceIDForRestart;
 	}
 
-	exportPointclouds = enablePointcloudExport;
-
 	kinectSensor = NULL;
 	while (K4A_FAILED(k4a_device_open(deviceIdx, &kinectSensor)))
 	{
@@ -79,16 +77,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 			
 		}
 		
-	}
-
-	if (exportPointclouds)
-	{
-		configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32; //For the pointcloud and live preview, we need the raw colors
-	}
-
-	else
-	{
-		configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG; //If we just want to save the raw frames to disk, we can directly get them as jpg frames, which is more efficient
 	}
 
 	if (configuration.state == Master) 
@@ -166,9 +154,9 @@ if (configuration.state != Subordinate)
 		bool bTemp;
 		do
 		{
-			if (exportPointclouds)
+			if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 				bTemp = AquirePointcloudFrame();
-			else
+			else 
 				bTemp = AquireRawFrame();
 
 			std::chrono::duration<double> elapsedSeconds = std::chrono::system_clock::now() - start;

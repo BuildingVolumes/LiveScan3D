@@ -69,8 +69,6 @@ private:
 	int m_nExposureStep;
 	KinectConfiguration configuration;
 
-	bool m_bExportPointcloud;
-	bool m_bExportRawFrames;
 	int m_nExtrinsicsStyle;
 
 	enum tempSyncConfig { MASTER, SUBORDINATE, STANDALONE };

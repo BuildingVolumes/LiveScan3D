@@ -68,8 +68,6 @@ LiveScanClient::LiveScanClient() :
 	m_bRestartingCamera(false),
 	m_bAutoExposureEnabled(true),
 	m_nExposureStep(-5),
-	m_bExportPointcloud(true),
-	m_bExportRawFrames(false),
 	m_nExtrinsicsStyle(0), // 0 = no export of extrinsics
 	m_nFrameIndex(0)
 {
@@ -202,7 +200,7 @@ void LiveScanClient::UpdateFrame()
 		return;
 	}
 
-	if(m_bExportRawFrames)
+	if(configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG)
 	{
 		bool bNewFrameAcquired = pCapture->AquireRawFrame();
 
@@ -220,7 +218,7 @@ void LiveScanClient::UpdateFrame()
 		}
 	}
 
-	if (m_bExportPointcloud) 
+	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 	{
 		bool bNewFrameAcquired = pCapture->AquirePointcloudFrame();
 
@@ -675,42 +673,19 @@ void LiveScanClient::HandleSocket()
 
 			if (exportFormat == 0) 
 			{
-				if (m_bExportRawFrames) 
-				{
-					//TODO: Reinitialize
-				}
-
-				m_bExportPointcloud = true;
-				m_bExportRawFrames = false;
+				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+				Reinitialize();
 			}
 
 			if (exportFormat == 1)
 			{
-				if (m_bExportPointcloud)
-				{
-					//TODO: Replace below with Reinitialize();
-
-					bool res = pCapture->Close();
-					if (!res) {
-						SetStatusMessage(L"Capture device failed to close! Restart Application!", 10000, true);
-						return;
-					}
-
-					res = pCapture->Initialize(configuration);
-
-					if (!res) {
-						SetStatusMessage(L"Capture device failed to reinitialize! Restart Application!", 10000, true);
-						return;
-					}
-					//End replace
-				}
-
-				m_bExportPointcloud = false;
-				m_bExportRawFrames = true;
+				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
+				Reinitialize();
 			}
 
 			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
 			i += sizeof(int);
+			//TODO: Implement Extrinsics Export
 
 
 			//so that we do not lose the next character in the stream

@@ -52,7 +52,6 @@ private:
 	int restartAttempts = 0;
 	bool autoExposureEnabled = true;
 	int exposureTimeStep = 0;
-	bool exportPointclouds = true;
   
 	void UpdateDepthPointCloud();
 	void UpdateDepthPointCloudForColorFrame();
