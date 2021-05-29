@@ -65,8 +65,12 @@ LiveScanClient::LiveScanClient() :
 	m_nFilterNeighbors(10),
 	m_fFilterThreshold(0.01f),
 	m_bRestartingCamera(false),
-	m_bAutoExposureEnabled(true), // Which state the Auto Exposure should be set to
-	m_nExposureStep(-5)
+	m_bAutoExposureEnabled(true),
+	m_nExposureStep(-5),
+	m_bExportPointcloud(true),
+	m_bExportRawFrames(false),
+	m_nExtrinsicsStyle(0), // 0 = no export of extrinsics
+	m_nFrameIndex(0)
 {
 	pCapture = new AzureKinectCapture();
 
@@ -197,48 +201,71 @@ void LiveScanClient::UpdateFrame()
 		return;
 	}
 
-	bool bNewFrameAcquired = pCapture->AcquireFrame();
-
-	if (!bNewFrameAcquired)
-		return;
-
-	pCapture->MapColorFrameToCameraSpace(m_pCameraSpaceCoordinates);
-
+	if(m_bExportRawFrames)
 	{
-		std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-		StoreFrame(m_pCameraSpaceCoordinates, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
+		bool bNewFrameAcquired = pCapture->AquireRawFrame();
 
-		if (m_bCaptureFrame)
+		if (!bNewFrameAcquired)
+			return;
+
+		std::string colorfileName = "Color";
+		colorfileName += std::to_string(m_nFrameIndex);
+		colorfileName += ".jpg";
+
+		if (m_bCaptureFrame) 
 		{
-			uint64_t timeStamp = pCapture->GetTimeStamp();
-			m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, pCapture->GetDeviceIndex());
-			m_bConfirmCaptured = true;
-			m_bCaptureFrame = false;
+			m_framesFileWriterReader.WriteToFile(colorfileName.c_str(), k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage));
+			m_nFrameIndex++;
 		}
 	}
 
-	if (m_bCalibrate)
+	if (m_bExportPointcloud) 
 	{
-		std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-		Point3f *pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
-		pCapture->MapColorFrameToCameraSpace(pCameraCoordinates);
+		bool bNewFrameAcquired = pCapture->AquirePointcloudFrame();
 
-		bool res = calibration.Calibrate(pCapture->pColorRGBX, pCameraCoordinates, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
+		if (!bNewFrameAcquired)
+			return;
 
-		delete[] pCameraCoordinates;
+		pCapture->MapColorFrameToCameraSpace(m_pCameraSpaceCoordinates);
 
-		if (res)
 		{
-			calibration.SaveCalibration(pCapture->serialNumber);
-			m_bConfirmCalibrated = true;
-			m_bCalibrate = false;
+			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+			StoreFrame(m_pCameraSpaceCoordinates, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
+
+			if (m_bCaptureFrame)
+			{
+				uint64_t timeStamp = pCapture->GetTimeStamp();
+				m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, pCapture->GetDeviceIndex());
+				m_bConfirmCaptured = true;
+				m_bCaptureFrame = false;
+			}
 		}
+
+		if (m_bCalibrate)
+		{
+			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+			Point3f* pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
+			pCapture->MapColorFrameToCameraSpace(pCameraCoordinates);
+
+			bool res = calibration.Calibrate(pCapture->pColorRGBX, pCameraCoordinates, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
+
+			delete[] pCameraCoordinates;
+
+			if (res)
+			{
+				calibration.SaveCalibration(pCapture->serialNumber);
+				m_bConfirmCalibrated = true;
+				m_bCalibrate = false;
+			}
+		}
+
+		if (!m_bShowDepth)
+			ShowColor();
+		else
+			ShowDepth();
 	}
 
-	if (!m_bShowDepth)
-		ShowColor();
-	else
-		ShowDepth();
+	
 
 	ShowFPS();
 }
@@ -281,7 +308,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
             D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
 
             // Get and initialize the default Kinect sensor as standalone
-			bool res = pCapture->Initialize(Standalone, 0);
+			bool res = pCapture->Initialize(Standalone, 0, true);
 			if (res)
 			{
 				calibration.LoadCalibration(pCapture->serialNumber);
@@ -312,6 +339,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
         // If the titlebar X is clicked, destroy app
 		case WM_CLOSE:
+			pCapture->Close();
 			WriteIPToFile();
 			DestroyWindow(hWnd);
 			break;
@@ -445,7 +473,10 @@ void LiveScanClient::HandleSocket()
 	{
 		//capture a frame
 		if (received[i] == MSG_CAPTURE_FRAME)
+		{
 			m_bCaptureFrame = true;
+			m_nFrameIndex = 0;
+		}
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
 			m_bCalibrate = true;
@@ -476,7 +507,7 @@ void LiveScanClient::HandleSocket()
 					return;
 				}
 
-				res = pCapture->Initialize(Subordinate, syncOffset);
+				res = pCapture->Initialize(Subordinate, syncOffset, true);
 				if (!res) {
 					SetStatusMessage(L"Subordinate device failed to reinitialize! Restart Application!", 10000, true);
 					return;
@@ -513,7 +544,7 @@ void LiveScanClient::HandleSocket()
 					return;
 				}
 
-				res = pCapture->Initialize(Standalone, 0);
+				res = pCapture->Initialize(Standalone, 0, true);
 
 				if (!res) {
 					SetStatusMessage(L"Capture device failed to reinitialize! Restart Application!", 10000, true);
@@ -541,7 +572,7 @@ void LiveScanClient::HandleSocket()
 				return;
 			}
 
-			res = pCapture->Initialize(Standalone, 0);
+			res = pCapture->Initialize(Standalone, 0, true);
 
 			if (!res) {
 				SetStatusMessage(L"Capture device failed to reinitialize! Restart Application!", 10000, true);
@@ -556,7 +587,7 @@ void LiveScanClient::HandleSocket()
 		else if (received[i] == MSG_START_MASTER) {
 			if (currentTempSyncState == MASTER) 
 			{
-				bool res = pCapture->Initialize(Master, 0);
+				bool res = pCapture->Initialize(Master, 0, true);
 				if (!res) {
 					SetStatusMessage(L"Master device failed to reinitialize! Restart Application!", 10000, true);
 					return;
@@ -636,6 +667,46 @@ void LiveScanClient::HandleSocket()
 			i += sizeof(int);
 
 			pCapture->SetExposureState(m_bAutoExposureEnabled, m_nExposureStep);
+
+			int exportFormat = *(int*)(received.c_str() + i);
+			i += sizeof(int);
+
+			if (exportFormat == 0) 
+			{
+				if (m_bExportRawFrames) 
+				{
+					//TODO: Reinitialize
+				}
+
+				m_bExportPointcloud = true;
+				m_bExportRawFrames = false;
+			}
+
+			if (exportFormat == 1)
+			{
+				if (m_bExportPointcloud)
+				{
+					bool res = pCapture->Close();
+					if (!res) {
+						SetStatusMessage(L"Capture device failed to close! Restart Application!", 10000, true);
+						return;
+					}
+
+					res = pCapture->Initialize(Standalone, 0, false);
+
+					if (!res) {
+						SetStatusMessage(L"Capture device failed to reinitialize! Restart Application!", 10000, true);
+						return;
+					}
+				}
+
+				m_bExportPointcloud = false;
+				m_bExportRawFrames = true;
+			}
+
+			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
+			i += sizeof(int);
+
 
 			//so that we do not lose the next character in the stream
 			i--;

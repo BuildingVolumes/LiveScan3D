@@ -55,15 +55,22 @@ private:
 	bool m_bCaptureFrame;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
+
 	bool m_bConfirmTempSyncState;
 	bool m_bConfirmSubOrdinateStarted;
 	bool m_bConfirmRestartAsMaster;
 	bool m_bConfirmCalibrated;
+
 	bool m_bShowDepth;
 	bool m_bFrameCompression;
 	int m_iCompressionLevel;
+
 	bool m_bAutoExposureEnabled;
 	int m_nExposureStep;
+
+	bool m_bExportPointcloud;
+	bool m_bExportRawFrames;
+	int m_nExtrinsicsStyle;
 
 	enum tempSyncConfig { MASTER, SUBORDINATE, STANDALONE };
 	tempSyncConfig currentTempSyncState;
@@ -84,6 +91,8 @@ private:
     INT64 m_nNextStatusTime;
     DWORD m_nFramesSinceUpdate;
 	int frameRecordCounter;
+
+	int m_nFrameIndex;
 
 	Point3f* m_pCameraSpaceCoordinates;
 	RGB* m_pColorInColorSpace;

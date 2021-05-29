@@ -14,8 +14,9 @@ public:
 	AzureKinectCapture();
 	~AzureKinectCapture();
 
-	bool Initialize(SYNC_STATE state, int syncOffset);
-	bool AcquireFrame();
+	bool Initialize(SYNC_STATE state, int syncOffset, bool exportPointcloud);
+	bool AquireRawFrame();
+	bool AquirePointcloudFrame();
 	bool Close();
 	void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints);
 	void MapColorFrameToCameraSpace(Point3f *pCameraSpacePoints);
@@ -29,8 +30,6 @@ public:
 private:
 	k4a_device_t kinectSensor = NULL;
 	int32_t captureTimeoutMs = 1000;
-	k4a_image_t colorImage = NULL;
-	k4a_image_t depthImage = NULL;
 	k4a_image_t pointCloudImage = NULL;
 	k4a_image_t transformedDepthImage = NULL;
 	k4a_image_t colorImageInDepth = NULL;
@@ -50,6 +49,7 @@ private:
 	int restartAttempts = 0;
 	bool autoExposureEnabled = true;
 	int exposureTimeStep = 0;
+	bool exportPointclouds = true;
   
 	void UpdateDepthPointCloud();
 	void UpdateDepthPointCloudForColorFrame();

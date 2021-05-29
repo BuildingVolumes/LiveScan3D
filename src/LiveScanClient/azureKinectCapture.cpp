@@ -25,11 +25,12 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <summary>
 /// Initialize the device. If you want to initialize it as Standalone, set "asMaster" and "asSubordinate" to false
 /// </summary>
-/// <param name="asMaster">Initializes this device as master</param>
-/// <param name="asSubordinate">Initalizes this devices as subordinate</param>
-/// <param name="syncOffsetMultiplier">Should only be set when initializing as Subordinate. Each subordinate should have a unique, ascending value</param>
+/// <param name="asMaster"> Initializes this device as master</param>
+/// <param name="asSubordinate"> Initalizes this devices as subordinate</param>
+/// <param name="syncOffsetMultiplier"> Should only be set when initializing as Subordinate. Each subordinate should have a unique, ascending value</param>
+/// /// <param name="exportPointcloud"> When enabled, records the frames as pointclouds. When disabled, saves Color & Depth as picture files.</param>
 /// <returns></returns>
-bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier)
+bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier, bool enablePointcloudExport)
 {
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -41,6 +42,8 @@ bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier)
 	if (deviceIDForRestart != -1) {
 		deviceIdx = deviceIDForRestart;
 	}
+
+	exportPointclouds = enablePointcloudExport;
 
 	kinectSensor = NULL;
 	while (K4A_FAILED(k4a_device_open(deviceIdx, &kinectSensor)))
@@ -78,10 +81,21 @@ bool AzureKinectCapture::Initialize(SYNC_STATE state, int syncOffsetMultiplier)
 
 	k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
 	config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-	config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 	config.color_resolution = K4A_COLOR_RESOLUTION_720P;
 	config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
 	config.synchronized_images_only = true;
+
+
+
+	if (exportPointclouds)
+	{
+		config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32; //For the pointcloud and live preview, we need the raw colors
+	}
+
+	else
+	{
+		config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG; //If we just want to save the raw frames to disk, we can directly get them as jpg frames, which is more efficient
+	}
 
 	if (state == Master) 
 	{
@@ -182,7 +196,10 @@ if (state != Subordinate)
 		bool bTemp;
 		do
 		{
-			bTemp = AcquireFrame();
+			if (exportPointclouds)
+				bTemp = AquirePointcloudFrame();
+			else
+				bTemp = AquireRawFrame();
 
 			std::chrono::duration<double> elapsedSeconds = std::chrono::system_clock::now() - start;
 			if (elapsedSeconds.count() > 5.0)
@@ -220,7 +237,43 @@ bool AzureKinectCapture::Close()
 	return true;
 }
 
-bool AzureKinectCapture::AcquireFrame()
+bool AzureKinectCapture::AquireRawFrame() {
+
+	if (!bInitialized)
+	{
+		return false;
+	}
+
+	k4a_capture_t capture = NULL;
+
+	k4a_wait_result_t captureResult = k4a_device_get_capture(kinectSensor, &capture, captureTimeoutMs);
+	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
+	{
+		k4a_capture_release(capture);
+		return false;
+	}
+
+	k4a_image_release(colorImage);
+	k4a_image_release(depthImage);
+
+	colorImage = k4a_capture_get_color_image(capture);
+	depthImage = k4a_capture_get_depth_image(capture);
+
+	currentTimeStamp = k4a_image_get_device_timestamp_usec(colorImage);
+
+	if (colorImage == NULL || depthImage == NULL)
+	{
+		k4a_capture_release(capture);
+		return false;
+	}
+
+	k4a_capture_release(capture);
+
+	return true;
+
+}
+
+bool AzureKinectCapture::AquirePointcloudFrame()
 {
 	if (!bInitialized)
 	{
@@ -278,7 +331,7 @@ bool AzureKinectCapture::AcquireFrame()
 		pDepth = new UINT16[nDepthFrameHeight * nDepthFrameWidth];
 	}
 
-	
+
 
 	memcpy(pColorRGBX, k4a_image_get_buffer(colorImageDownscaled), nColorFrameWidth * nColorFrameHeight * sizeof(RGB));
 	memcpy(pDepth, k4a_image_get_buffer(depthImage), nDepthFrameHeight * nDepthFrameWidth * sizeof(UINT16));
@@ -448,6 +501,7 @@ int AzureKinectCapture::GetSyncJackState()
 	}
 }
 
+
 uint64_t AzureKinectCapture::GetTimeStamp() 
 {
 	return currentTimeStamp;
@@ -457,3 +511,4 @@ int AzureKinectCapture::GetDeviceIndex()
 {
 	return deviceIDForRestart;
 }
+

@@ -17,6 +17,9 @@ public:
 	void setCurrentFilename(std::string filename = "");
 
 	void writeFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
+	bool CreateRawFramesDirectorys();
+	bool CreateRecordDirectory();
+	long WriteToFile(const char* fileName, void* buffer, size_t bufferSize);
 	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
@@ -36,6 +39,8 @@ private:
 	bool m_bFileOpenedForReading = false;
 
 	std::string m_sFilename = "";
+
+	LPCWSTR m_sFrameRecordingsDir = L"ClientRecordings\\";
 
 	std::chrono::steady_clock::time_point recording_start_time;
 };
