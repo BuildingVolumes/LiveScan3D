@@ -171,6 +171,7 @@ if (configuration.state != Subordinate)
 	size_t serialNoSize;
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
 	serialNumber = std::string(serialNoSize, '\0');
+	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
 
 	deviceIDForRestart = deviceIdx;

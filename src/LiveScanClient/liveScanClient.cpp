@@ -578,7 +578,7 @@ void LiveScanClient::HandleSocket()
 
 			i += KinectConfiguration::byteLength;
 			configuration.SetFromBytes(message);
-			Reinitialize();
+			//Reinitialize();//now sent by server
 		}
 
 		//Got confirmation from the server that all subs have started, and we can now start the master 
