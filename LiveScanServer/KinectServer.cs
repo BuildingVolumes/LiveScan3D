@@ -43,6 +43,8 @@ namespace KinectServer
 
         public event SocketListChangedHandler eSocketListChanged;
 
+        public ManualResetEvent allDone = new ManualResetEvent(false);
+
         public int nClientCount
         {
             get
@@ -557,38 +559,50 @@ namespace KinectServer
             }
         }
 
+        private void AcceptCallback(IAsyncResult ar)
+        {
+            // Get the socket that handles the client request.
+            Socket listener = (Socket)ar.AsyncState;
+            Socket newSocket = listener.EndAccept(ar);
+							   
+		    // Signal main thread to go ahead
+            allDone.Set();
+
+            //we do not want to add new clients while a frame is being requested
+            lock (oFrameRequestLock)
+            {
+                lock (oClientSocketLock)
+                {
+                    lClientSockets.Add(new KinectSocket(newSocket));
+                    lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
+                    lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
+                    lClientSockets[lClientSockets.Count - 1].eSubInitialized += new SubOrdinateInitialized(CheckForMasterStart);
+                    lClientSockets[lClientSockets.Count - 1].eMasterRestart += new MasterRestarted(MasterSuccessfullyRestarted);
+                    lClientSockets[lClientSockets.Count - 1].eSyncJackstate += new RecievedSyncJackState(SendTemporalSyncData);
+                    lClientSockets[lClientSockets.Count - 1].eStandAloneInitialized += new StandAloneInitialized(ConfirmTemporalSyncDisabled);
+
+                    if (eSocketListChanged != null)
+                    {
+                        eSocketListChanged(lClientSockets);
+                    }
+                }
+            }
+        }
+
         private void ListeningWorker()
         {
             while (bServerRunning)
             {
+                allDone.Reset();
                 try
                 {
-                    Socket newClient = oServerSocket.Accept();
-
-                    //we do not want to add new clients while a frame is being requested
-                    lock (oFrameRequestLock)
-                    {
-                        lock (oClientSocketLock)
-                        {
-                            lClientSockets.Add(new KinectSocket(newClient));
-                            lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
-                            lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
-                            lClientSockets[lClientSockets.Count - 1].eSubInitialized += new SubOrdinateInitialized(CheckForMasterStart);
-                            lClientSockets[lClientSockets.Count - 1].eMasterRestart += new MasterRestarted(MasterSuccessfullyRestarted);
-                            lClientSockets[lClientSockets.Count - 1].eSyncJackstate += new RecievedSyncJackState(SendTemporalSyncData);
-                            lClientSockets[lClientSockets.Count - 1].eStandAloneInitialized += new StandAloneInitialized(ConfirmTemporalSyncDisabled);
-
-                            if (eSocketListChanged != null)
-                            {
-                                eSocketListChanged(lClientSockets);
-                            }
-                        }
-                    }
+                    oServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), oServerSocket);     
                 }
-                catch (SocketException)
+                catch (SocketException e)
                 {
+                    Console.WriteLine(e.ToString());
                 }
-                System.Threading.Thread.Sleep(100);
+                allDone.WaitOne();
             }
 
             if (eSocketListChanged != null)
