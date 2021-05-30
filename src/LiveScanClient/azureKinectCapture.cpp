@@ -33,8 +33,6 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns></returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
-	this->configuration = configuration;
-
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
 

@@ -41,8 +41,6 @@ private:
 
 	int colorImageDownscaledWidth;
 	int colorImageDownscaledHeight;
-  
-	KinectConfiguration configuration;
 
 	bool syncInConnected = false;
 	bool syncOutConnected = false;
