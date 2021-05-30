@@ -23,10 +23,11 @@ namespace KinectServer
     public delegate void SocketListChangedHandler(List<KinectSocket> list);
     public class KinectServer
     {
-        Socket oServerSocket;
+        public event SocketListChangedHandler eSocketListChanged;
 
         bool bServerRunning = false;
         bool bWaitForSubToStart = false;
+        ManualResetEvent allDone = new ManualResetEvent(false);
 
         //This lock prevents the user from enabeling/disabling the Temp Sync State while the cameras are in transition to another state.
         //When starting the server, all devices are already initialized, as the LiveScanClient can only connect with an initialized device
@@ -36,12 +37,13 @@ namespace KinectServer
         SettingsForm fSettingsForm;
         Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
         MainWindowForm fMainWindowForm;
+
+        Socket oServerSocket;
+        Thread listeningThread;
+        Thread receivingThread;
+        List<KinectSocket> lClientSockets = new List<KinectSocket>();
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
-
-        List<KinectSocket> lClientSockets = new List<KinectSocket>();
-
-        public event SocketListChangedHandler eSocketListChanged;
 
         public ManualResetEvent allDone = new ManualResetEvent(false);
 
@@ -199,9 +201,9 @@ namespace KinectServer
                 oServerSocket.Listen(10);
 
                 bServerRunning = true;
-                Thread listeningThread = new Thread(this.ListeningWorker);
+                listeningThread = new Thread(this.ListeningWorker);
                 listeningThread.Start();
-                Thread receivingThread = new Thread(this.ReceivingWorker);
+                receivingThread = new Thread(this.ReceivingWorker);
                 receivingThread.Start();
             }
         }
@@ -211,6 +213,9 @@ namespace KinectServer
             if (bServerRunning)
             {
                 bServerRunning = false;
+                allDone.Set();
+                listeningThread.Join();
+                receivingThread.Join();
 
                 oServerSocket.Close();
                 lock (oClientSocketLock)
@@ -563,6 +568,13 @@ namespace KinectServer
         {
             // Get the socket that handles the client request.
             Socket listener = (Socket)ar.AsyncState;
+<<<<<<< HEAD
+=======
+            if(listener == null || !bServerRunning)
+            {
+                return;
+            }
+>>>>>>> george
             Socket newSocket = listener.EndAccept(ar);
 							   
 		    // Signal main thread to go ahead
