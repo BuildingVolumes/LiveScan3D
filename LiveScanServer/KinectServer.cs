@@ -45,8 +45,6 @@ namespace KinectServer
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
 
-        public ManualResetEvent allDone = new ManualResetEvent(false);
-
         public int nClientCount
         {
             get
@@ -568,13 +566,10 @@ namespace KinectServer
         {
             // Get the socket that handles the client request.
             Socket listener = (Socket)ar.AsyncState;
-<<<<<<< HEAD
-=======
             if(listener == null || !bServerRunning)
             {
                 return;
             }
->>>>>>> george
             Socket newSocket = listener.EndAccept(ar);
 							   
 		    // Signal main thread to go ahead
