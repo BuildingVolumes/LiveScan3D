@@ -43,17 +43,23 @@ namespace KinectServer
         //Will this run or do we need some kind of event listener?
         private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
-            displayedConfiguration = kc;
-            kinectIDLabel.Text = kc.SerialNumber;
-            int d = kc.DepthMode;
-            foreach(DepthModeConfiguration item in lDepthModeListBox.Items)
-            {
-                if(item.value == d)
+            // Invoke UI logic on the same thread.
+            kinectIDLabel.BeginInvoke(
+                new Action(() =>
                 {
-                    lDepthModeListBox.SelectedItem = item;
-                    break;
+                    displayedConfiguration = kc;
+                    kinectIDLabel.Text = kc.SerialNumber;
+                    int d = kc.DepthMode;
+                    foreach (DepthModeConfiguration item in lDepthModeListBox.Items)
+                    {
+                        if (item.value == d)
+                        {
+                            lDepthModeListBox.SelectedItem = item;
+                            break;
+                        }
+                    }
                 }
-            }
+        ));
         }
 
         private void CreateDepthModesList()

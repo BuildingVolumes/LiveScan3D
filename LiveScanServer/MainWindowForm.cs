@@ -509,7 +509,11 @@ namespace KinectServer
                 listBoxItems.Add(socketList[i].sSocketState);
 
 
-            lClientListBox.DataSource = listBoxItems;
+            // Invoke UI logic on the same thread.
+            lClientListBox.BeginInvoke(new Action(() =>
+            {
+                lClientListBox.DataSource = listBoxItems;
+            }));
         }
 
         private void btKinectSettingsOpenButton_Click(object sender, EventArgs e)
