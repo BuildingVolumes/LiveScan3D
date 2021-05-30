@@ -10,14 +10,13 @@
 	//No way to get the depth pixel values from the SDK at the moment, so this is hardcoded
 	int depth_camera_width;
 	int depth_camera_height;
-
+	const byte serialNumberSize = 13;
 
 	KinectConfiguration::KinectConfiguration()
 	{
+		serialNumber = "0000000000000";
 		InitializeDefaults();
 	}
-
-
 
 	char* KinectConfiguration::ToBytes()
 	{
@@ -30,6 +29,10 @@
 		message[1] = (char)(int)state;
 		//add sync_offset
 		message[2] = (char)(int)sync_offset;
+
+		for (int i = 3; i < serialNumberSize+3; i++) {
+			message[i] = (int)serialNumber[i - 3];//ascii->char
+		}
 		//add color/resolution
 		return message;
 	}
@@ -58,8 +61,8 @@
 		sync_offset = (int)received[i];
 		i++;
 
-		//set color/resolution.
-
+		//ignore setting the SerialNumber
+		i += serialNumberSize;
 
 		//update const byteLength when changing this.
 	}

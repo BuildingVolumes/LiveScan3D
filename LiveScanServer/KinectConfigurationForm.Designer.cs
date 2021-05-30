@@ -32,7 +32,7 @@ namespace KinectServer
             this.lDepthModeListBox = new System.Windows.Forms.ListBox();
             this.btUpdate = new System.Windows.Forms.Button();
             this.lbDepthModeDetaulsLabel = new System.Windows.Forms.Label();
-            this.socketStateLabel = new System.Windows.Forms.Label();
+            this.kinectIDLabel = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // lDepthModeListBox
@@ -62,25 +62,25 @@ namespace KinectServer
             this.lbDepthModeDetaulsLabel.TabIndex = 2;
             this.lbDepthModeDetaulsLabel.Text = "label1";
             // 
-            // socketStateLabel
+            // kinectIDLabel
             // 
-            this.socketStateLabel.AutoSize = true;
-            this.socketStateLabel.Location = new System.Drawing.Point(13, 9);
-            this.socketStateLabel.Name = "socketStateLabel";
-            this.socketStateLabel.Size = new System.Drawing.Size(38, 13);
-            this.socketStateLabel.TabIndex = 3;
-            this.socketStateLabel.Text = "label1";
+            this.kinectIDLabel.AutoSize = true;
+            this.kinectIDLabel.Location = new System.Drawing.Point(13, 9);
+            this.kinectIDLabel.Name = "kinectIDLabel";
+            this.kinectIDLabel.Size = new System.Drawing.Size(38, 13);
+            this.kinectIDLabel.TabIndex = 3;
+            this.kinectIDLabel.Text = "label1";
             // 
-            // KinectSettingsForm
+            // KinectConfigurationForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(375, 269);
-            this.Controls.Add(this.socketStateLabel);
+            this.Controls.Add(this.kinectIDLabel);
             this.Controls.Add(this.lbDepthModeDetaulsLabel);
             this.Controls.Add(this.btUpdate);
             this.Controls.Add(this.lDepthModeListBox);
-            this.Name = "KinectSettingsForm";
+            this.Name = "KinectConfigurationForm";
             this.Text = "KinectSettingsForm";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.KinectSettingsForm_FormClosed);
             this.ResumeLayout(false);
@@ -93,6 +93,6 @@ namespace KinectServer
         private System.Windows.Forms.ListBox lDepthModeListBox;
         private System.Windows.Forms.Button btUpdate;
         private System.Windows.Forms.Label lbDepthModeDetaulsLabel;
-        private System.Windows.Forms.Label socketStateLabel;
+        private System.Windows.Forms.Label kinectIDLabel;
     }
 }

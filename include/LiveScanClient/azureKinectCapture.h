@@ -15,7 +15,7 @@ public:
 	AzureKinectCapture();
 	~AzureKinectCapture();
 
-	bool Initialize(KinectConfiguration configuration);
+	bool Initialize(KinectConfiguration& configuration);
 	bool AquireRawFrame();
 	bool AquirePointcloudFrame();
 	bool Close();

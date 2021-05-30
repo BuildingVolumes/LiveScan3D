@@ -43,7 +43,7 @@ public:
 	ICapture();
 	~ICapture();
 
-	virtual bool Initialize(KinectConfiguration configuration) = 0;
+	virtual bool Initialize(KinectConfiguration& configuration) = 0;
 	virtual bool AquireRawFrame() = 0;
 	virtual bool AquirePointcloudFrame() = 0;
 	virtual bool Close() = 0;

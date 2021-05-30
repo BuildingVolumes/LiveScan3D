@@ -362,7 +362,7 @@ namespace KinectServer
 
         public void RecieveConfiguration()
         {
-            byte[] buffer = Receive(3);
+            byte[] buffer = Receive(KinectConfiguration.bytelength);
             var oldConfiguration = configuration;
             configuration = new KinectConfiguration(buffer);
 

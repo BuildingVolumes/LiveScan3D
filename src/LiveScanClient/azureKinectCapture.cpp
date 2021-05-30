@@ -31,7 +31,7 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <param name="syncOffsetMultiplier">Should only be set when initializing as Subordinate. Each subordinate should have a unique, ascending value</param>
 /// <param name="depthMode">The depth mode we should be calling. Default should be K4A_DEPTH_MODE_NFOV_UNBINNED.</param>
 /// <returns></returns>
-bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
+bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
 	this->configuration = configuration;
 
@@ -172,8 +172,8 @@ if (configuration.state != Subordinate)
 	size_t serialNoSize;
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
 	serialNumber = std::string(serialNoSize, '\0');
-	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
+	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 
 	deviceIDForRestart = deviceIdx;
 	restartAttempts = 0;

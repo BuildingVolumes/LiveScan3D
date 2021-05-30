@@ -14,7 +14,7 @@ public:
 	k4a_device_configuration_t config;
 	SYNC_STATE state;
 	int sync_offset;
-	static const int byteLength = 3;//Expected length of the serialized form sent over the network.
+	static const int byteLength = 16;//Expected length of the serialized form sent over the network.
 	char* ToBytes();
 	void SetFromBytes(std::string bytes);
 	void InitializeDefaults();

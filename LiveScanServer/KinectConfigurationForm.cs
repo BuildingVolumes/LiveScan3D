@@ -33,7 +33,7 @@ namespace KinectServer
             oSettings = kSettings;
             this.socketID = socketID;
             kinectSocket = oServer.GetKinectSocketByIndex(socketID);
-            socketStateLabel.Text = kinectSocket.sSocketState;
+            kinectIDLabel.Text = kinectSocket.sSocketState;
             Text = "Settings For " + kinectSocket.GetEndpoint();
 
             kinectSocket.RequestConfiguration();
@@ -44,6 +44,7 @@ namespace KinectServer
         private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
             displayedConfiguration = kc;
+            kinectIDLabel.Text = kc.SerialNumber;
             int d = kc.DepthMode;
             foreach(DepthModeConfiguration item in lDepthModeListBox.Items)
             {
