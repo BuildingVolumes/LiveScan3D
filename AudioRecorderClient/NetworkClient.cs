@@ -15,106 +15,64 @@ namespace AudioRecorderClient
         public Action StartRecording;
         public Action StopRecording;
         public Action SendData;
-
-        public const int port = 48002;
-
-        private Socket s = null;
-        private IPHostEntry hostEntry = null;
-        private Thread t;
+        Thread listenerThread;
+        //Server stuff.
+        TcpClient client;
+        const int port = 48002;
         public void Connect(string server)
         {
+            RecorderWindow.SetStatusBarStatus("Trying to Connect");
+
+            //sanitize input
             server = server.Trim();
             server = server == "" ? "localhost" : server;//if the server is null, set it to localhost. otherwise ignore (set it to itself).
-            //sanitize input
-            s = ConnectSocket(server, port);
-            t = new Thread(new ThreadStart(ThreadProc));
-            t.Start();
-        }
-
-        public void ThreadProc()
-        {
-            //loop and receive
-        }
-
-        private void HandleReceived(byte[] received)
-        {
-            //Do something
-
-            //start/stop/etc
-        }
-
-        private static Socket ConnectSocket(string server, int port)
-        {
-            Socket s = null;
-            IPHostEntry hostEntry = null;
-
-            // Get host related information.
-            hostEntry = Dns.GetHostEntry(server);
-
-            // Loop through the AddressList to obtain the supported AddressFamily. This is to avoid
-            // an exception that occurs when the host IP Address is not compatible with the address family
-            // (typical in the IPv6 case).
-            foreach (IPAddress address in hostEntry.AddressList)
+;
+            try
             {
-                IPEndPoint ipe = new IPEndPoint(address, port);
-                Socket tempSocket =
-                    new Socket(ipe.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                client = new TcpClient(server, port);
+                listenerThread = new Thread(ListenerHandler);
+                listenerThread.Start();
+                RecorderWindow.SetStatusBarStatus("Connected to "+server);
+            }
+            catch (ArgumentNullException e)
+            {
+                RecorderWindow.SetStatusBarStatus(string.Format("ArgumentNullException: {0}", e));
+            }
+            catch (SocketException e)
+            {
+                RecorderWindow.SetStatusBarStatus(string.Format("SocketException: {0}", e));
+            }
+        }       
 
-                tempSocket.Connect(ipe);
-
-                if (tempSocket.Connected)
+        public void ListenerHandler()
+        {
+            NetworkStream stream = client.GetStream();
+            while (client.Connected)
+            {
+                if(client.Available > 0)
                 {
-                    s = tempSocket;
-                    break;
-                }
-                else
-                {
-                    continue;
+                    int offset = 0;
+                    int size = client.Available;
+                    byte[] buffer = new byte[size];
+                    stream.Read(buffer, offset, size);
+                    HandleReceive(buffer);
                 }
             }
-            return s;
+
+            //Do we need to manually abort this thread or will it just end when the function ends?
+            RecorderWindow.SetStatusBarStatus("Disconnected");
         }
 
-        // This method requests the home page content for the specified server.
-        private static string SocketSendReceive(string server, int port)
+        private void HandleReceive(byte[] buffer)
         {
-            string request = "GET / HTTP/1.1\r\nHost: " + server +
-                "\r\nConnection: Close\r\n\r\n";
-            Byte[] bytesSent = Encoding.ASCII.GetBytes(request);
-            Byte[] bytesReceived = new Byte[256];
-            string page = "";
-
-            // Create a socket connection with the specified server and port.
-            using (Socket s = ConnectSocket(server, port))
-            {
-
-                if (s == null)
-                    return ("Connection failed");
-
-                // Send request to the server.
-                s.Send(bytesSent, bytesSent.Length, 0);
-
-                // Receive the server home page content.
-                int bytes = 0;
-                page = "Default HTML page on " + server + ":\r\n";
-
-                // The following will block until the page is transmitted.
-                do
-                {
-                    bytes = s.Receive(bytesReceived, bytesReceived.Length, 0);
-                    page = page + Encoding.ASCII.GetString(bytesReceived, 0, bytes);
-                }
-                while (bytes > 0);
-            }
-
-            return page;
+            Console.Write(buffer);
+            RecorderWindow.SetStatusBarStatus(buffer.ToString());
+            
         }
 
         public void Close()
         {
-            t.Abort();
-            s.Shutdown(SocketShutdown.Both);
-            s.Close();
+            client.Close();
         }
     }
 }

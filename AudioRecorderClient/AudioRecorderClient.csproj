@@ -87,6 +87,8 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SocketHandler.cs" />
+    <Compile Include="StateObject.cs" />
     <EmbeddedResource Include="RecorderWindow.resx">
       <DependentUpon>RecorderWindow.cs</DependentUpon>
     </EmbeddedResource>

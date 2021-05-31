@@ -86,7 +86,11 @@ namespace AudioRecorderClient
 
         public void Dispose()
         {
-            waveIn.Dispose();
+            if (recording)
+            {
+                StopRecording();
+            }
+            waveIn?.Dispose();
             client.StartRecording -= StartRecording;
             client.StopRecording -= StopRecording;
         }

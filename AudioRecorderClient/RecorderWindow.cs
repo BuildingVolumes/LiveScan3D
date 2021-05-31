@@ -14,12 +14,21 @@ namespace AudioRecorderClient
     {
         AudioRecorder audioRecorder;
         NetworkClient client;
+
+        private static StatusStrip statusStatusBar;
+        //private delegate void OffThreadDelegate(string s);
+        public static void SetStatusBarStatus(string status)
+        {
+            statusStatusBar.Items[0].Text = status;
+        }
+
         public RecorderWindow()
         {
             InitializeComponent();
             client = new NetworkClient();
             audioRecorder = new AudioRecorder(client);
             audioRecorder.RefreshDevicesList();
+            statusStatusBar = statusStrip1;
             UpdateList();
         }
 
