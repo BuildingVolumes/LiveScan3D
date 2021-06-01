@@ -33,7 +33,6 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns></returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
-	//SetConfiguration(configuration);
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
 
@@ -122,8 +121,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	transformation = k4a_transformation_create(&calibration);
 
-
-	
 	//It's crucial for this program to output accurately mapped Pointclouds. The highest accuracy mapping is achieved
 	//by using the k4a_transformation_depth_image_to_color_camera function. However this converts a small depth image 
 	//to a larger size, equivalent to the the color image size. This means more points to process and higher processing costs
@@ -176,6 +173,7 @@ if (configuration.state != Subordinate)
 	deviceIDForRestart = deviceIdx;
 	restartAttempts = 0;
 
+	SetConfiguration(configuration);//We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
 	return bInitialized;
 }
 
