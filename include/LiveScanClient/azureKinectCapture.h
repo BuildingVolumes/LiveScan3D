@@ -27,6 +27,7 @@ public:
 	uint64_t GetTimeStamp();
 	int GetDeviceIndex();
 	void SetExposureState(bool enableAutoExposure, int exposureStep);
+	void SetConfiguration(KinectConfiguration& configuration);
 
 private:
 	k4a_device_t kinectSensor = NULL;
@@ -45,7 +46,6 @@ private:
 	bool syncInConnected = false;
 	bool syncOutConnected = false;
 	uint64_t currentTimeStamp = 0;
-	SYNC_STATE syncState = Standalone;
 	int deviceIDForRestart = -1;
 	int restartAttempts = 0;
 	bool autoExposureEnabled = true;
@@ -53,4 +53,6 @@ private:
   
 	void UpdateDepthPointCloud();
 	void UpdateDepthPointCloudForColorFrame();
+
+	KinectConfiguration configuration;
 };

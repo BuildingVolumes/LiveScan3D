@@ -55,7 +55,7 @@ public:
 	virtual uint64_t GetTimeStamp() = 0;
 	virtual int GetDeviceIndex() = 0;
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep) = 0;
-	
+	virtual void SetConfiguration(KinectConfiguration& configuration) = 0;
 
 	bool bInitialized;
 

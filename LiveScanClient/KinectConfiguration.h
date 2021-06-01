@@ -10,13 +10,18 @@
 struct KinectConfiguration {
 public:
 	KinectConfiguration();
+
+	static const int byteLength = 18;//Expected length of the serialized form sent over the network.
+
 	std::string serialNumber;
 	k4a_device_configuration_t config;
 	SYNC_STATE state;
 	int sync_offset;
-	static const int byteLength = 16;//Expected length of the serialized form sent over the network.
+	bool filter_depth_map;
+	int filter_depth_map_size = 5;
 	char* ToBytes();
 	void SetFromBytes(std::string bytes);
+
 	void InitializeDefaults();
 	int GetCameraWidth();
 	int GetCameraHeight();

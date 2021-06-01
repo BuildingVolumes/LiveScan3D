@@ -33,6 +33,7 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns></returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
+	//SetConfiguration(configuration);
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
 
@@ -75,7 +76,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 			}
 			
 		}
-		
 	}
 
 	if (configuration.state == Master) 
@@ -179,6 +179,11 @@ if (configuration.state != Subordinate)
 	return bInitialized;
 }
 
+void AzureKinectCapture::SetConfiguration(KinectConfiguration& configuration)
+{
+	this->configuration = configuration;
+}
+
 bool AzureKinectCapture::Close() 
 {
 	if (!bInitialized) 
@@ -274,6 +279,13 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 	k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, cImg.cols, cImg.rows, cImg.cols * 4 * (int)sizeof(uint8_t), &colorImageDownscaled);
 	memcpy(k4a_image_get_buffer(colorImageDownscaled), &cImg.ptr<cv::Vec4b>(0)[0], cImg.rows * cImg.cols * sizeof(cv::Vec4b));
 
+	//fix depth image here
+	if (configuration.filter_depth_map)
+	{
+		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage), CV_16UC1, k4a_image_get_buffer(depthImage));
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
+		cv::erode(cImgD, cImgD, kernel);
+	}
 
 	if (pColorRGBX == NULL)
 	{

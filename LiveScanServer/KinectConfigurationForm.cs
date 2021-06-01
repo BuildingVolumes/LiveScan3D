@@ -49,6 +49,9 @@ namespace KinectServer
                 {
                     displayedConfiguration = kc;
                     kinectIDLabel.Text = kc.SerialNumber;
+                    cbFilterDepthMap.Checked = kc.FilterDepthMap;
+                    tbFilterDepthMapSize.Text = kc.FilterDepthMapSize.ToString();
+                    tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
                     int d = kc.DepthMode;
                     foreach (DepthModeConfiguration item in lDepthModeListBox.Items)
                     {
@@ -87,6 +90,31 @@ namespace KinectServer
         {
             oServer.SetKinectSettingsForm(socketID, null);
             kinectSocket.configurationUpdated -= UpdateFormItemsFromConfiguration;
+        }
+
+        private void cbFilterDepthMap_CheckedChanged(object sender, EventArgs e)
+        {
+            displayedConfiguration.FilterDepthMap = cbFilterDepthMap.Checked;
+            tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
+        }
+
+        private void tbFilterDepthMapSize_TextChanged(object sender, EventArgs e)
+        {
+            if (int.TryParse(tbFilterDepthMapSize.Text, out int result)) {
+                displayedConfiguration.FilterDepthMapSize = result;
+            }
+        }
+
+        private void tbFilterDepthMapSize_Validating(object sender, CancelEventArgs e)
+        {
+            if (int.TryParse(tbFilterDepthMapSize.Text, out int result))
+            {
+                if (result != 0 && result % 2 == 0)
+                {
+                    result--;
+                }
+                tbFilterDepthMapSize.Text = result.ToString();
+            }
         }
     }
 }

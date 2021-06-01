@@ -33,6 +33,9 @@ namespace KinectServer
             this.btUpdate = new System.Windows.Forms.Button();
             this.lbDepthModeDetaulsLabel = new System.Windows.Forms.Label();
             this.kinectIDLabel = new System.Windows.Forms.Label();
+            this.cbFilterDepthMap = new System.Windows.Forms.CheckBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.tbFilterDepthMapSize = new System.Windows.Forms.MaskedTextBox();
             this.SuspendLayout();
             // 
             // lDepthModeListBox
@@ -71,11 +74,46 @@ namespace KinectServer
             this.kinectIDLabel.TabIndex = 3;
             this.kinectIDLabel.Text = "label1";
             // 
+            // cbFilterDepthMap
+            // 
+            this.cbFilterDepthMap.AutoSize = true;
+            this.cbFilterDepthMap.Location = new System.Drawing.Point(12, 148);
+            this.cbFilterDepthMap.Name = "cbFilterDepthMap";
+            this.cbFilterDepthMap.Size = new System.Drawing.Size(104, 17);
+            this.cbFilterDepthMap.TabIndex = 4;
+            this.cbFilterDepthMap.Text = "Filter Depth Map";
+            this.cbFilterDepthMap.UseVisualStyleBackColor = true;
+            this.cbFilterDepthMap.CheckedChanged += new System.EventHandler(this.cbFilterDepthMap_CheckedChanged);
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(58, 178);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(107, 13);
+            this.label1.TabIndex = 6;
+            this.label1.Text = "Depth Size Filter Size";
+            // 
+            // tbFilterDepthMapSize
+            // 
+            this.tbFilterDepthMapSize.Location = new System.Drawing.Point(12, 175);
+            this.tbFilterDepthMapSize.Mask = "00";
+            this.tbFilterDepthMapSize.Name = "tbFilterDepthMapSize";
+            this.tbFilterDepthMapSize.Size = new System.Drawing.Size(39, 20);
+            this.tbFilterDepthMapSize.TabIndex = 7;
+            this.tbFilterDepthMapSize.ValidatingType = typeof(int);
+            this.tbFilterDepthMapSize.TextChanged += new System.EventHandler(this.tbFilterDepthMapSize_TextChanged);
+            this.tbFilterDepthMapSize.Leave += new System.EventHandler(this.tbFilterDepthMapSize_TextChanged);
+            this.tbFilterDepthMapSize.Validating += new System.ComponentModel.CancelEventHandler(this.tbFilterDepthMapSize_Validating);
+            // 
             // KinectConfigurationForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(375, 269);
+            this.Controls.Add(this.tbFilterDepthMapSize);
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.cbFilterDepthMap);
             this.Controls.Add(this.kinectIDLabel);
             this.Controls.Add(this.lbDepthModeDetaulsLabel);
             this.Controls.Add(this.btUpdate);
@@ -94,5 +132,8 @@ namespace KinectServer
         private System.Windows.Forms.Button btUpdate;
         private System.Windows.Forms.Label lbDepthModeDetaulsLabel;
         private System.Windows.Forms.Label kinectIDLabel;
+        private System.Windows.Forms.CheckBox cbFilterDepthMap;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.MaskedTextBox tbFilterDepthMapSize;
     }
 }

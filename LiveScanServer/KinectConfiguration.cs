@@ -11,11 +11,13 @@ namespace KinectServer
     /// </summary>
     public struct KinectConfiguration
     {
-        public static readonly int bytelength = 16;
+        public static readonly int bytelength = 18;
         //These cam just be bytes.
         public byte SyncState;
         public byte SyncOffset;
         public byte DepthMode;
+        public bool FilterDepthMap;
+        public int FilterDepthMapSize;
         public string SerialNumber;
         //Matches KinectConfiguration.cpp
         public KinectConfiguration(byte[] bytes)
@@ -28,6 +30,8 @@ namespace KinectServer
             {
                 SerialNumber += (char)((int)bytes[i]);
             }
+            FilterDepthMap = bytes[16] == 0 ? false : true;
+            FilterDepthMapSize = bytes[17];
         }
 
         //In need of refactor.
@@ -47,7 +51,7 @@ namespace KinectServer
 
         public byte[] ToBytes()
         {
-            byte[] data = new byte[16];
+            byte[] data = new byte[bytelength];
 
             data[0] = DepthMode;
             data[1] = SyncState;
@@ -56,6 +60,8 @@ namespace KinectServer
             {
                 data[i+3] = (byte)SerialNumber[i];
             }
+            data[16] = (byte)(FilterDepthMap ? 1 : 0);
+            data[17] = (byte)FilterDepthMapSize;
             return data;
         }
         

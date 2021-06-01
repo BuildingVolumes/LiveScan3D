@@ -10,6 +10,8 @@
 	//No way to get the depth pixel values from the SDK at the moment, so this is hardcoded
 	int depth_camera_width;
 	int depth_camera_height;
+	bool filter_depth_map;
+	int filter_depth_map_size = 5;
 	const byte serialNumberSize = 13;
 
 	KinectConfiguration::KinectConfiguration()
@@ -33,6 +35,10 @@
 		for (int i = 3; i < serialNumberSize+3; i++) {
 			message[i] = (int)serialNumber[i - 3];//ascii->char
 		}
+		
+		//Filter Depth Map option
+		message[16] = filter_depth_map ? 1 : 0;
+		message[17] = filter_depth_map_size;
 		//add color/resolution
 		return message;
 	}
@@ -61,9 +67,13 @@
 		sync_offset = (int)received[i];
 		i++;
 
-		//ignore setting the SerialNumber
+		//ignore re-setting the SerialNumber
 		i += serialNumberSize;
 
+		//i == 16 at this point
+		filter_depth_map = ((int)received[i] == 0) ? false : true;
+		i++;
+		filter_depth_map_size = int(received[i]);
 		//update const byteLength when changing this.
 	}
 
@@ -77,6 +87,8 @@
 		config.synchronized_images_only = true;
 		sync_offset = 0;
 		state = Standalone;
+		filter_depth_map = false;
+		filter_depth_map_size = 5;
 	}
 
 	int KinectConfiguration::GetCameraWidth()
