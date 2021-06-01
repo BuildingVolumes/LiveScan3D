@@ -41,13 +41,11 @@ namespace KinectServer
 
         public KinectConfiguration configuration;
 
-        public enum eTempSyncConfig { MASTER, SUBORDINATE, STANDALONE, UNKNOWN }
-
         //Shows how the *Device* is configured (Determined only by the Sync-Cables hooked up to the device)
-        public eTempSyncConfig currentDeviceTempSyncState = eTempSyncConfig.STANDALONE; 
+        public SyncState currentDeviceTempSyncState = SyncState.Standalone; 
 
         //Shows how the Client-Software is configured (This is set by the server)
-        public eTempSyncConfig currentClientTempSyncState = eTempSyncConfig.STANDALONE;
+        public SyncState currentClientTempSyncState = SyncState.Standalone;
 
         //The pose of the sensor in the scene (used by the OpenGLWindow to show the sensor)
         public AffineTransform oCameraPose = new AffineTransform();
@@ -181,7 +179,7 @@ namespace KinectServer
         public void SendTemporalSyncStatus(bool tempSyncOn, byte syncOffSetMultiplier)
         {
             bSubStarted = false;
-            currentClientTempSyncState = eTempSyncConfig.UNKNOWN;
+            currentClientTempSyncState = SyncState.Unknown;
 
             if (tempSyncOn)
             {
@@ -244,7 +242,7 @@ namespace KinectServer
         /// </summary>
         public void RequestTempSyncState()
         {
-            currentDeviceTempSyncState = eTempSyncConfig.UNKNOWN;
+            currentDeviceTempSyncState = SyncState.Unknown;
             byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_SYNC_JACK_STATE;
             SendByte();
         }
@@ -265,17 +263,17 @@ namespace KinectServer
 
             if (tempSyncState == 0)
             {
-                currentDeviceTempSyncState = eTempSyncConfig.SUBORDINATE;
+                currentDeviceTempSyncState = SyncState.Subordinate;
             }
 
             else if (tempSyncState == 1)
             {
-                currentDeviceTempSyncState = eTempSyncConfig.MASTER;
+                currentDeviceTempSyncState = SyncState.Master;
             }
 
             else if (tempSyncState == 2)
             {
-                currentDeviceTempSyncState = eTempSyncConfig.STANDALONE;
+                currentDeviceTempSyncState = SyncState.Standalone;
             }
 
             eSyncJackstate.Invoke();
@@ -329,23 +327,23 @@ namespace KinectServer
             //for example, it has an UNKNOWN property.
             //TODO: fix The mismatching capitalization styles, at least.
 
-            if (tempSyncState == (byte)SYNC_STATE.Subordinate)
+            if (tempSyncState == (byte)SyncState.Subordinate)
             {
-                currentClientTempSyncState = eTempSyncConfig.SUBORDINATE;
+                currentClientTempSyncState = SyncState.Subordinate;
                 bSubStarted = true;
                 bMasterStarted = false;
                 eSubInitialized?.Invoke();
             }
 
-            else if(tempSyncState == (byte)SYNC_STATE.Master)
+            else if(tempSyncState == (byte)SyncState.Master)
             {
-                currentClientTempSyncState = eTempSyncConfig.MASTER;
+                currentClientTempSyncState = SyncState.Master;
                 bSubStarted = false;
             }
 
-            else if (tempSyncState == (byte)SYNC_STATE.Standalone)
+            else if (tempSyncState == (byte)SyncState.Standalone)
             {
-                currentClientTempSyncState = eTempSyncConfig.STANDALONE;
+                currentClientTempSyncState = SyncState.Standalone;
                 bSubStarted = false;
                 bMasterStarted = false;
                 eStandAloneInitialized?.Invoke();
@@ -528,10 +526,10 @@ namespace KinectServer
 
             switch (currentClientTempSyncState)
             {
-                case eTempSyncConfig.MASTER:
+                case SyncState.Master:
                     tempSyncMessage = "[MASTER]";
                     break;
-                case eTempSyncConfig.SUBORDINATE:
+                case SyncState.Subordinate:
                     tempSyncMessage = "[SUBORDINATE]";
                     break;
                 default:

@@ -65,9 +65,7 @@ namespace AudioRecorderClient
 
         private void HandleReceive(byte[] buffer)
         {
-            Console.Write(buffer);
             RecorderWindow.SetStatusBarStatus(buffer.ToString());
-            
         }
 
         public void Close()

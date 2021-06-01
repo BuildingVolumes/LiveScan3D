@@ -19,6 +19,7 @@ namespace AudioRecorderClient
         //private delegate void OffThreadDelegate(string s);
         public static void SetStatusBarStatus(string status)
         {
+            Console.Write(status);//helpful debug.
             statusStatusBar.Items[0].Text = status;
         }
 

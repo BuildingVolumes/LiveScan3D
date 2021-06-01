@@ -89,6 +89,7 @@
             // 
             // statusStrip1
             // 
+            this.statusStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.statusLabel});
             this.statusStrip1.Location = new System.Drawing.Point(0, 187);
@@ -180,11 +181,11 @@
             // 
             // btKinectSettingsOpenButton
             // 
-            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(244, 126);
+            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(235, 126);
             this.btKinectSettingsOpenButton.Name = "btKinectSettingsOpenButton";
-            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(88, 23);
+            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(97, 23);
             this.btKinectSettingsOpenButton.TabIndex = 15;
-            this.btKinectSettingsOpenButton.Text = "Kinect Settings";
+            this.btKinectSettingsOpenButton.Text = "Device Settings";
             this.btKinectSettingsOpenButton.UseVisualStyleBackColor = true;
             this.btKinectSettingsOpenButton.Click += new System.EventHandler(this.btKinectSettingsOpenButton_Click);
             // 

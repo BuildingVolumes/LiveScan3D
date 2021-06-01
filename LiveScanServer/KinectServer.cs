@@ -311,17 +311,17 @@ namespace KinectServer
                 //If not, we return and the next client who confirms their state starts this function again
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if(lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.MASTER)
+                    if(lClientSockets[i].currentDeviceTempSyncState == SyncState.Master)
                     {
                         masterCount++;
                     }
 
-                    if (lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.SUBORDINATE)
+                    if (lClientSockets[i].currentDeviceTempSyncState == SyncState.Standalone)
                     {
                         subordinateCount++;
                     }
 
-                    if (lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.UNKNOWN)
+                    if (lClientSockets[i].currentDeviceTempSyncState == SyncState.Unknown)
                     {
                         return;
                     }
@@ -345,7 +345,7 @@ namespace KinectServer
 
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if(lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.SUBORDINATE)
+                    if(lClientSockets[i].currentDeviceTempSyncState == SyncState.Subordinate)
                     {
                         syncOffSetCounter++;
                     }
@@ -385,7 +385,7 @@ namespace KinectServer
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if (lClientSockets[i].currentClientTempSyncState != KinectSocket.eTempSyncConfig.STANDALONE)
+                    if (lClientSockets[i].currentClientTempSyncState != SyncState.Standalone)
                     {
                         return;
                     }
@@ -411,7 +411,7 @@ namespace KinectServer
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if (!lClientSockets[i].bSubStarted && lClientSockets[i].currentClientTempSyncState == KinectSocket.eTempSyncConfig.SUBORDINATE)
+                    if (!lClientSockets[i].bSubStarted && lClientSockets[i].currentClientTempSyncState == SyncState.Subordinate)
                     {
                         allSubsStarted = false;
                         break;
@@ -424,7 +424,7 @@ namespace KinectServer
                 {
                     for (int i = 0; i < lClientSockets.Count; i++)
                     {
-                        if(lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.MASTER)
+                        if(lClientSockets[i].currentDeviceTempSyncState == SyncState.Master)
                         {
                             lClientSockets[i].SendMasterInitialize();
                             return;

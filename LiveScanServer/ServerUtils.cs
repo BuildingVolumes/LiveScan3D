@@ -40,12 +40,13 @@ namespace KinectServer
 	};
 
 	//copied from LiveScanClient/utils.h. 
-	//Must match that order.
-	public enum SYNC_STATE
+	//Subordinate,Master, and Standalone must match that order.
+	public enum SyncState
 	{
 		Subordinate,
 		Master,
-		Standalone
+		Standalone,
+		Unknown//Will never get or receive 'unknown' over the network, its only used internally.
 	};
 
 	public struct DepthModeConfiguration

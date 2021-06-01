@@ -89,6 +89,7 @@ namespace KinectServer
             oTransferServer.lColors = lAllColors;
 
             InitializeComponent();
+            UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -513,7 +514,9 @@ namespace KinectServer
             lClientListBox.BeginInvoke(new Action(() =>
             {
                 lClientListBox.DataSource = listBoxItems;
+                UpdateSettingsButtonEnabled();
             }));
+            
         }
 
         private void btKinectSettingsOpenButton_Click(object sender, EventArgs e)
@@ -533,6 +536,19 @@ namespace KinectServer
             form.Show();
             oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
             oServer.SetMainWindowForm(this);            
+        }
+
+        private void UpdateSettingsButtonEnabled()
+        {
+            //Disable the deviceSettings button when no items are selected or no items could be selected.
+            if (lClientListBox.SelectedIndex == -1 || lClientListBox.Items.Count == 0)
+            {
+                btKinectSettingsOpenButton.Enabled = false;
+            }
+            else
+            {
+                btKinectSettingsOpenButton.Enabled = true;
+            }
         }
     }
 }
