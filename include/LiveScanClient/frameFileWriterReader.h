@@ -5,6 +5,10 @@
 #include <vector>
 #include <chrono>
 #include "utils.h"
+#include <k4a/k4a.h>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 class FrameFileWriterReader
 {
@@ -17,9 +21,10 @@ public:
 	void setCurrentFilename(std::string filename = "");
 
 	void writeFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
-	bool CreateRawFramesDirectorys();
-	bool CreateRecordDirectory();
-	long WriteToFile(const char* fileName, void* buffer, size_t bufferSize);
+	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
+	bool DirExists(std::string path);
+	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
+	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex);
 	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
@@ -33,6 +38,7 @@ public:
 private:
 	void resetTimer();
 	int getRecordingTimeMilliseconds();
+	bool CreateDir(const std::experimental::filesystem::path dirToCreate);
 
 	FILE *m_pFileHandle = nullptr;
 	bool m_bFileOpenedForWriting = false;
@@ -40,7 +46,8 @@ private:
 
 	std::string m_sFilename = "";
 
-	LPCWSTR m_sFrameRecordingsDir = L"ClientRecordings\\";
+	std::string m_sFrameRecordingsDir = "";
 
 	std::chrono::steady_clock::time_point recording_start_time;
+
 };

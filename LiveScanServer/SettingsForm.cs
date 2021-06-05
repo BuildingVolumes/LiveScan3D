@@ -74,12 +74,18 @@ namespace KinectServer
 
             if(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
             {
+                oServer.fMainWindowForm.SetCalibrateButtonActive(true);
+                oServer.fMainWindowForm.SetLiveButtonActive(true);
+                oServer.fMainWindowForm.SetRefineButtonActive(true);
                 rExportPointcloud.Checked = true;
                 rExportRawFrames.Checked = false;
             }
 
             if(oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
             {
+                oServer.fMainWindowForm.SetCalibrateButtonActive(false);
+                oServer.fMainWindowForm.SetLiveButtonActive(false);
+                oServer.fMainWindowForm.SetRefineButtonActive(false);
                 rExportPointcloud.Checked = false;
                 rExportRawFrames.Checked = true;
             }
@@ -477,10 +483,20 @@ namespace KinectServer
         private void rExportPointcloud_CheckedChanged(object sender, EventArgs e)
         {
             if (rExportPointcloud.Checked)
+            {
+                oServer.fMainWindowForm.SetCalibrateButtonActive(true);
+                oServer.fMainWindowForm.SetLiveButtonActive(true);
+                oServer.fMainWindowForm.SetRefineButtonActive(true);
                 oSettings.eExportMode = KinectSettings.ExportMode.Pointcloud;
+            }
 
             else
+            {
+                oServer.fMainWindowForm.SetCalibrateButtonActive(false);
+                oServer.fMainWindowForm.SetLiveButtonActive(false);
+                oServer.fMainWindowForm.SetRefineButtonActive(false);
                 oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
+            }
 
             UpdateClients();
         }

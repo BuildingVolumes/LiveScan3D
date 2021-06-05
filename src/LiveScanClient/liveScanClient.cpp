@@ -200,6 +200,7 @@ void LiveScanClient::UpdateFrame()
 		return;
 	}
 
+	//Recording raw frames
 	if(configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG)
 	{
 		bool bNewFrameAcquired = pCapture->AquireRawFrame();
@@ -207,17 +208,18 @@ void LiveScanClient::UpdateFrame()
 		if (!bNewFrameAcquired)
 			return;
 
-		std::string colorfileName = "Color";
-		colorfileName += std::to_string(m_nFrameIndex);
-		colorfileName += ".jpg";
-
 		if (m_bCaptureFrame) 
 		{
-			m_framesFileWriterReader.WriteToFile(colorfileName.c_str(), k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage));
+			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex);
+			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex);
 			m_nFrameIndex++;
+
+			m_bConfirmCaptured = true;
+			m_bCaptureFrame = false;
 		}
 	}
 
+	//Recording Pointclouds
 	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 	{
 		bool bNewFrameAcquired = pCapture->AquirePointcloudFrame();
@@ -262,9 +264,7 @@ void LiveScanClient::UpdateFrame()
 			ShowColor();
 		else
 			ShowDepth();
-	}
-
-	
+	}	
 
 	ShowFPS();
 }
@@ -477,7 +477,6 @@ void LiveScanClient::HandleSocket()
 		if (received[i] == MSG_CAPTURE_FRAME)
 		{
 			m_bCaptureFrame = true;
-			m_nFrameIndex = 0;
 		}
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
@@ -758,6 +757,39 @@ void LiveScanClient::HandleSocket()
 
 			m_pClientSocket->SendBytes(buffer, size);
 			m_bConfirmTempSyncState = false;
+		}
+
+		else if (received[i] == MSG_CREATE_DIR) //Creates a dir on the client. Message also marks the start of the recording
+		{
+			m_nFrameIndex = 0; 
+
+			i++; 
+			int stringLength = *(int*)(received.c_str() + i); //Get the length of the following string
+			i += sizeof(int);
+
+			std::string dirPath;
+
+		    dirPath.assign(received, i, stringLength); //Recieved is already a string, so we just copy the characters out of it			
+
+			//Confirmation message that we have created a valid new directory on this system
+			int size = 2;
+			char* buffer = new char[size];
+			buffer[0] = MSG_CONFIRM_DIR_CREATION;
+
+			if (m_framesFileWriterReader.CreateRecordDirectory(dirPath, pCapture->GetDeviceIndex())) 
+			{
+				buffer[1] = 1;
+				m_pClientSocket->SendBytes(buffer, size);
+			}
+
+			else
+			{
+				//Tell the server that the directory creation has failed, server will abort the recording
+				buffer[1] = 0;
+				m_pClientSocket->SendBytes(buffer, size);
+			}
+
+
 		}
 	}
 

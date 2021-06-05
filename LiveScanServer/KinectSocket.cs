@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 
+
 namespace KinectServer
 {
     public delegate void SocketChangedHandler();
@@ -38,6 +39,9 @@ namespace KinectServer
         public bool bCalibrated = false;
         public bool bSubStarted = false;
         public bool bMasterStarted = false;
+
+        public bool bDirCreationConfirmed = false;
+        public bool bDirCreationError = false;
 
         public KinectConfiguration configuration;
 
@@ -236,6 +240,34 @@ namespace KinectServer
         {
             byteToSend[0] = (byte)OutgoingMessageType.MSG_START_MASTER;
             SendByte();
+        }
+
+        /// <summary>
+        /// Commands the client to create a Take directory on his device. The client then stores all of his take exports there
+        /// </summary>
+        /// <param name="dirName">Take folder name as ASCII String, not longer than 256 characters</param>
+        public void SendCreateTakeDir(string dirName)
+        {
+            //Convert the string to an ASCII-Encoded byte array
+            char[] chars = dirName.ToCharArray();
+            List<Byte> byteList = new List<Byte>();
+
+            for (int i = 0; i < chars.Length; i++)
+            {
+                //Ditch any non ascii-character
+                if ((Int32)chars[i] < 128)
+                {
+                    byteList.Add((byte)chars[i]);
+                }
+            }
+
+            byte[] listLength = BitConverter.GetBytes(byteList.Count);
+
+            //Add our message as the first byte and add the length of this byte array
+            byteList.Insert(0, (byte)OutgoingMessageType.MSG_CREATE_DIR);
+            byteList.InsertRange(1, listLength);
+
+            oSocket.Send(byteList.ToArray());
         }
 
 
@@ -486,6 +518,16 @@ namespace KinectServer
 
                 lBodies.Add(tempBody);
             }
+        }
+
+        public void RecieveDirConfirmation()
+        {
+            bDirCreationConfirmed = true;
+
+            byte[] buffer = Receive(1);
+
+            if (buffer[0] == 0)
+                bDirCreationError = true;
         }
 
         public byte[] Receive(int nBytes)

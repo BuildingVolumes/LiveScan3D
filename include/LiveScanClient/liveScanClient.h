@@ -76,7 +76,6 @@ private:
 
 	FrameFileWriterReader m_framesFileWriterReader;
 
-
 	SocketClient *m_pClientSocket;
 	std::vector<float> m_vBounds;
 

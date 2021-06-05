@@ -129,11 +129,11 @@ namespace KinectServer
             if(oServer.GetSettingsForm() == null)
             {
                 SettingsForm form = new SettingsForm();
+                oServer.SetMainWindowForm(this);
                 form.oSettings = oSettings;
                 form.oServer = oServer;
                 form.Show();
                 oServer.SetSettingsForm(form);
-                oServer.SetMainWindowForm(this);
             }
         }
 
@@ -158,12 +158,23 @@ namespace KinectServer
         {
             //After recording has been terminated it is time to begin saving the frames.
             //Saving is downloading the frames from clients and saving them locally.
-            bSaving = true;
             
-            btRecord.Text = "Stop saving";
-            btRecord.Enabled = true;
+            //Only store frames when capturing pointclouds
+            if(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                bSaving = true;
 
-            savingWorker.RunWorkerAsync();
+                btRecord.Text = "Stop saving";
+                btRecord.Enabled = true;
+
+                savingWorker.RunWorkerAsync();
+            }
+            else
+            {
+                btRecord.Enabled = true;
+                btRecord.Text = "Start recording";
+            }
+           
         }
 
         //Opens the live view window
@@ -194,8 +205,19 @@ namespace KinectServer
         {
             int nFrames = 0;
 
-            string outDir = "out" + "\\" + txtSeqName.Text + "\\";
-            DirectoryInfo di = Directory.CreateDirectory(outDir);
+            //TODO: Get Take directory
+
+            string outDir;
+
+            if (oSettings.takePath != null)
+            {
+                outDir = oSettings.takePath;
+            }
+
+            else
+            {
+                return;
+            }
 
             BackgroundWorker worker = (BackgroundWorker)sender;
             //This loop is running till it is either cancelled (using the btRecord button), or till there are no more stored frames.
@@ -241,6 +263,8 @@ namespace KinectServer
                     Utils.saveToPly(outputFilename, lFrameVerts, lFrameRGB, oSettings.bSaveAsBinaryPLY);
                 }
             }
+
+            oSettings.takePath = null;
         }
 
         private void savingWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -436,6 +460,23 @@ namespace KinectServer
                 //Stop the update worker to reduce the network usage (provides better synchronization).
                 updateWorker.CancelAsync();
 
+                string takePath = oServer.CreateTakeDirectories(txtSeqName.Text);
+
+                //Case: Server needs a path for storing values
+                if(takePath != null && (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud || oSettings.eExtrinsicsFormat != KinectSettings.ExtrinsicsStyle.None))
+                {
+                    //Store path for the saving worker later
+                    //TODO: How do to it without a global variable?
+                    oSettings.takePath = takePath;
+                }
+
+                else if(takePath == null)
+                {
+                    SetStatusBarOnTimer("Error: Couldn't create take directory on either the server or the clients", 5000);
+                    bRecording = false;
+                    return;
+                }
+
                 recordingWorker.RunWorkerAsync();
                 btRecord.Text = "Stop recording";
                 btRefineCalib.Enabled = false;
@@ -454,6 +495,11 @@ namespace KinectServer
             oServer.Calibrate();
         }
 
+        public void SetCalibrateButtonActive(bool active)
+        {
+            btCalibrate.Enabled = active;
+        }
+
         private void btRefineCalib_Click(object sender, EventArgs e)
         {
             if (oServer.nClientCount < 2)
@@ -469,6 +515,11 @@ namespace KinectServer
             refineWorker.RunWorkerAsync();
         }
 
+        public void SetRefineButtonActive(bool active)
+        {
+            btRefineCalib.Enabled = active;
+        }
+
         void RestartUpdateWorker()
         {
             if (!updateWorker.IsBusy)
@@ -482,6 +533,11 @@ namespace KinectServer
             //Opens the live view window if it is not open yet.
             if (!OpenGLWorker.IsBusy)
                 OpenGLWorker.RunWorkerAsync();
+        }
+
+        public void SetLiveButtonActive(bool active)
+        {
+            btShowLive.Enabled = active;
         }
 
         public void SetStatusBarOnTimer(string message, int milliseconds)
@@ -525,10 +581,12 @@ namespace KinectServer
                 form = new KinectConfigurationForm();
             }
             //
+            oServer.SetMainWindowForm(this);
             form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
             form.Show();
             oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
-            oServer.SetMainWindowForm(this);            
         }
+
+
     }
 }
