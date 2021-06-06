@@ -210,5 +210,51 @@ namespace KinectServer
             binaryWriter.Flush();
             fileStream.Close();
         }
+
+        public static void SaveExtrinsics(KinectSettings.ExtrinsicsStyle extrinsicsStyle, List<AffineTransform> cameraPoses, string filePath)
+        {
+            switch (extrinsicsStyle)
+            {
+                case KinectSettings.ExtrinsicsStyle.None:
+                    break;
+                case KinectSettings.ExtrinsicsStyle.Open3D:
+                    SaveExtrinsicsOpen3DStyle(cameraPoses, filePath);
+                    break;
+                case KinectSettings.ExtrinsicsStyle.OpenMVS:
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private static void SaveExtrinsicsOpen3DStyle(List<AffineTransform> cameraPoses, string filePath)
+        {
+            filePath += "Extrinsics_Open3D.log";
+
+            string content = string.Empty;
+
+            string zero = "0.0000000000";
+            string one = "1.0000000000";
+
+            for (int i = 0; i < cameraPoses.Count; i++)
+            {
+                content += "0\t0\t" + i + Environment.NewLine;
+
+                for (int j = 0; j < 3; j++)
+                {
+                    for (int k = 0; k < 3; k++)
+                    {
+                        content += cameraPoses[i].R[j, k].ToString("G11", CultureInfo.InvariantCulture) + "\t";
+                    }
+
+                    content += cameraPoses[i].t[j].ToString("G11", CultureInfo.InvariantCulture) + Environment.NewLine;
+                }
+
+                content += zero + "\t" +zero + "\t" + zero + "\t" + one;
+                content += Environment.NewLine;
+            }
+
+            File.WriteAllText(filePath, content);
+        }
     }
 }

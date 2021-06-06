@@ -84,11 +84,13 @@ namespace KinectServer
 
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
+            oServer.SetMainWindowForm(this);
             oTransferServer = new TransferServer();
             oTransferServer.lVertices = lAllVertices;
             oTransferServer.lColors = lAllColors;
-
             InitializeComponent();
+            SetButtonsForExport();
+
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -129,7 +131,6 @@ namespace KinectServer
             if(oServer.GetSettingsForm() == null)
             {
                 SettingsForm form = new SettingsForm();
-                oServer.SetMainWindowForm(this);
                 form.oSettings = oSettings;
                 form.oServer = oServer;
                 form.Show();
@@ -477,6 +478,9 @@ namespace KinectServer
                     return;
                 }
 
+                //Store the camera extrinsics
+                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, lAllCameraPoses, takePath);
+
                 recordingWorker.RunWorkerAsync();
                 btRecord.Text = "Stop recording";
                 btRefineCalib.Enabled = false;
@@ -492,7 +496,10 @@ namespace KinectServer
 
         private void btCalibrate_Click(object sender, EventArgs e)
         {
-            oServer.Calibrate();
+            if(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                oServer.Calibrate();
+            }
         }
 
         public void SetCalibrateButtonActive(bool active)
@@ -508,11 +515,14 @@ namespace KinectServer
                 return;
             }
 
-            btRefineCalib.Enabled = false;
-            btCalibrate.Enabled = false;
-            btRecord.Enabled = false;
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                btRefineCalib.Enabled = false;
+                btCalibrate.Enabled = false;
+                btRecord.Enabled = false;
 
-            refineWorker.RunWorkerAsync();
+                refineWorker.RunWorkerAsync();
+            }           
         }
 
         public void SetRefineButtonActive(bool active)
@@ -527,12 +537,15 @@ namespace KinectServer
         }
 
         private void btShowLive_Click(object sender, EventArgs e)
-        {            
-            RestartUpdateWorker();
+        {
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                RestartUpdateWorker();
 
-            //Opens the live view window if it is not open yet.
-            if (!OpenGLWorker.IsBusy)
-                OpenGLWorker.RunWorkerAsync();
+                //Opens the live view window if it is not open yet.
+                if (!OpenGLWorker.IsBusy)
+                    OpenGLWorker.RunWorkerAsync();
+            }
         }
 
         public void SetLiveButtonActive(bool active)
@@ -581,12 +594,33 @@ namespace KinectServer
                 form = new KinectConfigurationForm();
             }
             //
-            oServer.SetMainWindowForm(this);
             form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
             form.Show();
             oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
         }
 
+        /// <summary>
+        /// Calibration, Refinement and Live view are only supported in Pointcloud mode.
+        /// If we are in another mode, we disable the Main Window Buttons
+        /// </summary>
+        public void SetButtonsForExport()
+        {
+            if(oServer.fMainWindowForm != null)
+            {
+                if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+                {
+                    oServer.fMainWindowForm.SetCalibrateButtonActive(true);
+                    oServer.fMainWindowForm.SetLiveButtonActive(true);
+                    oServer.fMainWindowForm.SetRefineButtonActive(true);
+                }
 
+                else
+                {
+                    oServer.fMainWindowForm.SetCalibrateButtonActive(false);
+                    oServer.fMainWindowForm.SetLiveButtonActive(false);
+                    oServer.fMainWindowForm.SetRefineButtonActive(false);
+                }
+            }           
+        }
     }
 }

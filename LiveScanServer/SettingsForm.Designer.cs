@@ -81,6 +81,8 @@
             this.lbFilterDistance = new System.Windows.Forms.Label();
             this.txtFilterDistance = new System.Windows.Forms.TextBox();
             this.exportGroup = new System.Windows.Forms.GroupBox();
+            this.rExportRawFrames = new System.Windows.Forms.RadioButton();
+            this.rExportPointcloud = new System.Windows.Forms.RadioButton();
             this.lExtrinsics = new System.Windows.Forms.Label();
             this.cbExtrinsicsFormat = new System.Windows.Forms.ComboBox();
             this.grServer = new System.Windows.Forms.GroupBox();
@@ -91,8 +93,6 @@
             this.rAsciiPly = new System.Windows.Forms.RadioButton();
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
-            this.rExportPointcloud = new System.Windows.Forms.RadioButton();
-            this.rExportRawFrames = new System.Windows.Forms.RadioButton();
             this.grClient.SuspendLayout();
             this.grExposure.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
@@ -635,17 +635,40 @@
             this.exportGroup.Controls.Add(this.rExportPointcloud);
             this.exportGroup.Controls.Add(this.lExtrinsics);
             this.exportGroup.Controls.Add(this.cbExtrinsicsFormat);
-            this.exportGroup.Location = new System.Drawing.Point(341, 400);
+            this.exportGroup.Location = new System.Drawing.Point(341, 426);
             this.exportGroup.Name = "exportGroup";
-            this.exportGroup.Size = new System.Drawing.Size(210, 142);
+            this.exportGroup.Size = new System.Drawing.Size(230, 116);
             this.exportGroup.TabIndex = 50;
             this.exportGroup.TabStop = false;
             this.exportGroup.Text = "Export";
             // 
+            // rExportRawFrames
+            // 
+            this.rExportRawFrames.AutoSize = true;
+            this.rExportRawFrames.Location = new System.Drawing.Point(6, 46);
+            this.rExportRawFrames.Name = "rExportRawFrames";
+            this.rExportRawFrames.Size = new System.Drawing.Size(203, 17);
+            this.rExportRawFrames.TabIndex = 37;
+            this.rExportRawFrames.Text = "Color/Depth Frames (Stored on client)";
+            this.rExportRawFrames.UseVisualStyleBackColor = true;
+            // 
+            // rExportPointcloud
+            // 
+            this.rExportPointcloud.AutoSize = true;
+            this.rExportPointcloud.Checked = true;
+            this.rExportPointcloud.Location = new System.Drawing.Point(6, 23);
+            this.rExportPointcloud.Name = "rExportPointcloud";
+            this.rExportPointcloud.Size = new System.Drawing.Size(164, 17);
+            this.rExportPointcloud.TabIndex = 36;
+            this.rExportPointcloud.TabStop = true;
+            this.rExportPointcloud.Text = "Pointcloud (Stored on Server)";
+            this.rExportPointcloud.UseVisualStyleBackColor = true;
+            this.rExportPointcloud.CheckedChanged += new System.EventHandler(this.rExportPointcloud_CheckedChanged);
+            // 
             // lExtrinsics
             // 
             this.lExtrinsics.AutoSize = true;
-            this.lExtrinsics.Location = new System.Drawing.Point(20, 90);
+            this.lExtrinsics.Location = new System.Drawing.Point(3, 72);
             this.lExtrinsics.Name = "lExtrinsics";
             this.lExtrinsics.Size = new System.Drawing.Size(51, 13);
             this.lExtrinsics.TabIndex = 35;
@@ -658,9 +681,8 @@
             this.cbExtrinsicsFormat.FormattingEnabled = true;
             this.cbExtrinsicsFormat.Items.AddRange(new object[] {
             "Don\'t Export",
-            "Open3D Style",
-            "Open MVS Style"});
-            this.cbExtrinsicsFormat.Location = new System.Drawing.Point(77, 87);
+            "Open3D Style"});
+            this.cbExtrinsicsFormat.Location = new System.Drawing.Point(55, 69);
             this.cbExtrinsicsFormat.Name = "cbExtrinsicsFormat";
             this.cbExtrinsicsFormat.Size = new System.Drawing.Size(114, 21);
             this.cbExtrinsicsFormat.TabIndex = 33;
@@ -768,29 +790,6 @@
             this.lbOuterIters.Size = new System.Drawing.Size(118, 13);
             this.lbOuterIters.TabIndex = 26;
             this.lbOuterIters.Text = "Num of refinement iters:";
-            // 
-            // rExportPointcloud
-            // 
-            this.rExportPointcloud.AutoSize = true;
-            this.rExportPointcloud.Checked = true;
-            this.rExportPointcloud.Location = new System.Drawing.Point(6, 26);
-            this.rExportPointcloud.Name = "rExportPointcloud";
-            this.rExportPointcloud.Size = new System.Drawing.Size(75, 17);
-            this.rExportPointcloud.TabIndex = 36;
-            this.rExportPointcloud.TabStop = true;
-            this.rExportPointcloud.Text = "Pointcloud";
-            this.rExportPointcloud.UseVisualStyleBackColor = true;
-            this.rExportPointcloud.CheckedChanged += new System.EventHandler(this.rExportPointcloud_CheckedChanged);
-            // 
-            // rExportRawFrames
-            // 
-            this.rExportRawFrames.AutoSize = true;
-            this.rExportRawFrames.Location = new System.Drawing.Point(83, 26);
-            this.rExportRawFrames.Name = "rExportRawFrames";
-            this.rExportRawFrames.Size = new System.Drawing.Size(127, 17);
-            this.rExportRawFrames.TabIndex = 37;
-            this.rExportRawFrames.Text = "Color + Depth Frames";
-            this.rExportRawFrames.UseVisualStyleBackColor = true;
             // 
             // SettingsForm
             // 
