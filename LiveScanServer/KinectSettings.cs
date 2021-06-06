@@ -50,7 +50,7 @@ namespace KinectServer
         public ExportMode eExportMode = ExportMode.Pointcloud;
 
         public enum ExtrinsicsStyle { None = 0, Open3D = 1, OpenMVS = 2}
-        public ExtrinsicsStyle eExtrinsicsFormat = ExtrinsicsStyle.None;
+        public ExtrinsicsStyle eExtrinsicsFormat = ExtrinsicsStyle.Open3D;
 
         public string takePath;
 
