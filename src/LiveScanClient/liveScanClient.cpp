@@ -47,6 +47,7 @@ LiveScanClient::LiveScanClient() :
 	m_pD2DFactory(NULL),
 	m_pDrawColor(NULL),
 	m_pDepthRGBX(NULL),
+	m_pBlankGreyImage(NULL),
 	m_pCameraSpaceCoordinates(NULL),
 	m_pColorInColorSpace(NULL),
 	m_pDepthInColorSpace(NULL),
@@ -106,6 +107,12 @@ LiveScanClient::~LiveScanClient()
 	{
 		delete[] m_pDepthRGBX;
 		m_pDepthRGBX = NULL;
+	}
+
+	if (m_pBlankGreyImage) 
+	{
+		delete[] m_pBlankGreyImage;
+		m_pBlankGreyImage = NULL;
 	}
 
 	if (m_pCameraSpaceCoordinates)
@@ -259,12 +266,12 @@ void LiveScanClient::UpdateFrame()
 				m_bCalibrate = false;
 			}
 		}
-
-		if (!m_bShowDepth)
-			ShowColor();
-		else
-			ShowDepth();
 	}	
+
+	if (!m_bShowDepth)
+		ShowColor();
+	else
+		ShowDepth();
 
 	ShowFPS();
 }
@@ -318,7 +325,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 				m_pDepthInColorSpace = new UINT16[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 				m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 				m_pColorInColorSpace = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
-        pCapture->SetExposureState(true, 0);
+				pCapture->SetExposureState(true, 0);
 			}
 			else
 			{
@@ -334,6 +341,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 			{
 				SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 			}
+
+			CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 
 			ReadIPFromFile();
         }
@@ -406,35 +415,57 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
 void LiveScanClient::ShowDepth()
 {
-	// Make sure we've received valid data
-	if (m_pDepthRGBX && m_pDepthInColorSpace)
+	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 	{
-		pCapture->MapDepthFrameToColorSpace(m_pDepthInColorSpace);
-
-		for (int i = 0; i < pCapture->nColorFrameWidth * pCapture->nColorFrameHeight; i++)
+		// Make sure we've received valid data
+		if (m_pDepthRGBX && m_pDepthInColorSpace)
 		{
-			USHORT depth = m_pDepthInColorSpace[i];
-			BYTE intensity = static_cast<BYTE>(depth % 256);
+			pCapture->MapDepthFrameToColorSpace(m_pDepthInColorSpace);
 
-			m_pDepthRGBX[i].rgbRed = intensity;
-			m_pDepthRGBX[i].rgbGreen = intensity;
-			m_pDepthRGBX[i].rgbBlue = intensity;
+			for (int i = 0; i < pCapture->nColorFrameWidth * pCapture->nColorFrameHeight; i++)
+			{
+				USHORT depth = m_pDepthInColorSpace[i];
+				BYTE intensity = static_cast<BYTE>(depth % 256);
+
+				m_pDepthRGBX[i].rgbRed = intensity;
+				m_pDepthRGBX[i].rgbGreen = intensity;
+				m_pDepthRGBX[i].rgbBlue = intensity;
+			}
+
+			// Draw the data with Direct2D
+			m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pDepthRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
 		}
-
-		// Draw the data with Direct2D
-		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pDepthRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
 	}
+
+	else 
+	{
+		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pBlankGreyImage), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+	}
+	
 }
 
 void LiveScanClient::ShowColor()
 {
-    // Make sure we've received valid data
-	if (pCapture->pColorRGBX)
-    {
-        // Draw the data with Direct2D
-		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(pCapture->pColorRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
-    }
+	//Draw the preview, as we have the data already in a nice BGRA Format
+	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32) 
+	{
+		// Make sure we've received valid data
+		if (pCapture->pColorRGBX)
+		{
+			// Draw the data with Direct2D
+			m_pDrawColor->Draw(reinterpret_cast<BYTE*>(pCapture->pColorRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+		}
+	}
+    
+	//If we are recording in another image format, we just display a blank grey screen.
+	//This saves performance, by not decoding the MJPG Frame into a RGB struct 
+	else 
+	{
+		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pBlankGreyImage), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+	}
 }
+
+
 
 bool LiveScanClient::SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce)
 {
@@ -679,6 +710,7 @@ void LiveScanClient::HandleSocket()
 			if (exportFormat == 1)
 			{
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
+				SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 10000, true);
 				Reinitialize();
 			}
 
@@ -876,6 +908,8 @@ void LiveScanClient::Reinitialize()
 		SetStatusMessage(L"device failed to reinitialize! Restart Application!", 10000, true);
 		return;
 	}
+
+	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 }
 
 void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body)
@@ -1122,4 +1156,22 @@ void LiveScanClient::WriteIPToFile()
 	GetDlgItemTextA(m_hWnd, IDC_IP, lastUsedIPAddress, 20);
 	file << lastUsedIPAddress;
 	file.close();
+}
+
+void LiveScanClient::CreateBlankGrayImage(const int width, const int height) 
+{
+	int imageSize = width * height;
+	RGB greyPixel;
+	greyPixel.rgbBlue = 50;
+	greyPixel.rgbGreen = 50;
+	greyPixel.rgbRed = 50;
+
+	static RGB* greyFrame = new RGB[imageSize];
+
+	for (size_t i = 0; i < imageSize; i++)
+	{
+		greyFrame[i] = greyPixel;
+	}
+
+	m_pBlankGreyImage = greyFrame;
 }
