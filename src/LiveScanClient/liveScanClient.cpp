@@ -1160,6 +1160,12 @@ void LiveScanClient::WriteIPToFile()
 
 void LiveScanClient::CreateBlankGrayImage(const int width, const int height) 
 {
+	if (m_pBlankGreyImage) //Cleanup the previous image
+	{
+		delete[] m_pBlankGreyImage;
+		m_pBlankGreyImage = NULL;
+	}
+
 	int imageSize = width * height;
 	RGB greyPixel;
 	greyPixel.rgbBlue = 50;
