@@ -167,6 +167,18 @@ void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, i
 	}
 }
 
+void FrameFileWriterReader::WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, const size_t calibration_size)
+{
+	std::string filename = m_sFrameRecordingsDir;
+	filename += "Intrinsics_Calib_";
+	filename += std::to_string(deviceIndex);
+	filename += ".json";
+
+	std::ofstream file(filename, std::ofstream::binary);
+	file.write(reinterpret_cast<const char*>(&calibration_buffer[0]), (long)calibration_size);
+	file.close();
+}
+
 void FrameFileWriterReader::WriteDepthTiffFile(const k4a_image_t &im, int frameIndex)
 {
 	std::string depthFilePath = "Depth_";

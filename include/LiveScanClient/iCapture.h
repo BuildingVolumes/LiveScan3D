@@ -55,6 +55,7 @@ public:
 	virtual uint64_t GetTimeStamp() = 0;
 	virtual int GetDeviceIndex() = 0;
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep) = 0;
+	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) = 0;
 	
 
 	bool bInitialized;

@@ -789,6 +789,13 @@ void LiveScanClient::HandleSocket()
 				m_pClientSocket->SendBytes(buffer, size);
 			}
 
+			std::vector<uint8_t> calibration_buffer;
+			size_t calibration_size = 0;
+
+			//Write the calibration intrinsics to the newly created dir
+			if (pCapture->GetIntrinsicsJSON(calibration_buffer, calibration_size)) {
+				m_framesFileWriterReader.WriteCalibrationJSON(pCapture->GetDeviceIndex(), calibration_buffer, calibration_size);
+			}
 
 		}
 	}

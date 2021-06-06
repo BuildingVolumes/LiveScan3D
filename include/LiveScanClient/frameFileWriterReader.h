@@ -25,6 +25,7 @@ public:
 	bool DirExists(std::string path);
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
 	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex);
+	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
 	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
