@@ -282,7 +282,13 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 	{
 		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage), CV_16UC1, k4a_image_get_buffer(depthImage));
 		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
+		
+		// let's do a closing (erosion of a dilation)
+		// first let's dilate
+		cv::dilate(cImgD, cImgD, kernel);
+		// now erode by same amount
 		cv::erode(cImgD, cImgD, kernel);
+
 	}
 
 	if (pColorRGBX == NULL)
