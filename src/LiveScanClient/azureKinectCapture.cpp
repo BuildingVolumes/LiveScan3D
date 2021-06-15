@@ -281,8 +281,17 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 	if (configuration.filter_depth_map)
 	{
 		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage), CV_16UC1, k4a_image_get_buffer(depthImage));
+		cv::Mat cImgD2 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage)), CV_16UC1);// k4a_image_get_buffer(depthImage));
+		cv::Mat cImgD3 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage)), CV_16UC1);// k4a_image_get_buffer(depthImage));
+
 		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
+		
+		//cv::medianBlur(cImgD, cImgD2, 5);
+		int CLOSING = 3;
+		// 4 will do a good edge detection if you threshold after as well
+		//cv::morphologyEx(cImgD, cImgD2, CLOSING, kernel);
 		cv::erode(cImgD, cImgD, kernel);
+		//cv::GaussianBlur(cImgD3, cImgD, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size), 0);
 	}
 
 	if (pColorRGBX == NULL)
