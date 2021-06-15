@@ -477,13 +477,18 @@ namespace KinectServer
         private void rExportPointcloud_CheckedChanged(object sender, EventArgs e)
         {
             if (rExportPointcloud.Checked)
+            {
                 oSettings.eExportMode = KinectSettings.ExportMode.Pointcloud;
+            }
 
-            else
+            if (rExportRawFrames.Checked)
+            {
                 oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
+            }
+
+            oServer.fMainWindowForm.SetButtonsForExport();
 
             UpdateClients();
         }
-
     }
 }

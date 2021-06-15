@@ -27,6 +27,7 @@ public:
 	uint64_t GetTimeStamp();
 	int GetDeviceIndex();
 	void SetExposureState(bool enableAutoExposure, int exposureStep);
+	bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
 	void SetConfiguration(KinectConfiguration& configuration);
 
 private:

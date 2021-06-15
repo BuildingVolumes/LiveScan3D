@@ -469,6 +469,27 @@ int AzureKinectCapture::GetSyncJackState()
 	}
 }
 
+/// <summary>
+/// Gets the intrinsics calibration json blob of the connected Kinect and writes it to the supplied buffer and size references.
+/// </summary>
+/// <returns> Returns true when the calibration file got successfully retrieved from the sensor, false when an error has occured</returns>
+bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t> &calibration_buffer, size_t &calibration_size)
+{
+	calibration_size = 0;
+	k4a_buffer_result_t buffer_result = k4a_device_get_raw_calibration(kinectSensor, NULL, &calibration_size);
+	if (buffer_result == K4A_BUFFER_RESULT_TOO_SMALL)
+	{
+		calibration_buffer = std::vector<uint8_t>(calibration_size);
+		buffer_result = k4a_device_get_raw_calibration(kinectSensor, calibration_buffer.data(), &calibration_size);
+		if (buffer_result == K4A_BUFFER_RESULT_SUCCEEDED)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 uint64_t AzureKinectCapture::GetTimeStamp() 
 {

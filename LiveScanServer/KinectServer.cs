@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Net.Sockets;
 using System.Net;
+using System.IO;
 
 namespace KinectServer
 {
@@ -34,9 +35,9 @@ namespace KinectServer
         bool allDevicesInitialized = true; 
 
         KinectSettings oSettings;
-        SettingsForm fSettingsForm;
+        public SettingsForm fSettingsForm;
         Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
-        MainWindowForm fMainWindowForm;
+        public MainWindowForm fMainWindowForm;
 
         Socket oServerSocket;
         Thread listeningThread;
@@ -447,6 +448,106 @@ namespace KinectServer
             return allDevicesInitialized;
         }
 
+
+        /// <summary>
+        /// Creates a unique take directory on the client and/or server
+        /// </summary>
+        /// <param name="takeName"></param>
+        /// <returns> Returns the relative directory path for the server when the dir has been successfully created. Returns null when an error has occured on either the client or server </returns>
+        public string CreateTakeDirectories(string takeName)
+        {
+            //First we get a unique take index
+            int takeIndex = oSettings.GetNewTakeIndex(takeName);
+
+            if (takeIndex == -1)
+            {
+                return null;
+            }
+
+            //TODO: Add date to string from Simple_Take_Management Branch
+            takeName += "_" + takeIndex;
+
+            string takePathClients = takeName + "\\";
+
+            string takePathServer = "out\\" + takePathClients; //For the server, we also add the general output dir in which all recordings are stored. The client handles that himself
+
+
+            //If we record pointclouds or export the extrinsics, we create a directory on the Server PC
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud || oSettings.eExtrinsicsFormat != KinectSettings.ExtrinsicsStyle.None)
+            {             
+                try
+                {
+                    DirectoryInfo di = Directory.CreateDirectory(takePathServer);
+                }
+
+                catch(Exception e)
+                {
+                    return null;
+                }
+            }
+
+            //TODO: When exporting intrinsics, also create Dir
+            //When storing raw frames or intrinsics on the client, we create a directory on the client PC
+            if(oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
+            {
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        lClientSockets[i].SendCreateTakeDir(takePathClients);
+                        //Wait just a tiny amount of time to avoid that the clients race each other on creating the dirs.
+                        //Important if two clients are on the same pc
+                        Thread.Sleep(10); 
+                    }
+                }
+
+
+                //Wait for confirmation that the dir has been created by the clients
+                bool allConfirmedDir = false;
+                while (!allConfirmedDir)
+                {
+                    allConfirmedDir = true;
+
+                    lock (oClientSocketLock)
+                    {
+                        for (int i = 0; i < lClientSockets.Count; i++)
+                        {
+                            if (!lClientSockets[i].bDirCreationConfirmed)
+                            {
+                                allConfirmedDir = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                //Check if there were errors during the dir creation
+                bool clientDirError = false;
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (lClientSockets[i].bDirCreationError)
+                        {
+                            clientDirError = true;
+                            break;
+                        }
+                    }
+
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        lClientSockets[i].bDirCreationConfirmed = false;
+                        lClientSockets[i].bDirCreationError = false;
+                    }
+                }
+
+                if (clientDirError)
+                    return null;
+            }
+
+            return takePathServer;
+        }
+
         public bool GetStoredFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts)
         {
             bool bNoMoreStoredFrames;
@@ -693,6 +794,12 @@ namespace KinectServer
                             {
                                 lClientSockets[i].RecieveConfiguration();
                             }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
+                            {
+                                lClientSockets[i].RecieveDirConfirmation();
+                            }
+
                             buffer = lClientSockets[i].Receive(1);
                         }
                     }
