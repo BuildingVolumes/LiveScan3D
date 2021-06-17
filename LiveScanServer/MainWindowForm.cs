@@ -57,6 +57,7 @@ namespace KinectServer
         bool bServerRunning = false;
         bool bRecording = false;
         bool bSaving = false;
+        bool bCollectingMarkers = false;
 
         //Live view open or not
         bool bLiveViewRunning = false;
@@ -641,6 +642,22 @@ namespace KinectServer
             {
                 btKinectSettingsOpenButton.Enabled = true;
             }
+        }
+
+        private void bt1_click(object sender, EventArgs e)
+        {
+            // collect markers button
+            // tell clients to calibrate but send markers back
+            // toggle internal state and if clicked again tell clients to stop sending marker data
+            bCollectingMarkers = !bCollectingMarkers;
+            oServer.Calibrate(bCollectingMarkers);
+            // HOGUE TODO: test
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            // run bundle adjustment calibration on server and then send data back to clients 
+            // HOGUE TODO
         }
     }
 }

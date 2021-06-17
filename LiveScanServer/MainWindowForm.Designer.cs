@@ -45,6 +45,8 @@
             this.refineWorker = new System.ComponentModel.BackgroundWorker();
             this.lbSeqName = new System.Windows.Forms.Label();
             this.btKinectSettingsOpenButton = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
+            this.button2 = new System.Windows.Forms.Button();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -60,7 +62,7 @@
             // 
             // btCalibrate
             // 
-            this.btCalibrate.Location = new System.Drawing.Point(12, 70);
+            this.btCalibrate.Location = new System.Drawing.Point(116, 196);
             this.btCalibrate.Name = "btCalibrate";
             this.btCalibrate.Size = new System.Drawing.Size(95, 23);
             this.btCalibrate.TabIndex = 2;
@@ -70,7 +72,7 @@
             // 
             // btRecord
             // 
-            this.btRecord.Location = new System.Drawing.Point(12, 126);
+            this.btRecord.Location = new System.Drawing.Point(12, 152);
             this.btRecord.Name = "btRecord";
             this.btRecord.Size = new System.Drawing.Size(95, 23);
             this.btRecord.TabIndex = 4;
@@ -84,7 +86,7 @@
             this.lClientListBox.HorizontalScrollbar = true;
             this.lClientListBox.Location = new System.Drawing.Point(113, 12);
             this.lClientListBox.Name = "lClientListBox";
-            this.lClientListBox.Size = new System.Drawing.Size(219, 108);
+            this.lClientListBox.Size = new System.Drawing.Size(421, 108);
             this.lClientListBox.TabIndex = 5;
             // 
             // statusStrip1
@@ -92,9 +94,9 @@
             this.statusStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.statusLabel});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 187);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 341);
             this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Size = new System.Drawing.Size(344, 22);
+            this.statusStrip1.Size = new System.Drawing.Size(546, 22);
             this.statusStrip1.SizingGrip = false;
             this.statusStrip1.TabIndex = 6;
             this.statusStrip1.Text = "statusStrip1";
@@ -115,13 +117,13 @@
             this.txtSeqName.Location = new System.Drawing.Point(113, 155);
             this.txtSeqName.MaxLength = 40;
             this.txtSeqName.Name = "txtSeqName";
-            this.txtSeqName.Size = new System.Drawing.Size(106, 20);
+            this.txtSeqName.Size = new System.Drawing.Size(421, 20);
             this.txtSeqName.TabIndex = 7;
             this.txtSeqName.Text = "noname";
             // 
             // btRefineCalib
             // 
-            this.btRefineCalib.Location = new System.Drawing.Point(12, 97);
+            this.btRefineCalib.Location = new System.Drawing.Point(116, 225);
             this.btRefineCalib.Name = "btRefineCalib";
             this.btRefineCalib.Size = new System.Drawing.Size(95, 23);
             this.btRefineCalib.TabIndex = 11;
@@ -147,7 +149,7 @@
             // 
             // btShowLive
             // 
-            this.btShowLive.Location = new System.Drawing.Point(12, 154);
+            this.btShowLive.Location = new System.Drawing.Point(437, 181);
             this.btShowLive.Name = "btShowLive";
             this.btShowLive.Size = new System.Drawing.Size(95, 23);
             this.btShowLive.TabIndex = 12;
@@ -157,7 +159,7 @@
             // 
             // btSettings
             // 
-            this.btSettings.Location = new System.Drawing.Point(12, 41);
+            this.btSettings.Location = new System.Drawing.Point(12, 52);
             this.btSettings.Name = "btSettings";
             this.btSettings.Size = new System.Drawing.Size(95, 23);
             this.btSettings.TabIndex = 13;
@@ -181,7 +183,7 @@
             // 
             // btKinectSettingsOpenButton
             // 
-            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(235, 126);
+            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(12, 97);
             this.btKinectSettingsOpenButton.Name = "btKinectSettingsOpenButton";
             this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(97, 23);
             this.btKinectSettingsOpenButton.TabIndex = 15;
@@ -189,11 +191,33 @@
             this.btKinectSettingsOpenButton.UseVisualStyleBackColor = true;
             this.btKinectSettingsOpenButton.Click += new System.EventHandler(this.btKinectSettingsOpenButton_Click);
             // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(227, 196);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(95, 23);
+            this.button1.TabIndex = 16;
+            this.button1.Text = "CollectMarkers";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.bt1_click);
+            // 
+            // button2
+            // 
+            this.button2.Location = new System.Drawing.Point(227, 225);
+            this.button2.Name = "button2";
+            this.button2.Size = new System.Drawing.Size(95, 23);
+            this.button2.TabIndex = 17;
+            this.button2.Text = "BundleCalib";
+            this.button2.UseVisualStyleBackColor = true;
+            this.button2.Click += new System.EventHandler(this.button2_Click);
+            // 
             // MainWindowForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(344, 209);
+            this.ClientSize = new System.Drawing.Size(546, 363);
+            this.Controls.Add(this.button2);
+            this.Controls.Add(this.button1);
             this.Controls.Add(this.btKinectSettingsOpenButton);
             this.Controls.Add(this.lbSeqName);
             this.Controls.Add(this.btSettings);
@@ -236,6 +260,8 @@
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.Label lbSeqName;
         private System.Windows.Forms.Button btKinectSettingsOpenButton;
+        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button button2;
     }
 }
 

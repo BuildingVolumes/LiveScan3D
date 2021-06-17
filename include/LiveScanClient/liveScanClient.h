@@ -40,6 +40,7 @@ private:
 	Calibration calibration;
 
 	bool m_bCalibrate;
+	bool m_bCollectMarkers;
 	bool m_bFilter;
 	bool m_bStreamOnlyBodies;
 

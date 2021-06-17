@@ -69,6 +69,8 @@ bool Calibration::Calibrate(RGB *pBuffer, Point3f *pCameraCoordinates, int cColo
 
 	vector<Point3f> marker3D(marker.corners.size());
 	bool success = GetMarkerCorners3D(marker3D, marker, pCameraCoordinates, cColorWidth, cColorHeight);
+	/// TODO:
+	// check if we need to send the markers we found to the server and do so
 
 	if (!success)
 	{

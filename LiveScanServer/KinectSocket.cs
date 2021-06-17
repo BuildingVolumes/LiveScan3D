@@ -84,12 +84,15 @@ namespace KinectServer
             byteToSend[0] = (byte)OutgoingMessageType.MSG_CAPTURE_FRAME;
             SendByte();
         }
-        public void Calibrate()
+        public void Calibrate(bool collectMarkers)
         {            
             bCalibrated = false;
             sSocketState = oSocket.RemoteEndPoint.ToString() + " Calibrated = false";
-
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_CALIBRATE;
+            if (collectMarkers)
+            {
+                byteToSend[0] = (byte)OutgoingMessageType.MSG_COLLECTMARKERS;
+            }
+            else byteToSend[0] = (byte)OutgoingMessageType.MSG_CALIBRATE;
             SendByte();
 
             UpdateSocketState();
@@ -400,7 +403,42 @@ namespace KinectServer
             //
             configurationUpdated?.Invoke(configuration);
         }
+        public void ReceiveMarker()
+        {
+            // receive the marker data here 
+            // modeling receiveframe structure 
+            int nToRead;
+            byte[] buffer = new byte[1024];
 
+            while (oSocket.Available == 0)
+            {
+                if (!SocketConnected())
+                    return;
+            }
+            oSocket.Receive(buffer, 8, SocketFlags.None);
+            nToRead = BitConverter.ToInt32(buffer, 0);
+            if (nToRead <= 0)
+            {
+                //bNoMoreStoredFrames = true;
+                return;
+            }
+            buffer = new byte[nToRead];
+            int nAlreadyRead = 0;
+
+            while (nAlreadyRead != nToRead)
+            {
+                while (oSocket.Available == 0)
+                {
+                    if (!SocketConnected())
+                        return;
+                }
+
+                nAlreadyRead += oSocket.Receive(buffer, nAlreadyRead, nToRead - nAlreadyRead, SocketFlags.None);
+            }
+
+            // at this point the buffer should contain the marker data just need to parse it and put into our calibration data structure
+            // HOGUE TODO
+        }
         public void ReceiveFrame()
         {
             lFrameRGB.Clear();

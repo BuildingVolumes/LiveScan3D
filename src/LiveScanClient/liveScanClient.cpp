@@ -51,7 +51,8 @@ LiveScanClient::LiveScanClient() :
 	m_pCameraSpaceCoordinates(NULL),
 	m_pColorInColorSpace(NULL),
 	m_pDepthInColorSpace(NULL),
-	m_bCalibrate(false),
+	m_bCalibrate(false), 
+	m_bCollectMarkers(false),
 	m_bFilter(false),
 	m_bStreamOnlyBodies(false),
 	m_bCaptureFrame(false),
@@ -512,6 +513,10 @@ void LiveScanClient::HandleSocket()
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
 			m_bCalibrate = true;
+		else if (received[i] == MSG_COLLECTMARKERS) {
+			// HOGUE TODO
+			m_bCollectMarkers = true;
+		}
 		//Restart The Device without changing any settings - must be done after turning on/off temporal sync, and when changing depth mode.
 		else if (received[i] == MSG_REINITIALIZE_WITH_CURRENT_SETTINGS) {
 			{
@@ -869,7 +874,7 @@ void LiveScanClient::HandleSocket()
 		m_bConfirmRestartAsMaster = false;
 	}
 
-
+	// THIS IS WHERE IT SENDS THE CALIBRATION INFO TO THE SERVER!
 	if (m_bConfirmCalibrated)
 	{
 		int size = (9 + 3) * sizeof(float) + sizeof(int) + 1;
@@ -890,6 +895,10 @@ void LiveScanClient::HandleSocket()
 
 		m_pClientSocket->SendBytes(buffer, size);
 		m_bConfirmCalibrated = false;
+	}
+	if (m_bCollectMarkers) {
+		// send the current marker data if it exists
+		// HOGUE TODO
 	}
 }
 

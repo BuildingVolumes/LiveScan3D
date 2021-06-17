@@ -250,13 +250,13 @@ namespace KinectServer
             }
         }
 
-        public void Calibrate()
+        public void Calibrate(bool collectMarkers=false)
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    lClientSockets[i].Calibrate();
+                    lClientSockets[i].Calibrate(collectMarkers);
                 }
             }
         }
@@ -798,6 +798,10 @@ namespace KinectServer
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
                             {
                                 lClientSockets[i].RecieveDirConfirmation();
+                            }
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_RECEIVE_MARKER)
+                            {
+                                lClientSockets[i].ReceiveMarker();
                             }
 
                             buffer = lClientSockets[i].Receive(1);
