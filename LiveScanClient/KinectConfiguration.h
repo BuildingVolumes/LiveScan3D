@@ -12,9 +12,10 @@ public:
 	KinectConfiguration();
 	std::string serialNumber;
 	k4a_device_configuration_t config;
-	SYNC_STATE state;
-	int sync_offset;
-	static const int byteLength = 3;//Expected length of the serialized form sent over the network.
+	SYNC_STATE eSoftwareSyncState;
+	SYNC_STATE eHardwareSyncState;
+	int nSync_offset;
+	static const int byteLength = 4;//Expected length of the serialized form sent over the network.
 	char* ToBytes();
 	void SetFromBytes(std::string bytes);
 	void InitializeDefaults();

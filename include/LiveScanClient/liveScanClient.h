@@ -109,7 +109,8 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	void Reinitialize();
+	void ReinitAndConfirm();
+	void SendReinitConfirmation(bool success);
 	void Reinitialize(LiveScanClient::tempSyncConfig syncState, int syncOffset, k4a_depth_mode_t depthMode);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
 

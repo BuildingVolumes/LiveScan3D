@@ -24,13 +24,10 @@ AzureKinectCapture::~AzureKinectCapture()
 }
 
 /// <summary>
-/// Initialize the device. If you want to initialize it as Standalone, set "asMaster" and "asSubordinate" to false
+/// Initialize a device with the given configuration
 /// </summary>
-/// <param name="asMaster">Initializes this device as master</param>
-/// <param name="asSubordinate">Initalizes this devices as subordinate</param>
-/// <param name="syncOffsetMultiplier">Should only be set when initializing as Subordinate. Each subordinate should have a unique, ascending value</param>
-/// <param name="depthMode">The depth mode we should be calling. Default should be K4A_DEPTH_MODE_NFOV_UNBINNED.</param>
-/// <returns></returns>
+/// <param name="configuration"></param>
+/// <returns>Returns true on success, false on error</returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 {
 	this->configuration = configuration;
@@ -48,8 +45,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 
 	kinectSensor = NULL;
 	while (K4A_FAILED(k4a_device_open(deviceIdx, &kinectSensor)))
-	{
-		
+	{		
 		if (deviceIDForRestart == -1) 
 		{
 			deviceIdx++;
@@ -58,39 +54,20 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 				bInitialized = false;
 				return bInitialized;
 			}
-		}
-
-		
-		else {
-
-			//Sometimes the cameras fail to reinitialize, so we try to initialize them three times with a slight delay before failing
-			if (restartAttempts > 2) 
-			{
-				bInitialized = false;
-				return bInitialized;
-			}
-
-			else {
-
-				restartAttempts++;
-				Sleep(200);
-			}
-			
-		}
-		
+		}		
 	}
 
-	if (configuration.state == Master) 
+	if (configuration.eSoftwareSyncState == Main) 
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
 	}
 
-	else if (configuration.state == Subordinate)
+	else if (configuration.eSoftwareSyncState == Subordinate)
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
 		//Sets the offset on subordinate devices. Should be a multiple of 160, each subordinate having a different multiplier in ascending order.
-		//This is very important, as it avoids firing the Kinects lasers at the same time.		
-		configuration.config.subordinate_delay_off_master_usec = 160 * configuration.sync_offset;//
+		//It avoids firing the Kinects lasers at the same time.		
+		configuration.config.subordinate_delay_off_master_usec = 160 * configuration.nSync_offset;//
 	}
 
 	else
@@ -124,7 +101,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 
 	transformation = k4a_transformation_create(&calibration);
 
-
 	
 	//It's crucial for this program to output accurately mapped Pointclouds. The highest accuracy mapping is achieved
 	//by using the k4a_transformation_depth_image_to_color_camera function. However this converts a small depth image 
@@ -149,7 +125,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 	transformationColorDownscaled = k4a_transformation_create(&calibrationColorDownscaled);
   
 //If this device is a subordinate, it is expected to start capturing at a later time (When the master has started), so we skip this check  
-if (configuration.state != Subordinate) 
+if (configuration.eSoftwareSyncState != Subordinate) 
 {
 		std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
 		bool bTemp;
@@ -176,7 +152,6 @@ if (configuration.state != Subordinate)
 	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
 
 	deviceIDForRestart = deviceIdx;
-	restartAttempts = 0;
 
 	return bInitialized;
 }
@@ -439,25 +414,26 @@ int AzureKinectCapture::GetSyncJackState()
 {
 	if (K4A_RESULT_SUCCEEDED == k4a_device_get_sync_jack(kinectSensor, &syncInConnected, &syncOutConnected))
 	{
-		if (syncInConnected) 
+		if (syncOutConnected)
 		{
-			return -1; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
+			return 1; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
 		}
 
-		else if (!syncInConnected && syncOutConnected)
+		else if (syncInConnected) 
 		{
-			return 0; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
-		}
+			return 2; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
+		}		
 
 		else
 		{
-			return 1; //Device is Standalone, as it doesn't have a valid cabel configuration on its Sync Ports
+			return 3; //Device is Standalone, as it doesn't have a valid cabel configuration on its Sync Ports
 		}
+		
 	}
 
 	else 
 	{
-		return 1; //Probably failed because there are no cabels connected, this means the device should be set as standalone
+		return 3; //Probably failed because there are no cabels connected, this means the device should be set as standalone
 	}
 }
 

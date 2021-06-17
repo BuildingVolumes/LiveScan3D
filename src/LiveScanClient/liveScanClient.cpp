@@ -308,17 +308,18 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
             // Get and initialize the default Kinect sensor as standalone
 			configuration = *new KinectConfiguration();
-			configuration.state = Standalone;
-			configuration.sync_offset = 0;
+			configuration.eSoftwareSyncState = Standalone;
+			configuration.nSync_offset = 0;
 			bool res = pCapture->Initialize(configuration);
 			if (res)
 			{
+				configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 				calibration.LoadCalibration(pCapture->serialNumber);
 				m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 				m_pDepthInColorSpace = new UINT16[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 				m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 				m_pColorInColorSpace = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
-        pCapture->SetExposureState(true, 0);
+				pCapture->SetExposureState(true, 0);
 			}
 			else
 			{
@@ -479,93 +480,19 @@ void LiveScanClient::HandleSocket()
 			m_bCaptureFrame = true;
 			m_nFrameIndex = 0;
 		}
+
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
 			m_bCalibrate = true;
+
 		//Restart The Device without changing any settings - must be done after turning on/off temporal sync, and when changing depth mode.
 		else if (received[i] == MSG_REINITIALIZE_WITH_CURRENT_SETTINGS) {
 			{
-				Reinitialize();
+				ReinitAndConfirm();
 			}
 		}
-		//Enables Temporal sync on this client
-		else if (received[i] == MSG_SET_TEMPSYNC_ON) {
+		
 
-			i++; //Get next byte (the sync Offset)
-			configuration.sync_offset = received[i];
-
-			//Determine if this device is a subordinate, master, or standalone
-			int jackState = pCapture->GetSyncJackState();
-
-			bool res = false;
-
-			switch (jackState)
-			{
-			case -1:
-				configuration.state = Subordinate;
-
-				//Restart this device as Subordinate, with a unique syncOffset (send by the server)
-				m_bRestartingCamera = true;
-
-				Reinitialize();
-				//Confirm to the server, that we set this device as subordinate
-				m_bConfirmTempSyncState = true;
-				break;
-
-			case 0:
-				configuration.state = Master;
-
-				//Only Close this device, as it needs to wait for all subordinates to start, before starting itself
-				m_bRestartingCamera = true;
-
-				res = pCapture->Close();
-				if (!res) {
-					SetStatusMessage(L"Master device failed to close! Restart Application!", 10000, true);
-					return;
-				}
-
-				m_bConfirmTempSyncState = true;
-				break;
-
-			case 1://Device is Standalone
-				configuration.state = Standalone;
-
-				Reinitialize();
-
-				m_bConfirmTempSyncState = true;
-				m_bRestartingCamera = false;
-				break;
-			default:
-				break;
-			}
-
-		}
-
-		//Sets this device as Standalone
-		else if (received[i] == MSG_SET_TEMPSYNC_OFF) {
-			configuration.sync_offset = 0;
-			configuration.state = Standalone;
-			Reinitialize();
-			
-			m_bConfirmTempSyncState = true;
-			m_bRestartingCamera = false;
-		}
-
-		else if (received[i] == MSG_SET_DEPTHMODE) {
-			i++;
-			int depthMode = (int)received[i];
-
-			//cast the integer to the enum.
-			//"off" (0) and "passive_IR" (5) are not supported. 
-			//see: https://microsoft.github.io/Azure-Kinect-Sensor-SDK/master/group___enumerations_ga3507ee60c1ffe1909096e2080dd2a05d.html
-			k4a_depth_mode_t newDepthMode = static_cast<k4a_depth_mode_t>(depthMode);
-
-			//Check if we actually changed anything before restarting.
-			if (newDepthMode != configuration.config.depth_mode) {
-				configuration.config.depth_mode = newDepthMode;
-				Reinitialize();
-			}
-		}
 		else if (received[i] == MSG_SET_CONFIGURATION)
 		{
 			i++;
@@ -578,24 +505,6 @@ void LiveScanClient::HandleSocket()
 
 			i += KinectConfiguration::byteLength;
 			configuration.SetFromBytes(message);
-			//Reinitialize();//now sent by server
-		}
-
-		//Got confirmation from the server that all subs have started, and we can now start the master 
-		else if (received[i] == MSG_START_MASTER) {
-			if (currentTempSyncState == MASTER) 
-			{
-				configuration.state = Master;
-				configuration.sync_offset = 0;
-				bool res = pCapture->Initialize(configuration);
-				if (!res) {
-					SetStatusMessage(L"Master device failed to initialize! Restart Application!", 10000, true);
-					return;
-				}
-
-				m_bConfirmRestartAsMaster = true;
-				m_bRestartingCamera = false;
-			}
 		}
 
 		//receive settings
@@ -674,19 +583,15 @@ void LiveScanClient::HandleSocket()
 			if (exportFormat == 0) 
 			{
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-				Reinitialize();
 			}
 
 			if (exportFormat == 1)
 			{
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
-				Reinitialize();
 			}
 
 			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
 			i += sizeof(int);
-			//TODO: Implement Extrinsics Export
-
 
 			//so that we do not lose the next character in the stream
 			i--;
@@ -747,18 +652,6 @@ void LiveScanClient::HandleSocket()
 		{
 			m_framesFileWriterReader.closeFileIfOpened();
 		}
-
-		else if (received[i] == MSG_REQUEST_SYNC_JACK_STATE) 
-		{
-			int size = 3;
-			char* buffer = new char[size];
-			buffer[0] = MSG_SYNC_JACK_STATE;
-
-			buffer[1] = pCapture->GetSyncJackState() + 1; //Gets the current Sync Jack State and adds + 1, as we can't send a negative value
-
-			m_pClientSocket->SendBytes(buffer, size);
-			m_bConfirmTempSyncState = false;
-		}
 	}
 
 	if (m_bConfirmCaptured)
@@ -767,33 +660,6 @@ void LiveScanClient::HandleSocket()
 		m_pClientSocket->SendBytes(&byteToSend, 1);
 		m_bConfirmCaptured = false;
 	}
-
-	//Send validation to the server that this device has been set to a specific Sync State 
-	if (m_bConfirmTempSyncState)
-	{
-		int size = 3; //Somehow it doesn't work when sending only two bytes?? (So we send an extra one)
-		char* buffer = new char[size];
-		buffer[0] = MSG_CONFIRM_TEMP_SYNC_STATUS;
-
-		switch (currentTempSyncState)//TODO: extract to helper method.
-		{
-		case SUBORDINATE: buffer[1] = 0; break;
-		case MASTER: buffer[1] = 1; break;
-		case STANDALONE: buffer[1] = 2; break;
-		}
-
-		m_pClientSocket->SendBytes(buffer, size);
-		m_bConfirmTempSyncState = false;
-	}
-
-	//Send validation to the server that the Master camera has started recording again
-	if (m_bConfirmRestartAsMaster) 
-	{
-		byteToSend = MSG_CONFIRM_MASTER_RESTART;
-		m_pClientSocket->SendBytes(&byteToSend, 1);
-		m_bConfirmRestartAsMaster = false;
-	}
-
 
 	if (m_bConfirmCalibrated)
 	{
@@ -821,22 +687,43 @@ void LiveScanClient::HandleSocket()
 /// <summary>
 /// Reinitialize. Must be called after changing depthMode or afer changing temporal sync mode.
 /// </summary>
-void LiveScanClient::Reinitialize()
+void LiveScanClient::ReinitAndConfirm()
 {
-	//override for when turning off temporal sync, as the jackState is set to something else and needs to be reset to this.
-
 	bool res = false;
 	res = pCapture->Close();
 	if (!res) {
-		SetStatusMessage(L"device failed to close! Restart Application!", 10000, true);
+		SetStatusMessage(L"device failed to close! Please restart Application!", 10000, true);
+		SendReinitConfirmation(false);
 		return;
 	}
 
 	res = pCapture->Initialize(configuration);
 	if (!res) {
-		SetStatusMessage(L"device failed to reinitialize! Restart Application!", 10000, true);
+		SetStatusMessage(L"device failed to reinitialize! Please restart Application!", 10000, true);
+		SendReinitConfirmation(false);
 		return;
 	}
+
+	//Update the hardware configuration state
+	configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
+
+	SendReinitConfirmation(true);
+
+}
+
+void LiveScanClient::SendReinitConfirmation(bool success) 
+{
+	int size = 2;
+	char* buffer = new char[size];
+	buffer[0] = MSG_CONFIRM_RESTART;
+
+	if (success)
+		buffer[1] = 0;
+
+	else
+		buffer[1] = 1;
+
+	m_pClientSocket->SendBytes(buffer, size);
 }
 
 void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body)

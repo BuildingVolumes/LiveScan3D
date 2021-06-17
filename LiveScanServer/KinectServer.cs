@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Net.Sockets;
 using System.Net;
+using System.Diagnostics;
 
 namespace KinectServer
 {
@@ -24,24 +25,19 @@ namespace KinectServer
     public class KinectServer
     {
         Socket oServerSocket;
-
         bool bServerRunning = false;
-        bool bWaitForSubToStart = false;
-
-        //This lock prevents the user from enabeling/disabling the Temp Sync State while the cameras are in transition to another state.
-        //When starting the server, all devices are already initialized, as the LiveScanClient can only connect with an initialized device
-        bool allDevicesInitialized = true; 
-
         KinectSettings oSettings;
         SettingsForm fSettingsForm;
         Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
         MainWindowForm fMainWindowForm;
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
+        const float networkTimeout = 5f;
 
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
-
         public event SocketListChangedHandler eSocketListChanged;
+
+        public bool bTempSyncEnabled = false;
 
         public int nClientCount
         {
@@ -58,7 +54,7 @@ namespace KinectServer
 
         public List<AffineTransform> lCameraPoses
         {
-            get 
+            get
             {
                 List<AffineTransform> cameraPoses = new List<AffineTransform>();
                 lock (oClientSocketLock)
@@ -66,7 +62,7 @@ namespace KinectServer
                     for (int i = 0; i < lClientSockets.Count; i++)
                     {
                         cameraPoses.Add(lClientSockets[i].oCameraPose);
-                    }                    
+                    }
                 }
                 return cameraPoses;
             }
@@ -124,7 +120,7 @@ namespace KinectServer
                             break;
                         }
                     }
-                    
+
                 }
                 return allCalibrated;
             }
@@ -142,7 +138,7 @@ namespace KinectServer
         }
         public void SetKinectSettingsForm(int id, KinectConfigurationForm form)
         {
-            if(kinectSettingsForms.ContainsKey(id))
+            if (kinectSettingsForms.ContainsKey(id))
             {
                 kinectSettingsForms[id] = form;
             }
@@ -167,7 +163,7 @@ namespace KinectServer
 
         public KinectConfigurationForm GetKinectSettingsForm(int id)
         {
-            if(kinectSettingsForms.TryGetValue(id, out var value))
+            if (kinectSettingsForms.TryGetValue(id, out var value))
             {
                 return value;
             }
@@ -278,168 +274,232 @@ namespace KinectServer
             }
         }
 
-        /// <summary>
-        /// Request the device Sync state, so that we know which Device is Master and which are Subordinates before starting them
-        /// </summary>
-        public void RequestDeviceSyncState()
+        public bool SetAndConfirmConfig(KinectSocket socket, KinectConfiguration newConfig)
         {
             lock (oClientSocketLock)
             {
-                for (int i = 0; i < lClientSockets.Count; i++)
+                socket.SendConfiguration(newConfig);
+                socket.RequestConfiguration();
+            }
+
+            bool recievedData = false;
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+            while (!recievedData && timer.Elapsed.TotalSeconds < networkTimeout)
+            {
+                recievedData = true;
+
+                lock (oClientSocketLock)
                 {
-                    lClientSockets[i].RequestTempSyncState();
+                    if (!socket.bConfigurationReceived)
+                        recievedData = false;
+                }
+
+            }
+
+            timer.Stop();
+
+            if (!socket.bConfigurationReceived)
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("Could not confirm configuration file, please check your network", 5000);
+                return false;
+            }
+
+            return false;
+        }
+
+
+        /// <summary>
+        /// Restarts all clients in the list and updates their configuration
+        /// </summary>
+        /// <returns>Returns true on successfull restart, false on restart error</returns>
+        public bool RestartClients(List<KinectSocket> clients)
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < clients.Count; i++)
+                {
+                    clients[i].ReinitializeAndConfirm();
+                    clients[i].UpdateSocketState(" Restarting... ");
                 }
             }
+
+            bool recievedData = false;
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+            while (!recievedData && timer.Elapsed.TotalSeconds < networkTimeout)
+            {
+                recievedData = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < clients.Count; i++)
+                    {
+                        if (!clients[i].bReinitialized)
+                            recievedData = false;
+                    }
+                }
+
+
+            }
+
+            timer.Stop();
+
+            bool restartSuccess = true;
+
+            for (int i = 0; i < clients.Count; i++)
+            {
+                if (!clients[i].bReinitialized || clients[i].bReinizializationError)
+                {
+                    fMainWindowForm?.SetStatusBarOnTimer("Could not restart a kinect. Please connect and try again:", 5000);
+                    restartSuccess = false;
+                    clients[i].UpdateSocketState(" Restart failed! ");
+                }
+
+                else
+                {
+                    clients[i].UpdateSocketState("");
+                }
+            }
+
+            if (!restartSuccess)
+                return false;
+
+            if (!GetAllConfigurations())
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public bool RestartAllClients()
+        {
+            return RestartClients(lClientSockets);
         }
 
         /// <summary>
-        /// When a client has send its Device Sync State, we try to Set the Client Sync State
+        /// Restarts all clients in a specific order that allows temporal sync to work.
+        /// (Restarts all subs first, and then the master)
         /// </summary>
-        public void SendTemporalSyncData()
+        /// <returns>Returns true on successfull restart, false on restart error</returns>
+        public bool RestartTemporalSync()
         {
+            List<KinectSocket> subordinates = new List<KinectSocket>();
+            List<KinectSocket> main = new List<KinectSocket>();
+
+            for (int i = 0; i < lClientSockets.Count; i++)
+            {
+                if (lClientSockets[i].configuration.eSoftwareSyncState == KinectConfiguration.SyncState.Subordinate)
+                    subordinates.Add(lClientSockets[i]);
+
+                if (lClientSockets[i].configuration.eSoftwareSyncState == KinectConfiguration.SyncState.Main)
+                    main.Add(lClientSockets[i]);
+            }
+
+            if (!RestartClients(subordinates))
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("Could not restart one ore more subordinates. Please try again:", 5000);
+                return false;
+            }
+
+            if (!RestartClients(main))
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main. Please connect and try again:", 5000);
+                return false;
+            }
+
+
             lock (oClientSocketLock)
             {
-                int masterCount = 0;
-                int subordinateCount = 0;
-
-                //First we check if we have recieved the Device Sync State of all Devices
-                //If not, we return and the next client who confirms their state starts this function again
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if(lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.MASTER)
-                    {
-                        masterCount++;
-                    }
-
-                    if (lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.SUBORDINATE)
-                    {
-                        subordinateCount++;
-                    }
-
-                    if (lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.UNKNOWN)
-                    {
-                        return;
-                    }
+                    lClientSockets[i].UpdateSocketState("");
                 }
+            }
 
-                //On a second step we check if we have exactly one master and at least one subordinate
+            return true;
+        }
 
-                if(masterCount != 1 || subordinateCount < 1)
+        /// <summary>
+        /// Sets the temp sync settings for each device. Evaluates the jack states
+        /// of the devices to determine how they should be configured.
+        /// </summary>
+        /// <returns>Returns true when the configuration was successfull, false on error</returns>
+        public bool SetTempSyncState(bool syncEnabled)
+        {
+            if (syncEnabled)
+            {
+                //Update the configurations of the kinect, so that we can be sure to get the latest hardware sync state
+                if (!GetAllConfigurations())
+                    return false;
+
+                lock (oClientSocketLock)
                 {
-                    //If not, we show a error message and disable the temporal sync
+                    int mainCount = 0;
+                    int subordinateCount = 0;
+                    int invalidCount = 0;
 
-                    fMainWindowForm?.SetStatusBarOnTimer("Temporal Sync cables not connected properly", 5000);
-                    fSettingsForm?.ActivateTempSyncEnableButton();
-                    return;
+                    //First we check if the devices have a valid sync wiring
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        switch (lClientSockets[i].configuration.eHardwareSyncState)
+                        {
+                            case KinectConfiguration.SyncState.Main:
+                                mainCount++;
+                                break;
+                            case KinectConfiguration.SyncState.Subordinate:
+                                subordinateCount++;
+                                break;
+                            case KinectConfiguration.SyncState.Standalone:
+                            case KinectConfiguration.SyncState.Unknown:
+                                invalidCount++;
+                                break;
+                        }
+                    }
+
+                    if (mainCount != 1 || subordinateCount < 1 || invalidCount > 0)
+                    {
+                        //If not, we show a error message
+                        fMainWindowForm?.SetStatusBarOnTimer("Temporal Sync cables not connected properly", 5000);
+                        return false;
+                    }
                 }
-                
-
-                allDevicesInitialized = false;
 
                 byte syncOffSetCounter = 0;
 
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if(lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.SUBORDINATE)
+                    if (lClientSockets[i].configuration.eHardwareSyncState == KinectConfiguration.SyncState.Subordinate)
                     {
                         syncOffSetCounter++;
                     }
 
-                    lClientSockets[i].SendTemporalSyncStatus(true, syncOffSetCounter);
+                    KinectConfiguration newConfig = lClientSockets[i].configuration;
+                    newConfig.eSoftwareSyncState = lClientSockets[i].configuration.eHardwareSyncState;
+                    newConfig.syncOffset = syncOffSetCounter;
 
-                }
-
-                bWaitForSubToStart = true;
-            }
-        }
-
-
-        /// <summary>
-        /// Sets all clients as standalone
-        /// </summary>
-        public void DisableTemporalSync()
-        {
-            allDevicesInitialized = false;
-
-            lock (oClientSocketLock)
-            {
-                for (int i = 0; i < lClientSockets.Count; i++)
-                {
-                    lClientSockets[i].SendTemporalSyncStatus(false, 0);
-                }
-            }
-        }
-
-
-        public void ConfirmTemporalSyncDisabled()
-        {
-            if (bWaitForSubToStart)
-                return;
-
-            lock (oClientSocketLock)
-            {
-                for (int i = 0; i < lClientSockets.Count; i++)
-                {
-                    if (lClientSockets[i].currentClientTempSyncState != KinectSocket.eTempSyncConfig.STANDALONE)
+                    if (!SetAndConfirmConfig(lClientSockets[i], newConfig))
                     {
-                        return;
+                        return false;
                     }
                 }
             }
 
-            allDevicesInitialized = true;
-        }
-
-        /// <summary>
-        /// Called when a sub client has started. This checks if all sub clients have already started. If yes, we initialize the master
-        /// </summary>
-        public void CheckForMasterStart()
-        {
-            if (!bWaitForSubToStart)
-            {
-                return;
-            }
-
-            bool allSubsStarted = true;
-
-            lock (oClientSocketLock)
+            else
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if (!lClientSockets[i].bSubStarted && lClientSockets[i].currentClientTempSyncState == KinectSocket.eTempSyncConfig.SUBORDINATE)
-                    {
-                        allSubsStarted = false;
-                        break;
-                    }
+                    KinectConfiguration newConfig = lClientSockets[i].configuration;
+                    newConfig.eSoftwareSyncState = KinectConfiguration.SyncState.Standalone;
+
+                    if (!SetAndConfirmConfig(lClientSockets[i], newConfig))
+                        return false;
                 }
+            }
 
-                bWaitForSubToStart = false;
+            return true;
 
-                if (allSubsStarted)
-                {
-                    for (int i = 0; i < lClientSockets.Count; i++)
-                    {
-                        if(lClientSockets[i].currentDeviceTempSyncState == KinectSocket.eTempSyncConfig.MASTER)
-                        {
-                            lClientSockets[i].SendMasterInitialize();
-                            return;
-                        }
-                    }
-                }
-            }           
-        }
-
-        /// <summary>
-        /// Tells the server that it is now ok to start recieving user changes again
-        /// </summary>
-        public void MasterSuccessfullyRestarted()
-        {
-            allDevicesInitialized = true; 
-        }
-
-        public bool GetAllDevicesInitialized()
-        {
-            return allDevicesInitialized;
         }
 
         public bool GetStoredFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts)
@@ -447,7 +507,7 @@ namespace KinectServer
             bool bNoMoreStoredFrames;
             lFramesRGB.Clear();
             lFramesVerts.Clear();
-            
+
             lock (oFrameRequestLock)
             {
                 //Request frames
@@ -462,7 +522,7 @@ namespace KinectServer
                 bNoMoreStoredFrames = false;
                 while (!allGathered)
                 {
-                    allGathered = true;                
+                    allGathered = true;
                     lock (oClientSocketLock)
                     {
                         for (int i = 0; i < lClientSockets.Count; i++)
@@ -494,6 +554,58 @@ namespace KinectServer
                 return false;
             else
                 return true;
+        }
+
+        /// <summary>
+        /// Gets the configurations from the kinects and stores them in their socket
+        /// </summary>
+        public bool GetAllConfigurations()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].RequestConfiguration();
+                }
+            }
+
+            bool recievedData = false;
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            while (!recievedData && timer.Elapsed.TotalSeconds < networkTimeout)
+            {
+                recievedData = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bConfigurationReceived)
+                            recievedData = false;
+                    }
+                }
+            }
+
+            timer.Stop();
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].UpdateSocketState("");
+
+                    if (!lClientSockets[i].bConfigurationReceived)
+                    {
+                        fMainWindowForm?.SetStatusBarOnTimer("Could not update configuration file, please check your network", 5000);
+                        return false;
+                    }
+                }
+            }
+
+
+            return true;
+
         }
 
         public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts, List<List<Body>> lFramesBody)
@@ -573,16 +685,14 @@ namespace KinectServer
                             lClientSockets.Add(new KinectSocket(newClient));
                             lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
                             lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
-                            lClientSockets[lClientSockets.Count - 1].eSubInitialized += new SubOrdinateInitialized(CheckForMasterStart);
-                            lClientSockets[lClientSockets.Count - 1].eMasterRestart += new MasterRestarted(MasterSuccessfullyRestarted);
-                            lClientSockets[lClientSockets.Count - 1].eSyncJackstate += new RecievedSyncJackState(SendTemporalSyncData);
-                            lClientSockets[lClientSockets.Count - 1].eStandAloneInitialized += new StandAloneInitialized(ConfirmTemporalSyncDisabled);
 
                             if (eSocketListChanged != null)
                             {
                                 eSocketListChanged(lClientSockets);
                             }
                         }
+
+                        GetAllConfigurations();
                     }
                 }
                 catch (SocketException)
@@ -602,7 +712,7 @@ namespace KinectServer
             System.Timers.Timer checkConnectionTimer = new System.Timers.Timer();
             checkConnectionTimer.Interval = 1000;
 
-            checkConnectionTimer.Elapsed += delegate(object sender, System.Timers.ElapsedEventArgs e)
+            checkConnectionTimer.Elapsed += delegate (object sender, System.Timers.ElapsedEventArgs e)
             {
                 lock (oClientSocketLock)
                 {
@@ -654,24 +764,16 @@ namespace KinectServer
                                 lClientSockets[i].bLatestFrameReceived = true;
                             }
 
-                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_TEMP_SYNC_STATUS)
-                            {
-                                lClientSockets[i].ReceiveTemporalSyncStatus();
-                            }
-
-                            else if(buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_MASTER_RESTART)
-                            {
-                                lClientSockets[i].RecieveMasterHasRestarted();
-                            }
-
-                            else if(buffer[0] == (byte)IncomingMessageType.MSG_SYNC_JACK_STATE)
-                            {
-                                lClientSockets[i].RecieveDeviceSyncState();
-                            }
-                            else if(buffer[0] == (byte)IncomingMessageType.MSG_CONFIGURATION)
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIGURATION)
                             {
                                 lClientSockets[i].RecieveConfiguration();
                             }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_RESTART)
+                            {
+                                lClientSockets[i].RecieveRestartConfirmation();
+                            }
+
                             buffer = lClientSockets[i].Receive(1);
                         }
                     }

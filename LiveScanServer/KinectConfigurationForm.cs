@@ -44,7 +44,7 @@ namespace KinectServer
         private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
             displayedConfiguration = kc;
-            int d = kc.DepthMode;
+            int d = (int)kc.eDepthMode;
             foreach(DepthModeConfiguration item in lDepthModeListBox.Items)
             {
                 if(item.value == d)
@@ -73,7 +73,7 @@ namespace KinectServer
         private void ListBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
             lbDepthModeDetaulsLabel.Text = SelectedDepthMode.depthModeDetails;
-            displayedConfiguration.DepthMode = SelectedDepthMode.value;
+            displayedConfiguration.eDepthMode = (KinectConfiguration.depthMode)SelectedDepthMode.value;
         }
 
         private void KinectSettingsForm_FormClosed(object sender, FormClosedEventArgs e)

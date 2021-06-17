@@ -270,11 +270,6 @@ namespace KinectServer
             {
                 Thread.Sleep(1);
 
-                if (!oServer.GetAllDevicesInitialized())
-                {
-                    continue;
-                }
-
                 oServer.GetLatestFrame(lFramesRGB, lFramesVerts, lFramesBody);
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.

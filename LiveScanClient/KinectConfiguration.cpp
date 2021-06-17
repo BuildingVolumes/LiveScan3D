@@ -3,13 +3,13 @@
 #include <utils.h>
 
 
-	std::string serialNumber;
+	std::string sSerialNumber;
 	k4a_device_configuration_t config;
-	SYNC_STATE state;
-	int sync_offset;
-	//No way to get the depth pixel values from the SDK at the moment, so this is hardcoded
-	int depth_camera_width;
-	int depth_camera_height;
+	SYNC_STATE eSoftwareSyncState;
+	SYNC_STATE eHardwareSyncState;
+	int nSync_offset;
+	int m_nDepth_camera_width;
+	int m_nDepth_camera_height;
 
 
 	KinectConfiguration::KinectConfiguration()
@@ -26,10 +26,12 @@
 		//add depth mode.
 		char depthMode = (char)config.depth_mode;
 		message[0] = depthMode;
-		//add sync_state
-		message[1] = (char)(int)state;
+		//add software sync_state
+		message[1] = (char)(int)eSoftwareSyncState;
+		//add hardware sync_state
+		message[2] = (char)(int)eHardwareSyncState;
 		//add sync_offset
-		message[2] = (char)(int)sync_offset;
+		message[3] = (char)(int)nSync_offset;
 		//add color/resolution
 		return message;
 	}
@@ -49,16 +51,19 @@
 		config.depth_mode = static_cast<k4a_depth_mode_t>(depthMode);
 		i++;
 
-		//set sync_state
-		//sub-mas-standalone -> 0,1,2
-		state = (SYNC_STATE)received[i];
+		//set software sync_state
+		//Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
+		eSoftwareSyncState = (SYNC_STATE)received[i];
+		i++;
+
+		//Hardware sync state is only set by the kinect device itself, so we skip that
 		i++;
 
 		//set sync_offset
-		sync_offset = (int)received[i];
+		nSync_offset = (int)received[i];
 		i++;
 
-		//set color/resolution.
+		//TODO: set color/resolution.
 
 
 		//update const byteLength when changing this.
@@ -72,40 +77,42 @@
 		config.color_resolution = K4A_COLOR_RESOLUTION_720P;
 		config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
 		config.synchronized_images_only = true;
-		sync_offset = 0;
-		state = Standalone;
+		nSync_offset = 0;
+		eSoftwareSyncState = Standalone;
+		eHardwareSyncState = Unknown;
 	}
 
 	int KinectConfiguration::GetCameraWidth()
 	{
 		UpdateWidthAndHeight();
-		return depth_camera_width;
+		return m_nDepth_camera_width;
 	}
 
 	int KinectConfiguration::GetCameraHeight()
 	{
 		UpdateWidthAndHeight();
-		return depth_camera_height;
+		return m_nDepth_camera_height;
 	}
 
+	//No way to get the depth pixel values from the SDK at the moment, so this is hardcoded
 	void KinectConfiguration::UpdateWidthAndHeight()
 	{
 		switch (config.depth_mode)
 		{
 		case K4A_DEPTH_MODE_NFOV_UNBINNED:
-			depth_camera_width = 640;
-			depth_camera_height = 576;
+			m_nDepth_camera_width = 640;
+			m_nDepth_camera_height = 576;
 			break;
 		case K4A_DEPTH_MODE_NFOV_2X2BINNED:
-			depth_camera_width = 320;
-			depth_camera_height = 288;
+			m_nDepth_camera_width = 320;
+			m_nDepth_camera_height = 288;
 			break;
 		case K4A_DEPTH_MODE_WFOV_UNBINNED:
-			depth_camera_width = 1024;
-			depth_camera_height = 1024;
+			m_nDepth_camera_width = 1024;
+			m_nDepth_camera_height = 1024;
 		case K4A_DEPTH_MODE_WFOV_2X2BINNED:
-			depth_camera_width = 512;
-			depth_camera_height = 512;
+			m_nDepth_camera_width = 512;
+			m_nDepth_camera_height = 512;
 			break;
 		default:
 			break;

@@ -36,18 +36,10 @@ namespace KinectServer
 
 
         public bool bCalibrated = false;
-        public bool bSubStarted = false;
-        public bool bMasterStarted = false;
+        public bool bReinitialized = false;
+        public bool bReinizializationError = false;
 
         public KinectConfiguration configuration;
-
-        public enum eTempSyncConfig { MASTER, SUBORDINATE, STANDALONE, UNKNOWN }
-
-        //Shows how the *Device* is configured (Determined only by the Sync-Cables hooked up to the device)
-        public eTempSyncConfig currentDeviceTempSyncState = eTempSyncConfig.STANDALONE; 
-
-        //Shows how the Client-Software is configured (This is set by the server)
-        public eTempSyncConfig currentClientTempSyncState = eTempSyncConfig.STANDALONE;
 
         //The pose of the sensor in the scene (used by the OpenGLWindow to show the sensor)
         public AffineTransform oCameraPose = new AffineTransform();
@@ -71,9 +63,7 @@ namespace KinectServer
         public KinectSocket(Socket clientSocket)
         {
             oSocket = clientSocket;
-            sSocketState = oSocket.RemoteEndPoint.ToString() + " Calibrated = false";
-
-            UpdateSocketState();
+            UpdateSocketState(" Recieving configuration...");
         }
 
         public void CaptureFrame()
@@ -85,12 +75,11 @@ namespace KinectServer
         public void Calibrate()
         {            
             bCalibrated = false;
-            sSocketState = oSocket.RemoteEndPoint.ToString() + " Calibrated = false";
 
             byteToSend[0] = (byte)OutgoingMessageType.MSG_CALIBRATE;
             SendByte();
 
-            UpdateSocketState();
+            UpdateSocketState("");
         }
 
         public void SendSettings(KinectSettings settings)
@@ -139,16 +128,10 @@ namespace KinectServer
             {
                 oSocket.Send(message.ToArray());
             }
-            //This assumes that we have received configuration recently... is that true? We should do a receive during initiation
-
-            //Check if what we just sent requires a restart compared to previous known configuration.
-            if (newConfig.RequiresRestart(configuration))
-            {
-                Reinitialize();
-            }
 
             configuration = newConfig;
         }
+
         public void SendCalibrationData()
         {
             int size = 1 + (9 + 3) * sizeof(float);
@@ -174,111 +157,14 @@ namespace KinectServer
         }
 
         /// <summary>
-        /// Send the device the command to restart with Temporal Sync Enabled or Disabled
+        /// Send a signal to Reinitialize the device with its current settings and confirm it to the server.
         /// </summary>
-        /// <param name="tempSyncOn">Enable/Disable Temporal Sync</param>
-        /// <param name="syncOffSetMultiplier">Only set when this device should be a subordinate. Should be a unique number in ascending order for each sub</param>
-        public void SendTemporalSyncStatus(bool tempSyncOn, byte syncOffSetMultiplier)
+        public void ReinitializeAndConfirm()
         {
-            bSubStarted = false;
-            currentClientTempSyncState = eTempSyncConfig.UNKNOWN;
-
-            if (tempSyncOn)
-            {
-                byte[] data = new byte[2];
-                data[0] = (byte)OutgoingMessageType.MSG_SET_TEMPSYNC_ON;
-                data[1] = syncOffSetMultiplier;
-                if (SocketConnected())
-                    oSocket.Send(data);
-            }
-
-            else
-            {
-                byteToSend[0] = (byte)OutgoingMessageType.MSG_SET_TEMPSYNC_OFF;
-                SendByte();
-            }
-        }
-
-        /// <summary>
-        /// Send the device its appropriate depth mode.
-        /// </summary>
-        /// <param name="depthMode">
-        /// 1 is K4A_DEPTH_MODE_NFOV_2X2BINNED,
-        /// 2 is K4A_DEPTH_MODE_NFOV_UNBINNED,
-        /// 3 is K4A_DEPTH_MODE_WFOV_2X2BINNED,
-        /// 4 is K4A_DEPTH_MODE_WFOV_UNBINNED.
-        /// 
-        /// 0 (off), and 5 (passive_IR) are not currently supported by the client.
-        /// </param>
-        public void SendDepthMode(int depthMode)
-        {
-            byte[] data = new byte[2];
-            data[0] = (byte)OutgoingMessageType.MSG_SET_DEPTHMODE;
-            data[1] = (byte)depthMode;
-            if (SocketConnected())
-                oSocket.Send(data);
-        }
-
-        /// <summary>
-        /// Send a signal to Reinitialize the device with its current settings.
-        /// We do NOT need to manually re-do this after changing the depthMode or temporal sync, as sending that command will automatically call the reinit function
-        /// </summary>
-        public void Reinitialize()
-        {
+            bReinitialized = false;
+            bReinizializationError = false;
             byteToSend[0] = (byte)OutgoingMessageType.MSG_REINITIALIZE_WITH_CURRENT_SETTINGS;
             SendByte();
-        }
-
-        /// <summary>
-        /// Sends the master device the command to Start. Should only be called when all subs have started
-        /// </summary>
-        public void SendMasterInitialize()
-        {
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_START_MASTER;
-            SendByte();
-        }
-
-
-        /// <summary>
-        /// Asks the client in which way the Sync-Cables are hooked up to the device
-        /// </summary>
-        public void RequestTempSyncState()
-        {
-            currentDeviceTempSyncState = eTempSyncConfig.UNKNOWN;
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_SYNC_JACK_STATE;
-            SendByte();
-        }
-
-        public void RecieveDeviceSyncState()
-        {
-            byte tempSyncState;
-            byte[] buffer = new byte[1024];
-
-            while (oSocket.Available == 0)
-            {
-                if (!SocketConnected())
-                    return;
-            }
-
-            oSocket.Receive(buffer, 3, SocketFlags.None);
-            tempSyncState = buffer[0];
-
-            if (tempSyncState == 0)
-            {
-                currentDeviceTempSyncState = eTempSyncConfig.SUBORDINATE;
-            }
-
-            else if (tempSyncState == 1)
-            {
-                currentDeviceTempSyncState = eTempSyncConfig.MASTER;
-            }
-
-            else if (tempSyncState == 2)
-            {
-                currentDeviceTempSyncState = eTempSyncConfig.STANDALONE;
-            }
-
-            eSyncJackstate.Invoke();
         }
 
         public void ReceiveCalibrationData()
@@ -305,69 +191,32 @@ namespace KinectServer
                 }
             }
 
-            UpdateSocketState();
+            UpdateSocketState("");
         }
 
-        //Gets the TemporalSyncStatus from the device
-        public void ReceiveTemporalSyncStatus()
+        /// <summary>
+        /// Gets a confirmation from the client that the restart has either been successfull, or a failure
+        /// </summary>
+        /// <returns></returns>
+        public void RecieveRestartConfirmation()
         {
-            byte tempSyncState;
-            byte[] buffer = new byte[1024];
+            bReinitialized = true;
 
-            while (oSocket.Available == 0)
-            {
-                if (!SocketConnected())
-                    return;
-            }
+            byte[] success = Receive(1);
 
-            oSocket.Receive(buffer, 3, SocketFlags.None);
-            tempSyncState = buffer[0];
 
-            //Two very similar enums...
-            //SYNC_STATE is for syncronizing the messages accross the server, and matches a SYNC_STATE in utils.h, and can be copied/pasted to match.
-            //eTempSyncConfig is declared in this file and can be edited and changed as needed, and may not neccesarily match the one in the client.
-            //for example, it has an UNKNOWN property.
-            //TODO: fix The mismatching capitalization styles, at least.
+            if (success[0] == 0)
+                bReinizializationError = false;
 
-            if (tempSyncState == (byte)SYNC_STATE.Subordinate)
-            {
-                currentClientTempSyncState = eTempSyncConfig.SUBORDINATE;
-                bSubStarted = true;
-                bMasterStarted = false;
-                eSubInitialized?.Invoke();
-            }
-
-            else if(tempSyncState == (byte)SYNC_STATE.Master)
-            {
-                currentClientTempSyncState = eTempSyncConfig.MASTER;
-                bSubStarted = false;
-            }
-
-            else if (tempSyncState == (byte)SYNC_STATE.Standalone)
-            {
-                currentClientTempSyncState = eTempSyncConfig.STANDALONE;
-                bSubStarted = false;
-                bMasterStarted = false;
-                eStandAloneInitialized?.Invoke();
-            }
-
-            UpdateSocketState();
-
-        }
-        public void RecieveMasterHasRestarted()
-        {
-            bMasterStarted = true;
-            eMasterRestart?.Invoke();
+            else
+                bReinizializationError = true;
         }
 
         public void RecieveConfiguration()
         {
-            byte[] buffer = Receive(3);
-            var oldConfiguration = configuration;
+            byte[] buffer = Receive(4);
             configuration = new KinectConfiguration(buffer);
-
-            bConfigurationReceived = true;
-            //
+            bConfigurationReceived = true;            
             configurationUpdated?.Invoke(configuration);
         }
 
@@ -397,7 +246,7 @@ namespace KinectServer
             }
 
             //Sometimes we recieve negative values when the cameras are restarting, I don't know why yet.
-            //I'm just patching this up for now.s
+            //I'm just patching this up for now.
 
             if (nToRead <= 0)
             {
@@ -522,23 +371,26 @@ namespace KinectServer
             oSocket.Send(byteToSend);
         }
 
-        public void UpdateSocketState()
+        public void UpdateSocketState(string message)
         {
             string tempSyncMessage = "";
 
-            switch (currentClientTempSyncState)
+            if(configuration != null)
             {
-                case eTempSyncConfig.MASTER:
-                    tempSyncMessage = "[MASTER]";
-                    break;
-                case eTempSyncConfig.SUBORDINATE:
-                    tempSyncMessage = "[SUBORDINATE]";
-                    break;
-                default:
-                    break;
-            }
+                switch (configuration.eSoftwareSyncState)
+                {
+                    case KinectConfiguration.SyncState.Main:
+                        tempSyncMessage = "[MAIN]";
+                        break;
+                    case KinectConfiguration.SyncState.Subordinate:
+                        tempSyncMessage = "[SUBORDINATE]";
+                        break;
+                    default:
+                        break;
+                }
+            }            
 
-            sSocketState = oSocket.RemoteEndPoint.ToString() + " Calibrated = " + bCalibrated + " " + tempSyncMessage;
+            sSocketState = oSocket.RemoteEndPoint.ToString() + " " + message + " Calibrated = " + bCalibrated + " " + tempSyncMessage;
 
             eChanged?.Invoke();
         }

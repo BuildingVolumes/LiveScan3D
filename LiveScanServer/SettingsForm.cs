@@ -369,40 +369,32 @@ namespace KinectServer
 
         private void btSyncEnable_click(object sender, EventArgs e)
         {
-            if (oServer.GetAllDevicesInitialized() && oServer.nClientCount > 1)
+            if (oServer.nClientCount > 1)
             {
-                oServer.RequestDeviceSyncState();
-                btSyncEnable.Enabled = false;
-                btSyncDisable.Enabled = true;
-
                 //Disable the Auto Exposure, as this could interfere with the temporal sync
                 chAutoExposureEnabled.Enabled = false;
                 trManualExposure.Enabled = true;
                 chAutoExposureEnabled.CheckState = CheckState.Unchecked;
+
+                if (oServer.SetTempSyncState(true) && oServer.RestartTemporalSync())
+                {
+                    oServer.bTempSyncEnabled = false;
+                    btSyncEnable.Enabled = false;
+                    btSyncDisable.Enabled = true;
+                }
             }
 
         }
 
         private void btSyncDisable_click(object sender, EventArgs e)
         {
-            if (oServer.GetAllDevicesInitialized())
+            if(oServer.SetTempSyncState(false) && oServer.RestartAllClients())
             {
-                oServer.DisableTemporalSync();
+                oServer.bTempSyncEnabled = false;
                 btSyncEnable.Enabled = true;
                 btSyncDisable.Enabled = false;
                 chAutoExposureEnabled.Enabled = true;
-            }
-        }
-
-        public void ActivateTempSyncEnableButton()
-        {
-            //As a Form code is run on a single UI thread, we need to communicate with that thread via Invoke
-            this.BeginInvoke(new MethodInvoker(delegate
-            {
-                btSyncEnable.Enabled = true;
-                btSyncDisable.Enabled = false;
-                chAutoExposureEnabled.Enabled = true;
-            }));
+            }         
         }
 
         private void chAutoExposureEnabled_CheckedChanged(object sender, EventArgs e)
@@ -483,6 +475,16 @@ namespace KinectServer
                 oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
 
             UpdateClients();
+
+            if (oServer.bTempSyncEnabled)
+            {
+                oServer.RestartTemporalSync();
+            }
+
+            else
+            {
+                oServer.RestartAllClients();
+            }
         }
 
     }
