@@ -52,7 +52,7 @@ namespace KinectServer
                     cbFilterDepthMap.Checked = kc.FilterDepthMap;
                     tbFilterDepthMapSize.Text = kc.FilterDepthMapSize.ToString();
                     tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
-                    int d = kc.DepthMode;
+                    int d = (int)kc.eDepthMode;
                     foreach (DepthModeConfiguration item in lDepthModeListBox.Items)
                     {
                         if (item.value == d)

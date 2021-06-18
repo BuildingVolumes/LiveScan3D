@@ -624,7 +624,6 @@ void LiveScanClient::HandleSocket()
 			{
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
 				SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 10000, true);
-				Reinitialize();
 			}
 
 			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
@@ -688,18 +687,6 @@ void LiveScanClient::HandleSocket()
 		else if (received[i] == MSG_CLEAR_STORED_FRAMES)
 		{
 			m_framesFileWriterReader.closeFileIfOpened();
-		}
-
-		else if (received[i] == MSG_REQUEST_SYNC_JACK_STATE) 
-		{
-			int size = 3;
-			char* buffer = new char[size];
-			buffer[0] = MSG_SYNC_JACK_STATE;
-
-			buffer[1] = pCapture->GetSyncJackState() + 1; //Gets the current Sync Jack State and adds + 1, as we can't send a negative value
-
-			m_pClientSocket->SendBytes(buffer, size);
-			m_bConfirmTempSyncState = false;
 		}
 
 		else if (received[i] == MSG_CREATE_DIR) //Creates a dir on the client. Message also marks the start of the recording
@@ -794,6 +781,21 @@ void LiveScanClient::ReinitAndConfirm()
 	}
 
 	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
+}
+
+void LiveScanClient::SendReinitConfirmation(bool success)
+{
+	int size = 2;
+	char* buffer = new char[size];
+	buffer[0] = MSG_CONFIRM_RESTART;
+
+	if (success)
+		buffer[1] = 0;
+
+	else
+		buffer[1] = 1;
+
+	m_pClientSocket->SendBytes(buffer, size);
 }
 
 void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body)

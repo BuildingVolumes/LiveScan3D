@@ -12,7 +12,7 @@ namespace KinectServer
 
     public class KinectConfiguration
     {
-
+        public static int bytelength = 19;
         public enum SyncState { Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3 };
         public enum depthMode { NFOV320Binned = 1, NFOV640Unbinned = 2, WFOV512Binned = 3, WFOV1024Unbinned = 4 };
         public bool FilterDepthMap;
@@ -25,28 +25,30 @@ namespace KinectServer
 
         public KinectConfiguration()
         {
-
             eDepthMode = depthMode.NFOV640Unbinned;
             eSoftwareSyncState = SyncState.Standalone;
             eHardwareSyncState = SyncState.Unknown;
             syncOffset = 0;
-            SerialNumber = "";
-            for(int i = 3; i < 16; i++)
-            {
-                SerialNumber += (char)((int)bytes[i]);
-            }
-            FilterDepthMap = bytes[16] == 0 ? false : true;
-            FilterDepthMapSize = bytes[17];
+            SerialNumber = "Unknown";
+            FilterDepthMap = false;
+            FilterDepthMapSize = 0;
         }
 
 
         //Matches KinectConfiguration.cpp
         public KinectConfiguration(byte[] bytes)
-
+        { 
             eDepthMode = (depthMode)bytes[0];
             eSoftwareSyncState = (SyncState)bytes[1];
             eHardwareSyncState = (SyncState)bytes[2];
             syncOffset = bytes[3];
+            SerialNumber = "";
+            for (int i = 4; i < 17; i++)
+            {
+                SerialNumber += (char)((int)bytes[i]);
+            }
+            FilterDepthMap = bytes[17] == 0 ? false : true;
+            FilterDepthMapSize = bytes[18];
         }
 
         public byte[] ToBytes()
@@ -61,10 +63,10 @@ namespace KinectServer
             data[3] = syncOffset;
             for(int i = 0;i<13;i++)
             {
-                data[i+3] = (byte)SerialNumber[i];
+                data[i+4] = (byte)SerialNumber[i];
             }
-            data[16] = (byte)(FilterDepthMap ? 1 : 0);
-            data[17] = (byte)FilterDepthMapSize;
+            data[17] = (byte)(FilterDepthMap ? 1 : 0);
+            data[18] = (byte)FilterDepthMapSize;
             return data;
         }
         

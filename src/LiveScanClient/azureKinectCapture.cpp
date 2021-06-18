@@ -28,7 +28,7 @@ AzureKinectCapture::~AzureKinectCapture()
 /// </summary>
 /// <param name="configuration"></param>
 /// <returns>Returns true on success, false on error</returns>
-bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
+bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -43,8 +43,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 
 	kinectSensor = NULL;
 	while (K4A_FAILED(k4a_device_open(deviceIdx, &kinectSensor)))
-	{		
-		if (deviceIDForRestart == -1) 
+	{
+		if (deviceIDForRestart == -1)
 		{
 			deviceIdx++;
 			if (deviceIdx >= count)
@@ -52,10 +52,10 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 				bInitialized = false;
 				return bInitialized;
 			}
-		}		
+		}
 	}
 
-	if (configuration.eSoftwareSyncState == Main) 
+	if (configuration.eSoftwareSyncState == Main)
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
 	}
@@ -99,7 +99,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 
 	transformation = k4a_transformation_create(&calibration);
 
-	
+
 	//It's crucial for this program to output accurately mapped Pointclouds. The highest accuracy mapping is achieved
 	//by using the k4a_transformation_depth_image_to_color_camera function. However this converts a small depth image 
 	//to a larger size, equivalent to the the color image size. This means more points to process and higher processing costs
@@ -121,17 +121,17 @@ bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.fx /= rescaleRatio;
 	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.fy /= rescaleRatio;
 	transformationColorDownscaled = k4a_transformation_create(&calibrationColorDownscaled);
-  
-//If this device is a subordinate, it is expected to start capturing at a later time (When the master has started), so we skip this check  
-if (configuration.eSoftwareSyncState != Subordinate) 
-{
+
+	//If this device is a subordinate, it is expected to start capturing at a later time (When the master has started), so we skip this check  
+	if (configuration.eSoftwareSyncState != Subordinate)
+	{
 		std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
 		bool bTemp;
 		do
 		{
 			if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 				bTemp = AquirePointcloudFrame();
-			else 
+			else
 				bTemp = AquireRawFrame();
 
 			std::chrono::duration<double> elapsedSeconds = std::chrono::system_clock::now() - start;
@@ -141,7 +141,7 @@ if (configuration.eSoftwareSyncState != Subordinate)
 				break;
 			}
 		} while (!bTemp);
-	}	
+	}
 
 	size_t serialNoSize;
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
@@ -160,9 +160,9 @@ void AzureKinectCapture::SetConfiguration(KinectConfiguration& configuration)
 	this->configuration = configuration;
 }
 
-bool AzureKinectCapture::Close() 
+bool AzureKinectCapture::Close()
 {
-	if (!bInitialized) 
+	if (!bInitialized)
 	{
 		return false;
 	}
@@ -263,7 +263,7 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 		cv::Mat cImgD3 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage)), CV_16UC1);// k4a_image_get_buffer(depthImage));
 
 		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
-		
+
 		//cv::medianBlur(cImgD, cImgD2, 5);
 		int CLOSING = 3;
 		// 4 will do a good edge detection if you threshold after as well
@@ -327,7 +327,7 @@ void AzureKinectCapture::UpdateDepthPointCloud()
 	k4a_transformation_depth_image_to_point_cloud(transformation, depthImage, K4A_CALIBRATION_TYPE_DEPTH, pointCloudImage);
 }
 
-void AzureKinectCapture::MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints)
+void AzureKinectCapture::MapDepthFrameToCameraSpace(Point3f* pCameraSpacePoints)
 {
 	UpdateDepthPointCloud();
 
@@ -361,7 +361,7 @@ void AzureKinectCapture::MapColorFrameToCameraSpace(Point3f* pCameraSpacePoints)
 	}
 }
 
-void AzureKinectCapture::MapDepthFrameToColorSpace(UINT16 *pDepthInColorSpace)
+void AzureKinectCapture::MapDepthFrameToColorSpace(UINT16* pDepthInColorSpace)
 {
 	if (depthImageInColor == NULL)
 	{
@@ -398,7 +398,7 @@ void AzureKinectCapture::MapColorFrameToDepthSpace(RGB* pColorInDepthSpace)
 /// <param name="exposureStep">The Exposure Step between -11 and 1</param>
 void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureStep)
 {
-	if (bInitialized) 
+	if (bInitialized)
 	{
 		if (enableAutoExposure)
 		{
@@ -430,7 +430,7 @@ void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureS
 /// This is achieved by looking at how the sync out and sync in ports of the device are connected
 /// </summary>
 /// <returns>Returns int -1 for Subordinate, int 0 for Master and int 1 for Standalone</returns>
-int AzureKinectCapture::GetSyncJackState() 
+int AzureKinectCapture::GetSyncJackState()
 {
 	if (K4A_RESULT_SUCCEEDED == k4a_device_get_sync_jack(kinectSensor, &syncInConnected, &syncOutConnected))
 	{
@@ -439,19 +439,19 @@ int AzureKinectCapture::GetSyncJackState()
 			return 1; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
 		}
 
-		else if (syncInConnected) 
+		else if (syncInConnected)
 		{
 			return 2; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
-		}		
+		}
 
 		else
 		{
 			return 3; //Device is Standalone, as it doesn't have a valid cabel configuration on its Sync Ports
 		}
-		
+
 	}
 
-	else 
+	else
 	{
 		return 3; //Probably failed because there are no cabels connected, this means the device should be set as standalone
 	}
@@ -461,7 +461,7 @@ int AzureKinectCapture::GetSyncJackState()
 /// Gets the intrinsics calibration json blob of the connected Kinect and writes it to the supplied buffer and size references.
 /// </summary>
 /// <returns> Returns true when the calibration file got successfully retrieved from the sensor, false when an error has occured</returns>
-bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t> &calibration_buffer, size_t &calibration_size)
+bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size)
 {
 	calibration_size = 0;
 	k4a_buffer_result_t buffer_result = k4a_device_get_raw_calibration(kinectSensor, NULL, &calibration_size);
@@ -479,12 +479,12 @@ bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t> &calibration_buf
 }
 
 
-uint64_t AzureKinectCapture::GetTimeStamp() 
+uint64_t AzureKinectCapture::GetTimeStamp()
 {
 	return currentTimeStamp;
 }
 
-int AzureKinectCapture::GetDeviceIndex() 
+int AzureKinectCapture::GetDeviceIndex()
 {
 	return deviceIDForRestart;
 }

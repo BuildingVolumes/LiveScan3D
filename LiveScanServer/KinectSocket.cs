@@ -20,10 +20,6 @@ using System.Net.Sockets;
 namespace KinectServer
 {
     public delegate void SocketChangedHandler();
-    public delegate void SubOrdinateInitialized();
-    public delegate void MasterRestarted();
-    public delegate void RecievedSyncJackState();
-    public delegate void StandAloneInitialized();
 
     public class KinectSocket
     {
@@ -58,10 +54,6 @@ namespace KinectServer
         public List<Body> lBodies = new List<Body>(); 
 
         public event SocketChangedHandler eChanged;
-        public event SubOrdinateInitialized eSubInitialized;
-        public event MasterRestarted eMasterRestart;
-        public event RecievedSyncJackState eSyncJackstate;
-        public event StandAloneInitialized eStandAloneInitialized;
 
         public Action<KinectConfiguration> configurationUpdated;
         public KinectSocket(Socket clientSocket)
@@ -153,6 +145,35 @@ namespace KinectServer
             if (SocketConnected())
                 oSocket.Send(data);
         }
+
+        /// <summary>
+        /// Commands the client to create a Take directory on his device. The client then stores all of his take exports there
+        /// </summary>
+        /// <param name="dirName">Take folder name as ASCII String, not longer than 256 characters</param>
+        public void SendCreateTakeDir(string dirName)
+        {
+            //Convert the string to an ASCII-Encoded byte array
+            char[] chars = dirName.ToCharArray();
+            List<Byte> byteList = new List<Byte>();
+
+            for (int i = 0; i < chars.Length; i++)
+            {
+                //Ditch any non ascii-character
+                if ((Int32)chars[i] < 128)
+                {
+                    byteList.Add((byte)chars[i]);
+                }
+            }
+
+            byte[] listLength = BitConverter.GetBytes(byteList.Count);
+
+            //Add our message as the first byte and add the length of this byte array
+            byteList.Insert(0, (byte)OutgoingMessageType.MSG_CREATE_DIR);
+            byteList.InsertRange(1, listLength);
+
+            oSocket.Send(byteList.ToArray());
+        }
+
 
         public void ClearStoredFrames()
         {

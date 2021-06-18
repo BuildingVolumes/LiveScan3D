@@ -34,11 +34,13 @@ namespace KinectServer
         public SettingsForm fSettingsForm;
         Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
         public MainWindowForm fMainWindowForm;
-
-        Socket oServerSocket;
         Thread listeningThread;
         Thread receivingThread;
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
+        public event SocketListChangedHandler eSocketListChanged;
+
+        public bool bTempSyncEnabled;
+
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
         const float networkTimeout = 5f;
@@ -797,10 +799,7 @@ namespace KinectServer
                     lClientSockets.Add(new KinectSocket(newSocket));
                     lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
                     lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
-                    lClientSockets[lClientSockets.Count - 1].eSubInitialized += new SubOrdinateInitialized(CheckForMasterStart);
-                    lClientSockets[lClientSockets.Count - 1].eMasterRestart += new MasterRestarted(MasterSuccessfullyRestarted);
-                    lClientSockets[lClientSockets.Count - 1].eSyncJackstate += new RecievedSyncJackState(SendTemporalSyncData);
-                    lClientSockets[lClientSockets.Count - 1].eStandAloneInitialized += new StandAloneInitialized(ConfirmTemporalSyncDisabled);
+
 
                     if (eSocketListChanged != null)
                     {
