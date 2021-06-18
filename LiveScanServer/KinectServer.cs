@@ -319,7 +319,7 @@ namespace KinectServer
 
 
         /// <summary>
-        /// Restarts all clients in the list and updates their configuration
+        /// Restarts all clients in the list 
         /// </summary>
         /// <returns>Returns true on successfull restart, false on restart error</returns>
         public bool RestartClients(List<KinectSocket> clients)
@@ -373,11 +373,6 @@ namespace KinectServer
 
             if (!restartSuccess)
                 return false;
-
-            if (!GetAllConfigurations())
-            {
-                return false;
-            }
 
             return true;
         }
@@ -440,7 +435,7 @@ namespace KinectServer
             if (syncEnabled)
             {
                 //Update the configurations of the kinect, so that we can be sure to get the latest hardware sync state
-                if (!GetAllConfigurations())
+                if (!GetConfigurations(lClientSockets))
                     return false;
 
                 lock (oClientSocketLock)
@@ -537,13 +532,13 @@ namespace KinectServer
 
             //If we record pointclouds or export the extrinsics, we create a directory on the Server PC
             if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud || oSettings.eExtrinsicsFormat != KinectSettings.ExtrinsicsStyle.None)
-            {             
+            {
                 try
                 {
                     DirectoryInfo di = Directory.CreateDirectory(takePathServer);
                 }
 
-                catch(Exception e)
+                catch (Exception e)
                 {
                     return null;
                 }
@@ -551,7 +546,7 @@ namespace KinectServer
 
             //TODO: When exporting intrinsics, also create Dir
             //When storing raw frames or intrinsics on the client, we create a directory on the client PC
-            if(oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
+            if (oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
             {
                 lock (oClientSocketLock)
                 {
@@ -560,7 +555,7 @@ namespace KinectServer
                         lClientSockets[i].SendCreateTakeDir(takePathClients);
                         //Wait just a tiny amount of time to avoid that the clients race each other on creating the dirs.
                         //Important if two clients are on the same pc
-                        Thread.Sleep(10); 
+                        Thread.Sleep(10);
                     }
                 }
 
@@ -668,13 +663,13 @@ namespace KinectServer
         /// <summary>
         /// Gets the configurations from the kinects and stores them in their socket
         /// </summary>
-        public bool GetAllConfigurations()
+        public bool GetConfigurations(List<KinectSocket> kinects)
         {
             lock (oClientSocketLock)
             {
-                for (int i = 0; i < lClientSockets.Count; i++)
+                for (int i = 0; i < kinects.Count; i++)
                 {
-                    lClientSockets[i].RequestConfiguration();
+                    kinects[i].RequestConfiguration();
                 }
             }
 
@@ -686,13 +681,10 @@ namespace KinectServer
             {
                 recievedData = true;
 
-                lock (oClientSocketLock)
+                for (int i = 0; i < kinects.Count; i++)
                 {
-                    for (int i = 0; i < lClientSockets.Count; i++)
-                    {
-                        if (!lClientSockets[i].bConfigurationReceived)
-                            recievedData = false;
-                    }
+                    if (!kinects[i].bConfigurationReceived)
+                        recievedData = false;
                 }
             }
 
@@ -700,11 +692,11 @@ namespace KinectServer
 
             lock (oClientSocketLock)
             {
-                for (int i = 0; i < lClientSockets.Count; i++)
+                for (int i = 0; i < kinects.Count; i++)
                 {
-                    lClientSockets[i].UpdateSocketState("");
+                    kinects[i].UpdateSocketState("");
 
-                    if (!lClientSockets[i].bConfigurationReceived)
+                    if (!kinects[i].bConfigurationReceived)
                     {
                         fMainWindowForm?.SetStatusBarOnTimer("Could not update configuration file, please check your network", 5000);
                         return false;
@@ -782,13 +774,13 @@ namespace KinectServer
         {
             // Get the socket that handles the client request.
             Socket listener = (Socket)ar.AsyncState;
-            if(listener == null || !bServerRunning)
+            if (listener == null || !bServerRunning)
             {
                 return;
             }
             Socket newSocket = listener.EndAccept(ar);
-							   
-		    // Signal main thread to go ahead
+
+            // Signal main thread to go ahead
             allDone.Set();
 
             //we do not want to add new clients while a frame is being requested
@@ -800,12 +792,20 @@ namespace KinectServer
                     lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
                     lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
 
-
                     if (eSocketListChanged != null)
                     {
                         eSocketListChanged(lClientSockets);
-                    }
+                    }                   
                 }
+
+                //if the export mode is set to anything else than the default, we restart the kinect to apply it
+                if(oSettings.eExportMode != KinectSettings.ExportMode.Pointcloud)
+                {
+                    List<KinectSocket> restartNeeded = new List<KinectSocket>();
+                    restartNeeded.Add(lClientSockets[lClientSockets.Count - 1]);
+                    RestartClients(restartNeeded);
+                }
+               
             }
         }
 
@@ -816,7 +816,7 @@ namespace KinectServer
                 allDone.Reset();
                 try
                 {
-                    oServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), oServerSocket);     
+                    oServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), oServerSocket);
                 }
                 catch (SocketException e)
                 {

@@ -36,13 +36,13 @@
 
 		message[3] = (char)(int)nSync_offset;
 
-		for (int i = 3; i < serialNumberSize+3; i++) {
-			message[i] = (int)serialNumber[i - 3];//ascii->char
+		for (int i = 4; i < serialNumberSize+4; i++) {
+			message[i] = (int)serialNumber[i - 4];//ascii->char
 		}
 		
 		//Filter Depth Map option
-		message[16] = filter_depth_map ? 1 : 0;
-		message[17] = filter_depth_map_size;
+		message[17] = filter_depth_map ? 1 : 0;
+		message[18] = filter_depth_map_size;
 		//add color/resolution
 		return message;
 	}
@@ -79,7 +79,7 @@
 		//ignore re-setting the SerialNumber
 		i += serialNumberSize;
 
-		//i == 16 at this point
+		//i == 17 at this point
 		filter_depth_map = ((int)received[i] == 0) ? false : true;
 		i++;
 		filter_depth_map_size = int(received[i]);

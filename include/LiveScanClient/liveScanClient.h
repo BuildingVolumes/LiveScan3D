@@ -43,8 +43,6 @@ private:
 	bool m_bFilter;
 	bool m_bStreamOnlyBodies;
 
-	bool m_bIsMaster;
-	bool m_bIsSubOrdinate;
 	bool m_bRestartingCamera;
 
 	ICapture *pCapture;
@@ -55,10 +53,6 @@ private:
 	bool m_bCaptureFrame;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
-
-	bool m_bConfirmTempSyncState;
-	bool m_bConfirmSubOrdinateStarted;
-	bool m_bConfirmRestartAsMaster;
 	bool m_bConfirmCalibrated;
 
 	bool m_bShowDepth;
@@ -70,9 +64,6 @@ private:
 	KinectConfiguration configuration;
 
 	int m_nExtrinsicsStyle;
-
-	enum tempSyncConfig { MASTER, SUBORDINATE, STANDALONE };
-	tempSyncConfig currentTempSyncState;
 
 	FrameFileWriterReader m_framesFileWriterReader;
 
@@ -112,7 +103,6 @@ private:
 	void HandleSocket();
 	void ReinitAndConfirm();
 	void SendReinitConfirmation(bool success);
-	void Reinitialize(LiveScanClient::tempSyncConfig syncState, int syncOffset, k4a_depth_mode_t depthMode);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
 
 	void SocketThreadFunction();

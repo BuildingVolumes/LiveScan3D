@@ -76,6 +76,9 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	// Start the camera with the given configuration
 	bInitialized = K4A_SUCCEEDED(k4a_device_start_cameras(kinectSensor, &configuration.config));
 
+	if (!bInitialized)
+		return bInitialized;
+
 	k4a_calibration_t calibration;
 	if (K4A_FAILED(k4a_device_get_calibration(kinectSensor, configuration.config.depth_mode, configuration.config.color_resolution, &calibration)))
 	{
@@ -152,6 +155,13 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	deviceIDForRestart = deviceIdx;
 
 	SetConfiguration(configuration);//We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
+
+	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
+		bAquiresPointcloud = true;
+
+	else
+		bAquiresPointcloud = false;
+
 	return bInitialized;
 }
 
@@ -167,8 +177,26 @@ bool AzureKinectCapture::Close()
 		return false;
 	}
 
-	k4a_device_stop_cameras(kinectSensor);
+	k4a_image_release(colorImage);
+	k4a_image_release(depthImage);
+	k4a_image_release(pointCloudImage);
+	k4a_image_release(colorImageInDepth);
+	k4a_image_release(depthImageInColor);
+	k4a_image_release(transformedDepthImage);
+	k4a_image_release(colorImageDownscaled);
+	k4a_transformation_destroy(transformationColorDownscaled);
+	k4a_transformation_destroy(transformation);
 	k4a_device_close(kinectSensor);
+
+	colorImage = NULL;
+	depthImage = NULL;
+	pointCloudImage = NULL;
+	transformedDepthImage = NULL;
+	colorImageInDepth = NULL;
+	depthImageInColor = NULL;
+	colorImageDownscaled = NULL;
+	transformationColorDownscaled = NULL;
+	transformation = NULL;
 
 	bInitialized = false;
 
@@ -439,14 +467,9 @@ int AzureKinectCapture::GetSyncJackState()
 			return 1; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
 		}
 
-		else if (syncInConnected)
+		else if(syncInConnected)
 		{
 			return 2; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
-		}
-
-		else
-		{
-			return 3; //Device is Standalone, as it doesn't have a valid cabel configuration on its Sync Ports
 		}
 
 	}

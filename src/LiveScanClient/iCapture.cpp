@@ -17,6 +17,7 @@
 ICapture::ICapture()
 {
 	bInitialized = false;
+	bAquiresPointcloud = true;
 
 	nColorFrameHeight = 0;
 	nColorFrameWidth = 0;

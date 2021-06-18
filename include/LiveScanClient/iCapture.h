@@ -59,6 +59,7 @@ public:
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) = 0;	
 
 	bool bInitialized;
+	bool bAquiresPointcloud;
 
 	int nColorFrameHeight, nColorFrameWidth;
 	int nDepthFrameHeight, nDepthFrameWidth;

@@ -55,16 +55,16 @@ namespace KinectServer
         {
 
             byte[] data = new byte[bytelength];
-
-
             data[0] = (byte)eDepthMode;
             data[1] = (byte)eSoftwareSyncState;
             data[2] = (byte)eHardwareSyncState;
             data[3] = syncOffset;
+
             for(int i = 0;i<13;i++)
             {
                 data[i+4] = (byte)SerialNumber[i];
             }
+
             data[17] = (byte)(FilterDepthMap ? 1 : 0);
             data[18] = (byte)FilterDepthMapSize;
             return data;
