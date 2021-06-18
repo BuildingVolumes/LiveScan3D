@@ -1,7 +1,15 @@
 #include "frameFileWriterReader.h"
 #include <ctime>
+
 #include <fstream>
 #include <assert.h>
+#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING //Otherwise VS yells
+#include <experimental/filesystem>
+
+
+
+namespace fs = std::experimental::filesystem;
+
 
 FrameFileWriterReader::FrameFileWriterReader()
 {
@@ -107,30 +115,126 @@ void FrameFileWriterReader::writeFrame(std::vector<Point3s> points, std::vector<
 }
 
 
-//Creates the general folder in which all recordings will be saved into
-
-bool FrameFileWriterReader::CreateRecordDirectory()
+/// <summary>
+/// Given a dir in which all clients/server should store their recordings in, creates a client-specific dir.
+/// Also creates all parent directorys neccessary.
+/// </summary>
+/// <returns> Returns true on success, returns false if there are errors during file path creation.</returns>
+bool FrameFileWriterReader::CreateRecordDirectory(std::string newDirToCreate, const int deviceID)
 {
-	if (0 == CreateDirectory(m_sFrameRecordingsDir, NULL) && ERROR_PATH_NOT_FOUND == GetLastError())
-	{
-		return false;
-	}
+	fs::path generalOutputPath = fs::current_path();
+	generalOutputPath /= "out\\"; //The directory in which all recordings are stored
 
+	if (!CreateDir(generalOutputPath))
+		return false;
+
+	fs::path takeDir = generalOutputPath; 
+	takeDir /= newDirToCreate; //The take dir in which the recordings of this take are saved
+
+	if (!CreateDir(takeDir))
+		return false;
+
+	fs::path clientTakeDir = takeDir;
+	std::string deviceIDDir = "client_";
+	deviceIDDir += std::to_string(deviceID);
+	deviceIDDir += "\\";
+	clientTakeDir /= deviceIDDir; //The directory in which we store the recordings of this specific client
+
+    if (!CreateDir(clientTakeDir))
+			return false;
+
+	m_sFrameRecordingsDir = clientTakeDir.string();
 	return true;
 }
 
-long FrameFileWriterReader::WriteToFile(const char* fileName, void* buffer, size_t bufferSize)
+void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex)
 {
+	std::string colorfilePath = "Color_";
+	colorfilePath += std::to_string(frameIndex);
+	colorfilePath += ".jpg";
+
+	std::string filePath = m_sFrameRecordingsDir;
+	filePath += colorfilePath;
+
 	assert(buffer != NULL);
 
 	std::ofstream hFile;
-	hFile.open(fileName, std::ios::out | std::ios::trunc | std::ios::binary);
+	hFile.open(filePath.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);
 	if (hFile.is_open())
 	{
 		hFile.write((char*)buffer, static_cast<std::streamsize>(bufferSize));
 		hFile.close();
 	}
-	return 0;
+}
+
+void FrameFileWriterReader::WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, const size_t calibration_size)
+{
+	std::string filename = m_sFrameRecordingsDir;
+	filename += "Intrinsics_Calib_";
+	filename += std::to_string(deviceIndex);
+	filename += ".json";
+
+	std::ofstream file(filename, std::ofstream::binary);
+	file.write(reinterpret_cast<const char*>(&calibration_buffer[0]), (long)calibration_size);
+	file.close();
+}
+
+void FrameFileWriterReader::WriteDepthTiffFile(const k4a_image_t &im, int frameIndex)
+{
+	std::string depthFilePath = "Depth_";
+	depthFilePath += std::to_string(frameIndex);
+	depthFilePath += ".tiff";
+
+	std::string filePath = m_sFrameRecordingsDir;
+	filePath += depthFilePath;
+
+	cv::Mat depthMat = cv::Mat(k4a_image_get_height_pixels(im), k4a_image_get_width_pixels(im), CV_16U, k4a_image_get_buffer(im), static_cast<size_t>(k4a_image_get_stride_bytes(im)));
+
+	bool result = false;
+
+	try
+	{
+		cv::imwrite(filePath, depthMat);
+	}
+	catch (const cv::Exception& ex)
+	{
+		fprintf(stderr, "Exception converting image to Tiff format: %s\n", ex.what());
+	}
+}
+
+/// <summary>
+/// Creates a directory. Should be given an absolute path
+/// </summary>
+/// <param name="path"></param>
+/// <returns>Returns true if the directory exists, false when an error has occured during creation</returns>
+bool FrameFileWriterReader::CreateDir(const fs::path dirToCreate)
+{
+	if (!fs::exists(dirToCreate))
+	{
+		try
+		{
+			if (!fs::create_directory(dirToCreate))
+				return false; //Could not create dir
+
+			else
+				return true;
+		}
+
+		catch (fs::filesystem_error const& ex)
+		{
+			return false; //Error during dir creation
+		}
+	}
+
+	else
+		return true;
+}
+
+bool FrameFileWriterReader::DirExists(std::string path) 
+{
+	fs::path pathToCheck = path;
+
+	return fs::exists(pathToCheck);
 }
 
 FrameFileWriterReader::~FrameFileWriterReader()

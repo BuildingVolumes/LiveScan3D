@@ -15,9 +15,12 @@ public:
 	SYNC_STATE eSoftwareSyncState;
 	SYNC_STATE eHardwareSyncState;
 	int nSync_offset;
-	static const int byteLength = 4;//Expected length of the serialized form sent over the network.
+	static const int byteLength = 4;//Expected length of the serialized form sent over the network. 
+	bool filter_depth_map;
+	int filter_depth_map_size = 5;
 	char* ToBytes();
 	void SetFromBytes(std::string bytes);
+
 	void InitializeDefaults();
 	int GetCameraWidth();
 	int GetCameraHeight();

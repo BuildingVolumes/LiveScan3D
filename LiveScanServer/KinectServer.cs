@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Net.Sockets;
 using System.Net;
+using System.IO;
 using System.Diagnostics;
 
 namespace KinectServer
@@ -26,18 +27,21 @@ namespace KinectServer
     {
         Socket oServerSocket;
         bool bServerRunning = false;
+
+        ManualResetEvent allDone = new ManualResetEvent(false);
+
         KinectSettings oSettings;
-        SettingsForm fSettingsForm;
+        public SettingsForm fSettingsForm;
         Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
-        MainWindowForm fMainWindowForm;
+        public MainWindowForm fMainWindowForm;
+
+        Socket oServerSocket;
+        Thread listeningThread;
+        Thread receivingThread;
+        List<KinectSocket> lClientSockets = new List<KinectSocket>();
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
         const float networkTimeout = 5f;
-
-        List<KinectSocket> lClientSockets = new List<KinectSocket>();
-        public event SocketListChangedHandler eSocketListChanged;
-
-        public bool bTempSyncEnabled = false;
 
         public int nClientCount
         {
@@ -193,9 +197,9 @@ namespace KinectServer
                 oServerSocket.Listen(10);
 
                 bServerRunning = true;
-                Thread listeningThread = new Thread(this.ListeningWorker);
+                listeningThread = new Thread(this.ListeningWorker);
                 listeningThread.Start();
-                Thread receivingThread = new Thread(this.ReceivingWorker);
+                receivingThread = new Thread(this.ReceivingWorker);
                 receivingThread.Start();
             }
         }
@@ -205,6 +209,9 @@ namespace KinectServer
             if (bServerRunning)
             {
                 bServerRunning = false;
+                allDone.Set();
+                listeningThread.Join();
+                receivingThread.Join();
 
                 oServerSocket.Close();
                 lock (oClientSocketLock)
@@ -502,6 +509,106 @@ namespace KinectServer
 
         }
 
+
+        /// <summary>
+        /// Creates a unique take directory on the client and/or server
+        /// </summary>
+        /// <param name="takeName"></param>
+        /// <returns> Returns the relative directory path for the server when the dir has been successfully created. Returns null when an error has occured on either the client or server </returns>
+        public string CreateTakeDirectories(string takeName)
+        {
+            //First we get a unique take index
+            int takeIndex = oSettings.GetNewTakeIndex(takeName);
+
+            if (takeIndex == -1)
+            {
+                return null;
+            }
+
+            //TODO: Add date to string from Simple_Take_Management Branch
+            takeName += "_" + takeIndex;
+
+            string takePathClients = takeName + "\\";
+
+            string takePathServer = "out\\" + takePathClients; //For the server, we also add the general output dir in which all recordings are stored. The client handles that himself
+
+
+            //If we record pointclouds or export the extrinsics, we create a directory on the Server PC
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud || oSettings.eExtrinsicsFormat != KinectSettings.ExtrinsicsStyle.None)
+            {             
+                try
+                {
+                    DirectoryInfo di = Directory.CreateDirectory(takePathServer);
+                }
+
+                catch(Exception e)
+                {
+                    return null;
+                }
+            }
+
+            //TODO: When exporting intrinsics, also create Dir
+            //When storing raw frames or intrinsics on the client, we create a directory on the client PC
+            if(oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
+            {
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        lClientSockets[i].SendCreateTakeDir(takePathClients);
+                        //Wait just a tiny amount of time to avoid that the clients race each other on creating the dirs.
+                        //Important if two clients are on the same pc
+                        Thread.Sleep(10); 
+                    }
+                }
+
+
+                //Wait for confirmation that the dir has been created by the clients
+                bool allConfirmedDir = false;
+                while (!allConfirmedDir)
+                {
+                    allConfirmedDir = true;
+
+                    lock (oClientSocketLock)
+                    {
+                        for (int i = 0; i < lClientSockets.Count; i++)
+                        {
+                            if (!lClientSockets[i].bDirCreationConfirmed)
+                            {
+                                allConfirmedDir = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                //Check if there were errors during the dir creation
+                bool clientDirError = false;
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (lClientSockets[i].bDirCreationError)
+                        {
+                            clientDirError = true;
+                            break;
+                        }
+                    }
+
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        lClientSockets[i].bDirCreationConfirmed = false;
+                        lClientSockets[i].bDirCreationError = false;
+                    }
+                }
+
+                if (clientDirError)
+                    return null;
+            }
+
+            return takePathServer;
+        }
+
         public bool GetStoredFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts)
         {
             bool bNoMoreStoredFrames;
@@ -669,36 +776,54 @@ namespace KinectServer
             }
         }
 
+        private void AcceptCallback(IAsyncResult ar)
+        {
+            // Get the socket that handles the client request.
+            Socket listener = (Socket)ar.AsyncState;
+            if(listener == null || !bServerRunning)
+            {
+                return;
+            }
+            Socket newSocket = listener.EndAccept(ar);
+							   
+		    // Signal main thread to go ahead
+            allDone.Set();
+
+            //we do not want to add new clients while a frame is being requested
+            lock (oFrameRequestLock)
+            {
+                lock (oClientSocketLock)
+                {
+                    lClientSockets.Add(new KinectSocket(newSocket));
+                    lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
+                    lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
+                    lClientSockets[lClientSockets.Count - 1].eSubInitialized += new SubOrdinateInitialized(CheckForMasterStart);
+                    lClientSockets[lClientSockets.Count - 1].eMasterRestart += new MasterRestarted(MasterSuccessfullyRestarted);
+                    lClientSockets[lClientSockets.Count - 1].eSyncJackstate += new RecievedSyncJackState(SendTemporalSyncData);
+                    lClientSockets[lClientSockets.Count - 1].eStandAloneInitialized += new StandAloneInitialized(ConfirmTemporalSyncDisabled);
+
+                    if (eSocketListChanged != null)
+                    {
+                        eSocketListChanged(lClientSockets);
+                    }
+                }
+            }
+        }
+
         private void ListeningWorker()
         {
             while (bServerRunning)
             {
+                allDone.Reset();
                 try
                 {
-                    Socket newClient = oServerSocket.Accept();
-
-                    //we do not want to add new clients while a frame is being requested
-                    lock (oFrameRequestLock)
-                    {
-                        lock (oClientSocketLock)
-                        {
-                            lClientSockets.Add(new KinectSocket(newClient));
-                            lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
-                            lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
-
-                            if (eSocketListChanged != null)
-                            {
-                                eSocketListChanged(lClientSockets);
-                            }
-                        }
-
-                        GetAllConfigurations();
-                    }
+                    oServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), oServerSocket);     
                 }
-                catch (SocketException)
+                catch (SocketException e)
                 {
+                    Console.WriteLine(e.ToString());
                 }
-                System.Threading.Thread.Sleep(100);
+                allDone.WaitOne();
             }
 
             if (eSocketListChanged != null)
@@ -772,6 +897,13 @@ namespace KinectServer
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_RESTART)
                             {
                                 lClientSockets[i].RecieveRestartConfirmation();
+                            }
+
+
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
+                            {
+                                lClientSockets[i].RecieveDirConfirmation();
                             }
 
                             buffer = lClientSockets[i].Receive(1);

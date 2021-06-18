@@ -76,7 +76,6 @@ private:
 
 	FrameFileWriterReader m_framesFileWriterReader;
 
-
 	SocketClient *m_pClientSocket;
 	std::vector<float> m_vBounds;
 
@@ -101,6 +100,8 @@ private:
     ImageRenderer* m_pDrawColor;
     ID2D1Factory* m_pD2DFactory;
 	RGB* m_pDepthRGBX;
+	RGB* m_pBlankGreyImage;
+	void CreateBlankGrayImage(const int width, const int height);
 
 	void UpdateFrame();
     void ShowColor();

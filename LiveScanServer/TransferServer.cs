@@ -16,11 +16,14 @@ namespace KinectServer
         public List<float> lVertices = new List<float>();
         public List<byte> lColors = new List<byte>();
 
-        TcpListener oListener;
-        List<TransferSocket> lClientSockets = new List<TransferSocket>();
-
-        object oClientSocketLock = new object();
         bool bServerRunning = false;
+        ManualResetEvent allDone = new ManualResetEvent(false);
+
+        TcpListener oListener;
+        Thread listeningThread;
+        Thread receivingThread;
+        List<TransferSocket> lClientSockets = new List<TransferSocket>();
+        object oClientSocketLock = new object();
 
         ~TransferServer()
         {
@@ -35,9 +38,9 @@ namespace KinectServer
                 oListener.Start();
 
                 bServerRunning = true;
-                Thread listeningThread = new Thread(this.ListeningWorker);
+                listeningThread = new Thread(this.ListeningWorker);
                 listeningThread.Start();
-                Thread receivingThread = new Thread(this.ReceivingWorker);
+                receivingThread = new Thread(this.ReceivingWorker);
                 receivingThread.Start();
             }
         }
@@ -47,6 +50,9 @@ namespace KinectServer
             if (bServerRunning)
             {
                 bServerRunning = false;
+                allDone.Set();
+                listeningThread.Join();
+                receivingThread.Join();
 
                 oListener.Stop();
                 lock (oClientSocketLock)
@@ -54,23 +60,43 @@ namespace KinectServer
             }
         }
 
+        private void AcceptCallback(IAsyncResult ar)
+        {
+            // Get the listener that handles the client request.
+            TcpListener listener = (TcpListener)ar.AsyncState;
+            if (listener == null || !bServerRunning)
+            {
+                return;
+            }
+
+            // End the operation and display the received data on
+            // the console.
+            TcpClient newClient = listener.EndAcceptTcpClient(ar);
+
+            // Signal main thread to go ahead
+            allDone.Set();
+
+            //we do not want to add new clients while a frame is being requested
+            lock (oClientSocketLock)
+            {
+                lClientSockets.Add(new TransferSocket(newClient));
+            }
+        }
+
         private void ListeningWorker()
         {
             while (bServerRunning)
             {
+                allDone.Reset();
                 try
                 {
-                    TcpClient newClient = oListener.AcceptTcpClient();
-
-                    lock (oClientSocketLock)
-                    {
-                        lClientSockets.Add(new TransferSocket(newClient));
-                    }
+                    oListener.BeginAcceptTcpClient(new AsyncCallback(AcceptCallback), oListener);
                 }
-                catch (SocketException)
+                catch (SocketException e)
                 {
+                    Console.WriteLine(e.ToString());
                 }
-                System.Threading.Thread.Sleep(100);
+                allDone.WaitOne();
             }
         }
 

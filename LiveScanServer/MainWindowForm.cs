@@ -84,11 +84,14 @@ namespace KinectServer
 
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
+            oServer.SetMainWindowForm(this);
             oTransferServer = new TransferServer();
             oTransferServer.lVertices = lAllVertices;
             oTransferServer.lColors = lAllColors;
-
             InitializeComponent();
+            UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
+            SetButtonsForExport();
+
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -133,7 +136,6 @@ namespace KinectServer
                 form.oServer = oServer;
                 form.Show();
                 oServer.SetSettingsForm(form);
-                oServer.SetMainWindowForm(this);
             }
         }
 
@@ -158,12 +160,23 @@ namespace KinectServer
         {
             //After recording has been terminated it is time to begin saving the frames.
             //Saving is downloading the frames from clients and saving them locally.
-            bSaving = true;
             
-            btRecord.Text = "Stop saving";
-            btRecord.Enabled = true;
+            //Only store frames when capturing pointclouds
+            if(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                bSaving = true;
 
-            savingWorker.RunWorkerAsync();
+                btRecord.Text = "Stop saving";
+                btRecord.Enabled = true;
+
+                savingWorker.RunWorkerAsync();
+            }
+            else
+            {
+                btRecord.Enabled = true;
+                btRecord.Text = "Start recording";
+            }
+           
         }
 
         //Opens the live view window
@@ -194,8 +207,19 @@ namespace KinectServer
         {
             int nFrames = 0;
 
-            string outDir = "out" + "\\" + txtSeqName.Text + "\\";
-            DirectoryInfo di = Directory.CreateDirectory(outDir);
+            //TODO: Get Take directory
+
+            string outDir;
+
+            if (oSettings.takePath != null)
+            {
+                outDir = oSettings.takePath;
+            }
+
+            else
+            {
+                return;
+            }
 
             BackgroundWorker worker = (BackgroundWorker)sender;
             //This loop is running till it is either cancelled (using the btRecord button), or till there are no more stored frames.
@@ -241,6 +265,8 @@ namespace KinectServer
                     Utils.saveToPly(outputFilename, lFrameVerts, lFrameRGB, oSettings.bSaveAsBinaryPLY);
                 }
             }
+
+            oSettings.takePath = null;
         }
 
         private void savingWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -431,6 +457,26 @@ namespace KinectServer
                 //Stop the update worker to reduce the network usage (provides better synchronization).
                 updateWorker.CancelAsync();
 
+                string takePath = oServer.CreateTakeDirectories(txtSeqName.Text);
+
+                //Case: Server needs a path for storing values
+                if(takePath != null && (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud || oSettings.eExtrinsicsFormat != KinectSettings.ExtrinsicsStyle.None))
+                {
+                    //Store path for the saving worker later
+                    //TODO: How do to it without a global variable?
+                    oSettings.takePath = takePath;
+                }
+
+                else if(takePath == null)
+                {
+                    SetStatusBarOnTimer("Error: Couldn't create take directory on either the server or the clients", 5000);
+                    bRecording = false;
+                    return;
+                }
+
+                //Store the camera extrinsics
+                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, lAllCameraPoses, takePath);
+
                 recordingWorker.RunWorkerAsync();
                 btRecord.Text = "Stop recording";
                 btRefineCalib.Enabled = false;
@@ -446,7 +492,15 @@ namespace KinectServer
 
         private void btCalibrate_Click(object sender, EventArgs e)
         {
-            oServer.Calibrate();
+            if(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                oServer.Calibrate();
+            }
+        }
+
+        public void SetCalibrateButtonActive(bool active)
+        {
+            btCalibrate.Enabled = active;
         }
 
         private void btRefineCalib_Click(object sender, EventArgs e)
@@ -457,11 +511,19 @@ namespace KinectServer
                 return;
             }
 
-            btRefineCalib.Enabled = false;
-            btCalibrate.Enabled = false;
-            btRecord.Enabled = false;
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                btRefineCalib.Enabled = false;
+                btCalibrate.Enabled = false;
+                btRecord.Enabled = false;
 
-            refineWorker.RunWorkerAsync();
+                refineWorker.RunWorkerAsync();
+            }           
+        }
+
+        public void SetRefineButtonActive(bool active)
+        {
+            btRefineCalib.Enabled = active;
         }
 
         void RestartUpdateWorker()
@@ -471,12 +533,20 @@ namespace KinectServer
         }
 
         private void btShowLive_Click(object sender, EventArgs e)
-        {            
-            RestartUpdateWorker();
+        {
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                RestartUpdateWorker();
 
-            //Opens the live view window if it is not open yet.
-            if (!OpenGLWorker.IsBusy)
-                OpenGLWorker.RunWorkerAsync();
+                //Opens the live view window if it is not open yet.
+                if (!OpenGLWorker.IsBusy)
+                    OpenGLWorker.RunWorkerAsync();
+            }
+        }
+
+        public void SetLiveButtonActive(bool active)
+        {
+            btShowLive.Enabled = active;
         }
 
         public void SetStatusBarOnTimer(string message, int milliseconds)
@@ -504,7 +574,13 @@ namespace KinectServer
                 listBoxItems.Add(socketList[i].sSocketState);
 
 
-            lClientListBox.DataSource = listBoxItems;
+            // Invoke UI logic on the same thread.
+            lClientListBox.BeginInvoke(new Action(() =>
+            {
+                lClientListBox.DataSource = listBoxItems;
+                UpdateSettingsButtonEnabled();
+            }));
+            
         }
 
         private void btKinectSettingsOpenButton_Click(object sender, EventArgs e)
@@ -523,7 +599,43 @@ namespace KinectServer
             form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
             form.Show();
             oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
-            oServer.SetMainWindowForm(this);            
+        }
+
+        /// <summary>
+        /// Calibration, Refinement and Live view are only supported in Pointcloud mode.
+        /// If we are in another mode, we disable the Main Window Buttons
+        /// </summary>
+        public void SetButtonsForExport()
+        {
+            if(oServer.fMainWindowForm != null)
+            {
+                if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+                {
+                    oServer.fMainWindowForm.SetCalibrateButtonActive(true);
+                    oServer.fMainWindowForm.SetLiveButtonActive(true);
+                    oServer.fMainWindowForm.SetRefineButtonActive(true);
+                }
+
+                else
+                {
+                    oServer.fMainWindowForm.SetCalibrateButtonActive(false);
+                    oServer.fMainWindowForm.SetLiveButtonActive(false);
+                    oServer.fMainWindowForm.SetRefineButtonActive(false);
+                }
+            }           
+        }
+
+        private void UpdateSettingsButtonEnabled()
+        {
+            //Disable the deviceSettings button when no items are selected or no items could be selected.
+            if (lClientListBox.SelectedIndex == -1 || lClientListBox.Items.Count == 0)
+            {
+                btKinectSettingsOpenButton.Enabled = false;
+            }
+            else
+            {
+                btKinectSettingsOpenButton.Enabled = true;
+            }
         }
     }
 }

@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 
+
 namespace KinectServer
 {
     public delegate void SocketChangedHandler();
@@ -38,6 +39,9 @@ namespace KinectServer
         public bool bCalibrated = false;
         public bool bReinitialized = false;
         public bool bReinizializationError = false;
+
+        public bool bDirCreationConfirmed = false;
+        public bool bDirCreationError = false;
 
         public KinectConfiguration configuration;
 
@@ -214,7 +218,7 @@ namespace KinectServer
 
         public void RecieveConfiguration()
         {
-            byte[] buffer = Receive(4);
+            byte[] buffer = Receive(KinectConfiguration.bytelength);
             configuration = new KinectConfiguration(buffer);
             bConfigurationReceived = true;            
             configurationUpdated?.Invoke(configuration);
@@ -335,6 +339,16 @@ namespace KinectServer
 
                 lBodies.Add(tempBody);
             }
+        }
+
+        public void RecieveDirConfirmation()
+        {
+            bDirCreationConfirmed = true;
+
+            byte[] buffer = Receive(1);
+
+            if (buffer[0] == 0)
+                bDirCreationError = true;
         }
 
         public byte[] Receive(int nBytes)

@@ -33,7 +33,7 @@ namespace KinectServer
             oSettings = kSettings;
             this.socketID = socketID;
             kinectSocket = oServer.GetKinectSocketByIndex(socketID);
-            socketStateLabel.Text = kinectSocket.sSocketState;
+            kinectIDLabel.Text = kinectSocket.sSocketState;
             Text = "Settings For " + kinectSocket.GetEndpoint();
 
             kinectSocket.RequestConfiguration();
@@ -43,16 +43,26 @@ namespace KinectServer
         //Will this run or do we need some kind of event listener?
         private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
-            displayedConfiguration = kc;
-            int d = (int)kc.eDepthMode;
-            foreach(DepthModeConfiguration item in lDepthModeListBox.Items)
-            {
-                if(item.value == d)
+            // Invoke UI logic on the same thread.
+            kinectIDLabel.BeginInvoke(
+                new Action(() =>
                 {
-                    lDepthModeListBox.SelectedItem = item;
-                    break;
+                    displayedConfiguration = kc;
+                    kinectIDLabel.Text = kc.SerialNumber;
+                    cbFilterDepthMap.Checked = kc.FilterDepthMap;
+                    tbFilterDepthMapSize.Text = kc.FilterDepthMapSize.ToString();
+                    tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
+                    int d = kc.DepthMode;
+                    foreach (DepthModeConfiguration item in lDepthModeListBox.Items)
+                    {
+                        if (item.value == d)
+                        {
+                            lDepthModeListBox.SelectedItem = item;
+                            break;
+                        }
+                    }
                 }
-            }
+        ));
         }
 
         private void CreateDepthModesList()
@@ -80,6 +90,31 @@ namespace KinectServer
         {
             oServer.SetKinectSettingsForm(socketID, null);
             kinectSocket.configurationUpdated -= UpdateFormItemsFromConfiguration;
+        }
+
+        private void cbFilterDepthMap_CheckedChanged(object sender, EventArgs e)
+        {
+            displayedConfiguration.FilterDepthMap = cbFilterDepthMap.Checked;
+            tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
+        }
+
+        private void tbFilterDepthMapSize_TextChanged(object sender, EventArgs e)
+        {
+            if (int.TryParse(tbFilterDepthMapSize.Text, out int result)) {
+                displayedConfiguration.FilterDepthMapSize = result;
+            }
+        }
+
+        private void tbFilterDepthMapSize_Validating(object sender, CancelEventArgs e)
+        {
+            if (int.TryParse(tbFilterDepthMapSize.Text, out int result))
+            {
+                if (result != 0 && result % 2 == 0)
+                {
+                    result--;
+                }
+                tbFilterDepthMapSize.Text = result.ToString();
+            }
         }
     }
 }

@@ -30,8 +30,6 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns>Returns true on success, false on error</returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration configuration)
 {
-	this->configuration = configuration;
-
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
 
@@ -148,12 +146,18 @@ if (configuration.eSoftwareSyncState != Subordinate)
 	size_t serialNoSize;
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
 	serialNumber = std::string(serialNoSize, '\0');
-	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
+	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 
 	deviceIDForRestart = deviceIdx;
 
+	SetConfiguration(configuration);//We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
 	return bInitialized;
+}
+
+void AzureKinectCapture::SetConfiguration(KinectConfiguration& configuration)
+{
+	this->configuration = configuration;
 }
 
 bool AzureKinectCapture::Close() 
@@ -251,6 +255,22 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 	k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, cImg.cols, cImg.rows, cImg.cols * 4 * (int)sizeof(uint8_t), &colorImageDownscaled);
 	memcpy(k4a_image_get_buffer(colorImageDownscaled), &cImg.ptr<cv::Vec4b>(0)[0], cImg.rows * cImg.cols * sizeof(cv::Vec4b));
 
+	//fix depth image here
+	if (configuration.filter_depth_map)
+	{
+		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage), CV_16UC1, k4a_image_get_buffer(depthImage));
+		cv::Mat cImgD2 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage)), CV_16UC1);// k4a_image_get_buffer(depthImage));
+		cv::Mat cImgD3 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage)), CV_16UC1);// k4a_image_get_buffer(depthImage));
+
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
+		
+		//cv::medianBlur(cImgD, cImgD2, 5);
+		int CLOSING = 3;
+		// 4 will do a good edge detection if you threshold after as well
+		//cv::morphologyEx(cImgD, cImgD2, CLOSING, kernel);
+		cv::erode(cImgD, cImgD, kernel);
+		//cv::GaussianBlur(cImgD3, cImgD, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size), 0);
+	}
 
 	if (pColorRGBX == NULL)
 	{
@@ -435,6 +455,27 @@ int AzureKinectCapture::GetSyncJackState()
 	{
 		return 3; //Probably failed because there are no cabels connected, this means the device should be set as standalone
 	}
+}
+
+/// <summary>
+/// Gets the intrinsics calibration json blob of the connected Kinect and writes it to the supplied buffer and size references.
+/// </summary>
+/// <returns> Returns true when the calibration file got successfully retrieved from the sensor, false when an error has occured</returns>
+bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t> &calibration_buffer, size_t &calibration_size)
+{
+	calibration_size = 0;
+	k4a_buffer_result_t buffer_result = k4a_device_get_raw_calibration(kinectSensor, NULL, &calibration_size);
+	if (buffer_result == K4A_BUFFER_RESULT_TOO_SMALL)
+	{
+		calibration_buffer = std::vector<uint8_t>(calibration_size);
+		buffer_result = k4a_device_get_raw_calibration(kinectSensor, calibration_buffer.data(), &calibration_size);
+		if (buffer_result == K4A_BUFFER_RESULT_SUCCEEDED)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 

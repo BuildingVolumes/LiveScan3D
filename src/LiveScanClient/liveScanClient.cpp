@@ -47,6 +47,7 @@ LiveScanClient::LiveScanClient() :
 	m_pD2DFactory(NULL),
 	m_pDrawColor(NULL),
 	m_pDepthRGBX(NULL),
+	m_pBlankGreyImage(NULL),
 	m_pCameraSpaceCoordinates(NULL),
 	m_pColorInColorSpace(NULL),
 	m_pDepthInColorSpace(NULL),
@@ -106,6 +107,12 @@ LiveScanClient::~LiveScanClient()
 	{
 		delete[] m_pDepthRGBX;
 		m_pDepthRGBX = NULL;
+	}
+
+	if (m_pBlankGreyImage) 
+	{
+		delete[] m_pBlankGreyImage;
+		m_pBlankGreyImage = NULL;
 	}
 
 	if (m_pCameraSpaceCoordinates)
@@ -200,6 +207,7 @@ void LiveScanClient::UpdateFrame()
 		return;
 	}
 
+	//Recording raw frames
 	if(configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG)
 	{
 		bool bNewFrameAcquired = pCapture->AquireRawFrame();
@@ -207,17 +215,18 @@ void LiveScanClient::UpdateFrame()
 		if (!bNewFrameAcquired)
 			return;
 
-		std::string colorfileName = "Color";
-		colorfileName += std::to_string(m_nFrameIndex);
-		colorfileName += ".jpg";
-
 		if (m_bCaptureFrame) 
 		{
-			m_framesFileWriterReader.WriteToFile(colorfileName.c_str(), k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage));
+			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex);
+			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex);
 			m_nFrameIndex++;
+
+			m_bConfirmCaptured = true;
+			m_bCaptureFrame = false;
 		}
 	}
 
+	//Recording Pointclouds
 	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 	{
 		bool bNewFrameAcquired = pCapture->AquirePointcloudFrame();
@@ -257,14 +266,12 @@ void LiveScanClient::UpdateFrame()
 				m_bCalibrate = false;
 			}
 		}
+	}	
 
-		if (!m_bShowDepth)
-			ShowColor();
-		else
-			ShowDepth();
-	}
-
-	
+	if (!m_bShowDepth)
+		ShowColor();
+	else
+		ShowDepth();
 
 	ShowFPS();
 }
@@ -335,6 +342,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 			{
 				SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 			}
+
+			CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 
 			ReadIPFromFile();
         }
@@ -407,35 +416,57 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
 void LiveScanClient::ShowDepth()
 {
-	// Make sure we've received valid data
-	if (m_pDepthRGBX && m_pDepthInColorSpace)
+	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 	{
-		pCapture->MapDepthFrameToColorSpace(m_pDepthInColorSpace);
-
-		for (int i = 0; i < pCapture->nColorFrameWidth * pCapture->nColorFrameHeight; i++)
+		// Make sure we've received valid data
+		if (m_pDepthRGBX && m_pDepthInColorSpace)
 		{
-			USHORT depth = m_pDepthInColorSpace[i];
-			BYTE intensity = static_cast<BYTE>(depth % 256);
+			pCapture->MapDepthFrameToColorSpace(m_pDepthInColorSpace);
 
-			m_pDepthRGBX[i].rgbRed = intensity;
-			m_pDepthRGBX[i].rgbGreen = intensity;
-			m_pDepthRGBX[i].rgbBlue = intensity;
+			for (int i = 0; i < pCapture->nColorFrameWidth * pCapture->nColorFrameHeight; i++)
+			{
+				USHORT depth = m_pDepthInColorSpace[i];
+				BYTE intensity = static_cast<BYTE>(depth % 256);
+
+				m_pDepthRGBX[i].rgbRed = intensity;
+				m_pDepthRGBX[i].rgbGreen = intensity;
+				m_pDepthRGBX[i].rgbBlue = intensity;
+			}
+
+			// Draw the data with Direct2D
+			m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pDepthRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
 		}
-
-		// Draw the data with Direct2D
-		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pDepthRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
 	}
+
+	else 
+	{
+		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pBlankGreyImage), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+	}
+	
 }
 
 void LiveScanClient::ShowColor()
 {
-    // Make sure we've received valid data
-	if (pCapture->pColorRGBX)
-    {
-        // Draw the data with Direct2D
-		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(pCapture->pColorRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
-    }
+	//Draw the preview, as we have the data already in a nice BGRA Format
+	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32) 
+	{
+		// Make sure we've received valid data
+		if (pCapture->pColorRGBX)
+		{
+			// Draw the data with Direct2D
+			m_pDrawColor->Draw(reinterpret_cast<BYTE*>(pCapture->pColorRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+		}
+	}
+    
+	//If we are recording in another image format, we just display a blank grey screen.
+	//This saves performance, by not decoding the MJPG Frame into a RGB struct 
+	else 
+	{
+		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pBlankGreyImage), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+	}
 }
+
+
 
 bool LiveScanClient::SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce)
 {
@@ -478,7 +509,6 @@ void LiveScanClient::HandleSocket()
 		if (received[i] == MSG_CAPTURE_FRAME)
 		{
 			m_bCaptureFrame = true;
-			m_nFrameIndex = 0;
 		}
 
 		//calibrate
@@ -505,6 +535,11 @@ void LiveScanClient::HandleSocket()
 
 			i += KinectConfiguration::byteLength;
 			configuration.SetFromBytes(message);
+			
+			//Update the configuration.
+
+			//If it needs to be reinitialized, that will be sent by the server.
+			pCapture->SetConfiguration(configuration);
 		}
 
 		//receive settings
@@ -588,6 +623,8 @@ void LiveScanClient::HandleSocket()
 			if (exportFormat == 1)
 			{
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
+				SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 10000, true);
+				Reinitialize();
 			}
 
 			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
@@ -652,6 +689,58 @@ void LiveScanClient::HandleSocket()
 		{
 			m_framesFileWriterReader.closeFileIfOpened();
 		}
+
+		else if (received[i] == MSG_REQUEST_SYNC_JACK_STATE) 
+		{
+			int size = 3;
+			char* buffer = new char[size];
+			buffer[0] = MSG_SYNC_JACK_STATE;
+
+			buffer[1] = pCapture->GetSyncJackState() + 1; //Gets the current Sync Jack State and adds + 1, as we can't send a negative value
+
+			m_pClientSocket->SendBytes(buffer, size);
+			m_bConfirmTempSyncState = false;
+		}
+
+		else if (received[i] == MSG_CREATE_DIR) //Creates a dir on the client. Message also marks the start of the recording
+		{
+			m_nFrameIndex = 0; 
+
+			i++; 
+			int stringLength = *(int*)(received.c_str() + i); //Get the length of the following string
+			i += sizeof(int);
+
+			std::string dirPath;
+
+		    dirPath.assign(received, i, stringLength); //Recieved is already a string, so we just copy the characters out of it			
+
+			//Confirmation message that we have created a valid new directory on this system
+			int size = 2;
+			char* buffer = new char[size];
+			buffer[0] = MSG_CONFIRM_DIR_CREATION;
+
+			if (m_framesFileWriterReader.CreateRecordDirectory(dirPath, pCapture->GetDeviceIndex())) 
+			{
+				buffer[1] = 1;
+				m_pClientSocket->SendBytes(buffer, size);
+			}
+
+			else
+			{
+				//Tell the server that the directory creation has failed, server will abort the recording
+				buffer[1] = 0;
+				m_pClientSocket->SendBytes(buffer, size);
+			}
+
+			std::vector<uint8_t> calibration_buffer;
+			size_t calibration_size = 0;
+
+			//Write the calibration intrinsics to the newly created dir
+			if (pCapture->GetIntrinsicsJSON(calibration_buffer, calibration_size)) {
+				m_framesFileWriterReader.WriteCalibrationJSON(pCapture->GetDeviceIndex(), calibration_buffer, calibration_size);
+			}
+
+		}
 	}
 
 	if (m_bConfirmCaptured)
@@ -704,26 +793,7 @@ void LiveScanClient::ReinitAndConfirm()
 		return;
 	}
 
-	//Update the hardware configuration state
-	configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
-
-	SendReinitConfirmation(true);
-
-}
-
-void LiveScanClient::SendReinitConfirmation(bool success) 
-{
-	int size = 2;
-	char* buffer = new char[size];
-	buffer[0] = MSG_CONFIRM_RESTART;
-
-	if (success)
-		buffer[1] = 0;
-
-	else
-		buffer[1] = 1;
-
-	m_pClientSocket->SendBytes(buffer, size);
+	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 }
 
 void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body)
@@ -970,4 +1040,28 @@ void LiveScanClient::WriteIPToFile()
 	GetDlgItemTextA(m_hWnd, IDC_IP, lastUsedIPAddress, 20);
 	file << lastUsedIPAddress;
 	file.close();
+}
+
+void LiveScanClient::CreateBlankGrayImage(const int width, const int height) 
+{
+	if (m_pBlankGreyImage) //Cleanup the previous image
+	{
+		delete[] m_pBlankGreyImage;
+		m_pBlankGreyImage = NULL;
+	}
+
+	int imageSize = width * height;
+	RGB greyPixel;
+	greyPixel.rgbBlue = 50;
+	greyPixel.rgbGreen = 50;
+	greyPixel.rgbRed = 50;
+
+	static RGB* greyFrame = new RGB[imageSize];
+
+	for (size_t i = 0; i < imageSize; i++)
+	{
+		greyFrame[i] = greyPixel;
+	}
+
+	m_pBlankGreyImage = greyFrame;
 }

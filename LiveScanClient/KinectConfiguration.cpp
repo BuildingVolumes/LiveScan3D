@@ -10,14 +10,15 @@
 	int nSync_offset;
 	int m_nDepth_camera_width;
 	int m_nDepth_camera_height;
-
+	bool filter_depth_map;
+	int filter_depth_map_size = 5;
+	const byte serialNumberSize = 13;
 
 	KinectConfiguration::KinectConfiguration()
 	{
+		serialNumber = "0000000000000";
 		InitializeDefaults();
 	}
-
-
 
 	char* KinectConfiguration::ToBytes()
 	{
@@ -26,12 +27,22 @@
 		//add depth mode.
 		char depthMode = (char)config.depth_mode;
 		message[0] = depthMode;
+
 		//add software sync_state
 		message[1] = (char)(int)eSoftwareSyncState;
 		//add hardware sync_state
 		message[2] = (char)(int)eHardwareSyncState;
 		//add sync_offset
+
 		message[3] = (char)(int)nSync_offset;
+
+		for (int i = 3; i < serialNumberSize+3; i++) {
+			message[i] = (int)serialNumber[i - 3];//ascii->char
+		}
+		
+		//Filter Depth Map option
+		message[16] = filter_depth_map ? 1 : 0;
+		message[17] = filter_depth_map_size;
 		//add color/resolution
 		return message;
 	}
@@ -51,6 +62,7 @@
 		config.depth_mode = static_cast<k4a_depth_mode_t>(depthMode);
 		i++;
 
+
 		//set software sync_state
 		//Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
 		eSoftwareSyncState = (SYNC_STATE)received[i];
@@ -60,12 +72,17 @@
 		i++;
 
 		//set sync_offset
+
 		nSync_offset = (int)received[i];
 		i++;
 
-		//TODO: set color/resolution.
+		//ignore re-setting the SerialNumber
+		i += serialNumberSize;
 
-
+		//i == 16 at this point
+		filter_depth_map = ((int)received[i] == 0) ? false : true;
+		i++;
+		filter_depth_map_size = int(received[i]);
 		//update const byteLength when changing this.
 	}
 
@@ -77,20 +94,25 @@
 		config.color_resolution = K4A_COLOR_RESOLUTION_720P;
 		config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
 		config.synchronized_images_only = true;
+
 		nSync_offset = 0;
 		eSoftwareSyncState = Standalone;
 		eHardwareSyncState = Unknown;
+		filter_depth_map = false;
+		filter_depth_map_size = 5;
 	}
 
 	int KinectConfiguration::GetCameraWidth()
 	{
 		UpdateWidthAndHeight();
+
 		return m_nDepth_camera_width;
 	}
 
 	int KinectConfiguration::GetCameraHeight()
 	{
 		UpdateWidthAndHeight();
+
 		return m_nDepth_camera_height;
 	}
 
@@ -100,17 +122,21 @@
 		switch (config.depth_mode)
 		{
 		case K4A_DEPTH_MODE_NFOV_UNBINNED:
+
 			m_nDepth_camera_width = 640;
 			m_nDepth_camera_height = 576;
 			break;
 		case K4A_DEPTH_MODE_NFOV_2X2BINNED:
+
 			m_nDepth_camera_width = 320;
 			m_nDepth_camera_height = 288;
 			break;
 		case K4A_DEPTH_MODE_WFOV_UNBINNED:
+
 			m_nDepth_camera_width = 1024;
 			m_nDepth_camera_height = 1024;
 		case K4A_DEPTH_MODE_WFOV_2X2BINNED:
+
 			m_nDepth_camera_width = 512;
 			m_nDepth_camera_height = 512;
 			break;
