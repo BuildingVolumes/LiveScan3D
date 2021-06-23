@@ -33,6 +33,7 @@ namespace KinectServer
         private Timer scrollTimer = null;
 
         bool bFormLoaded = false;
+        bool settingsChanged = false;
 
         public SettingsForm()
         {
@@ -64,25 +65,17 @@ namespace KinectServer
             txtICPIters.Text = oSettings.nNumICPIterations.ToString();
             txtRefinIters.Text = oSettings.nNumRefineIters.ToString();
 
-            btSyncEnable.Enabled = true;
-            btSyncDisable.Enabled = false;
+            rTempSyncEnabled.Checked = false;
+            rTempSyncDisabled.Checked = true;
 
             chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
             trManualExposure.Value = oSettings.nExposureStep;
 
             cbExtrinsicsFormat.SelectedIndex = (int)oSettings.eExtrinsicsFormat;
 
-            if(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-            {
-                rExportPointcloud.Checked = true;
-                rExportRawFrames.Checked = false;
-            }
-
-            if(oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
-            {
-                rExportPointcloud.Checked = false;
-                rExportRawFrames.Checked = true;
-            }
+            rExportPointcloud.Checked = true;
+            rExportRawFrames.Checked = false;
+            
 
             if (oSettings.bSaveAsBinaryPLY)
             {
@@ -95,6 +88,9 @@ namespace KinectServer
                 rAsciiPly.Checked = true;
             }
 
+            lApplyWarning.Text = "";
+            btApplyAllSettings.Enabled = false;
+
             bFormLoaded = true;
         }
 
@@ -102,9 +98,52 @@ namespace KinectServer
         {
             if (bFormLoaded)
             {
-                oServer.SendSettings();
-            }
+                Cursor.Current = Cursors.WaitCursor;
 
+                oServer.SendSettings();
+
+                if (rTempSyncEnabled.Checked && !oServer.bTempSyncEnabled)
+                    EnableTempSync();
+
+                else if (rExportPointcloud.Checked && !oServer.bPointCloudMode)
+                {
+                    oServer.RestartAllClients();
+                    oServer.bPointCloudMode = true;
+                }
+
+
+                else if (rExportRawFrames.Checked && oServer.bPointCloudMode)
+                {
+                    oServer.RestartAllClients();
+                    oServer.bPointCloudMode = false;
+
+                }
+
+                if (!oServer.bTempSyncEnabled)
+                {
+                    btApplyAllSettings.Enabled = false;
+                    lApplyWarning.Text = "";
+                }
+               
+                oServer.fMainWindowForm.SetButtonsForExport();
+
+                Cursor.Current = Cursors.Default;
+            }
+        }
+
+        void SettingsChanged()
+        {
+            settingsChanged = true;
+            UpdateApplyButton();
+        }
+
+        void UpdateApplyButton()
+        {
+            if(settingsChanged && !oServer.bTempSyncEnabled)
+            {
+                btApplyAllSettings.Enabled = true;
+                lApplyWarning.Text = "Changed settings are not yet applied!";
+            }
         }
 
         void UpdateMarkerFields()
@@ -140,58 +179,106 @@ namespace KinectServer
             }
         }
 
+        void EnableTempSync()
+        {
+            if (oServer.nClientCount > 1)
+            {
+                //Disable the Auto Exposure, as this could interfere with the temporal sync
+                oSettings.bAutoExposureEnabled = false;
+                oSettings.nExposureStep = -5;
+
+                chAutoExposureEnabled.Enabled = false;
+                trManualExposure.Enabled = true;
+                trManualExposure.Value = -5;
+                chAutoExposureEnabled.CheckState = CheckState.Unchecked;
+
+                oServer.SendSettings(); //Send settings to update the exposure
+
+                if (oServer.SetTempSyncState(true) && oServer.RestartTemporalSync())
+                {
+                    oServer.bTempSyncEnabled = true;
+                    lApplyWarning.Text = "To apply settings, you have to disable Temporal Sync";
+                    btApplyAllSettings.Text = "Disable Temp Sync";
+                }
+
+                else
+                    rTempSyncDisabled.Checked = true;
+            }
+
+            else
+                rTempSyncDisabled.Checked = true;
+        }
+
+        void DisableTempSync()
+        {
+            if (oServer.SetTempSyncState(false) && oServer.RestartAllClients())
+            {
+                oServer.bTempSyncEnabled = false;
+
+                rTempSyncEnabled.Checked = false;
+                rTempSyncDisabled.Checked = true;
+                chAutoExposureEnabled.Enabled = true;
+
+                lApplyWarning.Text = "Changed settings are not yet applied!";
+                btApplyAllSettings.Text = "Apply Settings to clients";
+
+                btApplyAllSettings.Enabled = false;
+                lApplyWarning.Enabled = false;
+            }
+        }
+
         private void txtMinX_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtMinX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.aMinBounds[0]);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtMinY_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtMinY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.aMinBounds[1]);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtMinZ_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtMinZ.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.aMinBounds[2]);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtMaxX_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtMaxX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.aMaxBounds[0]);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtMaxY_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtMaxY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.aMaxBounds[1]);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtMaxZ_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtMaxZ.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.aMaxBounds[2]);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void chFilter_CheckedChanged(object sender, EventArgs e)
         {
             oSettings.bFilter = chFilter.Checked;
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtFilterNeighbors_TextChanged(object sender, EventArgs e)
         {
             Int32.TryParse(txtFilterNeighbors.Text, out oSettings.nFilterNeighbors);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtFilterDistance_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtFilterDistance.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.fFilterThreshold);
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void txtICPIters_TextChanged(object sender, EventArgs e)
@@ -215,7 +302,7 @@ namespace KinectServer
                 oSettings.lMarkerPoses.Add(new MarkerPose());
             lisMarkers.SelectedIndex = oSettings.lMarkerPoses.Count - 1;
             UpdateMarkerFields();
-            UpdateClients();
+            SettingsChanged();
         }
         private void btRemove_Click(object sender, EventArgs e)
         {
@@ -224,7 +311,7 @@ namespace KinectServer
                 oSettings.lMarkerPoses.RemoveAt(lisMarkers.SelectedIndex);
                 lisMarkers.SelectedIndex = oSettings.lMarkerPoses.Count - 1;
                 UpdateMarkerFields();
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
@@ -243,7 +330,7 @@ namespace KinectServer
                 Single.TryParse(txtOrientationX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out X);
 
                 pose.SetOrientation(X, Y, Z);
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
@@ -257,7 +344,7 @@ namespace KinectServer
                 Single.TryParse(txtOrientationY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Y);
 
                 pose.SetOrientation(X, Y, Z);
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
@@ -271,7 +358,7 @@ namespace KinectServer
                 Single.TryParse(txtOrientationZ.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Z);
 
                 pose.SetOrientation(X, Y, Z);
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
@@ -284,7 +371,7 @@ namespace KinectServer
                 Single.TryParse(txtTranslationX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out X);
 
                 pose.pose.t[0] = X;
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
@@ -297,7 +384,7 @@ namespace KinectServer
                 Single.TryParse(txtTranslationY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Y);
 
                 pose.pose.t[1] = Y;
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
@@ -310,7 +397,7 @@ namespace KinectServer
                 Single.TryParse(txtTranslationZ.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Z);
 
                 pose.pose.t[2] = Z;
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
@@ -323,14 +410,14 @@ namespace KinectServer
                 Int32.TryParse(txtId.Text, out id);
 
                 pose.id = id;
-                UpdateClients();
+                SettingsChanged();
             }
         }
 
         private void chBodyData_CheckedChanged(object sender, EventArgs e)
         {
             oSettings.bStreamOnlyBodies = chBodyData.Checked;
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void PlyFormat_CheckedChanged(object sender, EventArgs e)
@@ -364,45 +451,16 @@ namespace KinectServer
                 if (!tryParse)
                     oSettings.iCompressionLevel = 0;
             }
-            UpdateClients();
+
+            SettingsChanged();
         }
 
-        private void btSyncEnable_click(object sender, EventArgs e)
-        {
-            if (oServer.nClientCount > 1)
-            {
-                //Disable the Auto Exposure, as this could interfere with the temporal sync
-                chAutoExposureEnabled.Enabled = false;
-                trManualExposure.Enabled = true;
-                chAutoExposureEnabled.CheckState = CheckState.Unchecked;
-
-                if (oServer.SetTempSyncState(true) && oServer.RestartTemporalSync())
-                {
-                    oServer.bTempSyncEnabled = false;
-                    btSyncEnable.Enabled = false;
-                    btSyncDisable.Enabled = true;
-                }
-            }
-
-        }
-
-        private void btSyncDisable_click(object sender, EventArgs e)
-        {
-            if(oServer.SetTempSyncState(false) && oServer.RestartAllClients())
-            {
-                oServer.bTempSyncEnabled = false;
-                btSyncEnable.Enabled = true;
-                btSyncDisable.Enabled = false;
-                chAutoExposureEnabled.Enabled = true;
-            }         
-        }
 
         private void chAutoExposureEnabled_CheckedChanged(object sender, EventArgs e)
         {
             oSettings.bAutoExposureEnabled = chAutoExposureEnabled.Checked;
-            UpdateClients();
-
-            trManualExposure.Enabled = !oSettings.bAutoExposureEnabled;
+            trManualExposure.Enabled = !chAutoExposureEnabled.Checked;
+            SettingsChanged();
         }
 
 
@@ -439,8 +497,8 @@ namespace KinectServer
                         int exposureStep = trManualExposure.Value;
                         int exposureStepClamped = exposureStep < -11 ? -11 : exposureStep > 1 ? 1 : exposureStep;
                         oSettings.nExposureStep = exposureStepClamped;
-                        UpdateClients();
 
+                        SettingsChanged();
 
                         scrollTimer.Dispose();
                         scrollTimer = null;
@@ -463,7 +521,7 @@ namespace KinectServer
         private void cbExtrinsicsFormat_SelectedIndexChanged(object sender, EventArgs e)
         {
             oSettings.eExtrinsicsFormat = (KinectSettings.ExtrinsicsStyle)cbExtrinsicsFormat.SelectedIndex;
-            UpdateClients();
+            SettingsChanged();
         }
 
         private void rExportPointcloud_CheckedChanged(object sender, EventArgs e)
@@ -478,19 +536,27 @@ namespace KinectServer
                 oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
             }
 
-            oServer.fMainWindowForm.SetButtonsForExport();
+            SettingsChanged();
+        }
 
-            UpdateClients();
-
+        private void btApplyAllSettings_Click(object sender, EventArgs e)
+        {
             if (oServer.bTempSyncEnabled)
-            {
-                oServer.RestartTemporalSync();
-            }
+                DisableTempSync();
 
             else
-            {
-                oServer.RestartAllClients();
-            }
+                UpdateClients();
+
+        }
+
+        private void rTempSyncEnabled_CheckedChanged(object sender, EventArgs e)
+        {
+            SettingsChanged();
+        }
+
+        private void rTempSyncDisabled_CheckedChanged(object sender, EventArgs e)
+        {
+            SettingsChanged();
         }
     }
 }

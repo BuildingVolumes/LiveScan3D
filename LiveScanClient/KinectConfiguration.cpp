@@ -28,12 +28,13 @@
 		char depthMode = (char)config.depth_mode;
 		message[0] = depthMode;
 
+		//Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
 		//add software sync_state
 		message[1] = (char)(int)eSoftwareSyncState;
 		//add hardware sync_state
 		message[2] = (char)(int)eHardwareSyncState;
+		
 		//add sync_offset
-
 		message[3] = (char)(int)nSync_offset;
 
 		for (int i = 4; i < serialNumberSize+4; i++) {

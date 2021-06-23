@@ -117,6 +117,7 @@ namespace KinectServer
             else
                 lData.Add(0);
 
+
             bTemp = BitConverter.GetBytes(nExposureStep);
             lData.AddRange(bTemp);
 

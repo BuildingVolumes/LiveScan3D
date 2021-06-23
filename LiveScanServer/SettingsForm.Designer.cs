@@ -33,15 +33,22 @@
             this.lbICPIters = new System.Windows.Forms.Label();
             this.txtICPIters = new System.Windows.Forms.TextBox();
             this.grClient = new System.Windows.Forms.GroupBox();
+            this.btApplyAllSettings = new System.Windows.Forms.Button();
+            this.lApplyWarning = new System.Windows.Forms.Label();
             this.grExposure = new System.Windows.Forms.GroupBox();
             this.lbManualExposure = new System.Windows.Forms.Label();
             this.chAutoExposureEnabled = new System.Windows.Forms.CheckBox();
             this.trManualExposure = new System.Windows.Forms.TrackBar();
             this.grTempSync = new System.Windows.Forms.GroupBox();
-            this.btSyncDisable = new System.Windows.Forms.Button();
-            this.btSyncEnable = new System.Windows.Forms.Button();
+            this.rTempSyncDisabled = new System.Windows.Forms.RadioButton();
+            this.rTempSyncEnabled = new System.Windows.Forms.RadioButton();
             this.lbTempSync = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.exportGroup = new System.Windows.Forms.GroupBox();
+            this.rExportRawFrames = new System.Windows.Forms.RadioButton();
+            this.rExportPointcloud = new System.Windows.Forms.RadioButton();
+            this.lExtrinsics = new System.Windows.Forms.Label();
+            this.cbExtrinsicsFormat = new System.Windows.Forms.ComboBox();
             this.grBody = new System.Windows.Forms.GroupBox();
             this.chSkeletons = new System.Windows.Forms.CheckBox();
             this.chBodyData = new System.Windows.Forms.CheckBox();
@@ -80,11 +87,6 @@
             this.lbFilterNeighbors = new System.Windows.Forms.Label();
             this.lbFilterDistance = new System.Windows.Forms.Label();
             this.txtFilterDistance = new System.Windows.Forms.TextBox();
-            this.exportGroup = new System.Windows.Forms.GroupBox();
-            this.rExportRawFrames = new System.Windows.Forms.RadioButton();
-            this.rExportPointcloud = new System.Windows.Forms.RadioButton();
-            this.lExtrinsics = new System.Windows.Forms.Label();
-            this.cbExtrinsicsFormat = new System.Windows.Forms.ComboBox();
             this.grServer = new System.Windows.Forms.GroupBox();
             this.cbCompressionLevel = new System.Windows.Forms.ComboBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -97,11 +99,11 @@
             this.grExposure.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
             this.grTempSync.SuspendLayout();
+            this.exportGroup.SuspendLayout();
             this.grBody.SuspendLayout();
             this.grMarkers.SuspendLayout();
             this.grBounding.SuspendLayout();
             this.grFiltering.SuspendLayout();
-            this.exportGroup.SuspendLayout();
             this.grServer.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -144,18 +146,40 @@
             // 
             // grClient
             // 
+            this.grClient.Controls.Add(this.btApplyAllSettings);
+            this.grClient.Controls.Add(this.lApplyWarning);
             this.grClient.Controls.Add(this.grExposure);
             this.grClient.Controls.Add(this.grTempSync);
+            this.grClient.Controls.Add(this.exportGroup);
             this.grClient.Controls.Add(this.grBody);
             this.grClient.Controls.Add(this.grMarkers);
             this.grClient.Controls.Add(this.grBounding);
             this.grClient.Controls.Add(this.grFiltering);
             this.grClient.Location = new System.Drawing.Point(12, 12);
             this.grClient.Name = "grClient";
-            this.grClient.Size = new System.Drawing.Size(632, 408);
+            this.grClient.Size = new System.Drawing.Size(632, 440);
             this.grClient.TabIndex = 43;
             this.grClient.TabStop = false;
             this.grClient.Text = "KinectClient settings";
+            // 
+            // btApplyAllSettings
+            // 
+            this.btApplyAllSettings.Location = new System.Drawing.Point(480, 408);
+            this.btApplyAllSettings.Name = "btApplyAllSettings";
+            this.btApplyAllSettings.Size = new System.Drawing.Size(144, 23);
+            this.btApplyAllSettings.TabIndex = 51;
+            this.btApplyAllSettings.Text = "Apply settings to clients";
+            this.btApplyAllSettings.UseVisualStyleBackColor = true;
+            this.btApplyAllSettings.Click += new System.EventHandler(this.btApplyAllSettings_Click);
+            // 
+            // lApplyWarning
+            // 
+            this.lApplyWarning.Location = new System.Drawing.Point(205, 413);
+            this.lApplyWarning.Name = "lApplyWarning";
+            this.lApplyWarning.Size = new System.Drawing.Size(269, 13);
+            this.lApplyWarning.TabIndex = 52;
+            this.lApplyWarning.Text = "Changed settings are not yet applied!";
+            this.lApplyWarning.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // grExposure
             // 
@@ -164,7 +188,7 @@
             this.grExposure.Controls.Add(this.trManualExposure);
             this.grExposure.Location = new System.Drawing.Point(9, 283);
             this.grExposure.Name = "grExposure";
-            this.grExposure.Size = new System.Drawing.Size(249, 115);
+            this.grExposure.Size = new System.Drawing.Size(249, 119);
             this.grExposure.TabIndex = 49;
             this.grExposure.TabStop = false;
             this.grExposure.Text = "Exposure Settings";
@@ -206,8 +230,8 @@
             // 
             // grTempSync
             // 
-            this.grTempSync.Controls.Add(this.btSyncDisable);
-            this.grTempSync.Controls.Add(this.btSyncEnable);
+            this.grTempSync.Controls.Add(this.rTempSyncDisabled);
+            this.grTempSync.Controls.Add(this.rTempSyncEnabled);
             this.grTempSync.Controls.Add(this.lbTempSync);
             this.grTempSync.Controls.Add(this.label1);
             this.grTempSync.Location = new System.Drawing.Point(271, 211);
@@ -217,25 +241,29 @@
             this.grTempSync.TabStop = false;
             this.grTempSync.Text = "Temporal Sync";
             // 
-            // btSyncDisable
+            // rTempSyncDisabled
             // 
-            this.btSyncDisable.Location = new System.Drawing.Point(104, 19);
-            this.btSyncDisable.Name = "btSyncDisable";
-            this.btSyncDisable.Size = new System.Drawing.Size(92, 23);
-            this.btSyncDisable.TabIndex = 4;
-            this.btSyncDisable.Text = "Disable";
-            this.btSyncDisable.UseVisualStyleBackColor = true;
-            this.btSyncDisable.Click += new System.EventHandler(this.btSyncDisable_click);
+            this.rTempSyncDisabled.AutoSize = true;
+            this.rTempSyncDisabled.Location = new System.Drawing.Point(77, 19);
+            this.rTempSyncDisabled.Name = "rTempSyncDisabled";
+            this.rTempSyncDisabled.Size = new System.Drawing.Size(66, 17);
+            this.rTempSyncDisabled.TabIndex = 4;
+            this.rTempSyncDisabled.TabStop = true;
+            this.rTempSyncDisabled.Text = "Disabled";
+            this.rTempSyncDisabled.UseVisualStyleBackColor = true;
+            this.rTempSyncDisabled.CheckedChanged += new System.EventHandler(this.rTempSyncDisabled_CheckedChanged);
             // 
-            // btSyncEnable
+            // rTempSyncEnabled
             // 
-            this.btSyncEnable.Location = new System.Drawing.Point(6, 19);
-            this.btSyncEnable.Name = "btSyncEnable";
-            this.btSyncEnable.Size = new System.Drawing.Size(92, 23);
-            this.btSyncEnable.TabIndex = 3;
-            this.btSyncEnable.Text = "Enable";
-            this.btSyncEnable.UseVisualStyleBackColor = true;
-            this.btSyncEnable.Click += new System.EventHandler(this.btSyncEnable_click);
+            this.rTempSyncEnabled.AutoSize = true;
+            this.rTempSyncEnabled.Location = new System.Drawing.Point(6, 19);
+            this.rTempSyncEnabled.Name = "rTempSyncEnabled";
+            this.rTempSyncEnabled.Size = new System.Drawing.Size(64, 17);
+            this.rTempSyncEnabled.TabIndex = 3;
+            this.rTempSyncEnabled.TabStop = true;
+            this.rTempSyncEnabled.Text = "Enabled";
+            this.rTempSyncEnabled.UseVisualStyleBackColor = false;
+            this.rTempSyncEnabled.CheckedChanged += new System.EventHandler(this.rTempSyncEnabled_CheckedChanged);
             // 
             // lbTempSync
             // 
@@ -257,6 +285,65 @@
             this.label1.TabIndex = 1;
             this.label1.Text = "Notice: All devices need to be connected  to the server and via sync cabel before" +
     " enabeling! First Device in Server List will become the master";
+            // 
+            // exportGroup
+            // 
+            this.exportGroup.Controls.Add(this.rExportRawFrames);
+            this.exportGroup.Controls.Add(this.rExportPointcloud);
+            this.exportGroup.Controls.Add(this.lExtrinsics);
+            this.exportGroup.Controls.Add(this.cbExtrinsicsFormat);
+            this.exportGroup.Location = new System.Drawing.Point(271, 314);
+            this.exportGroup.Name = "exportGroup";
+            this.exportGroup.Size = new System.Drawing.Size(355, 88);
+            this.exportGroup.TabIndex = 50;
+            this.exportGroup.TabStop = false;
+            this.exportGroup.Text = "Export";
+            // 
+            // rExportRawFrames
+            // 
+            this.rExportRawFrames.AutoSize = true;
+            this.rExportRawFrames.Location = new System.Drawing.Point(6, 46);
+            this.rExportRawFrames.Name = "rExportRawFrames";
+            this.rExportRawFrames.Size = new System.Drawing.Size(203, 17);
+            this.rExportRawFrames.TabIndex = 37;
+            this.rExportRawFrames.Text = "Color/Depth Frames (Stored on client)";
+            this.rExportRawFrames.UseVisualStyleBackColor = true;
+            // 
+            // rExportPointcloud
+            // 
+            this.rExportPointcloud.AutoSize = true;
+            this.rExportPointcloud.Checked = true;
+            this.rExportPointcloud.Location = new System.Drawing.Point(6, 23);
+            this.rExportPointcloud.Name = "rExportPointcloud";
+            this.rExportPointcloud.Size = new System.Drawing.Size(164, 17);
+            this.rExportPointcloud.TabIndex = 36;
+            this.rExportPointcloud.TabStop = true;
+            this.rExportPointcloud.Text = "Pointcloud (Stored on Server)";
+            this.rExportPointcloud.UseVisualStyleBackColor = true;
+            this.rExportPointcloud.CheckedChanged += new System.EventHandler(this.rExportPointcloud_CheckedChanged);
+            // 
+            // lExtrinsics
+            // 
+            this.lExtrinsics.AutoSize = true;
+            this.lExtrinsics.Location = new System.Drawing.Point(3, 68);
+            this.lExtrinsics.Name = "lExtrinsics";
+            this.lExtrinsics.Size = new System.Drawing.Size(51, 13);
+            this.lExtrinsics.TabIndex = 35;
+            this.lExtrinsics.Text = "Extrinsics";
+            // 
+            // cbExtrinsicsFormat
+            // 
+            this.cbExtrinsicsFormat.AllowDrop = true;
+            this.cbExtrinsicsFormat.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbExtrinsicsFormat.FormattingEnabled = true;
+            this.cbExtrinsicsFormat.Items.AddRange(new object[] {
+            "Don\'t Export",
+            "Open3D Style"});
+            this.cbExtrinsicsFormat.Location = new System.Drawing.Point(56, 65);
+            this.cbExtrinsicsFormat.Name = "cbExtrinsicsFormat";
+            this.cbExtrinsicsFormat.Size = new System.Drawing.Size(114, 21);
+            this.cbExtrinsicsFormat.TabIndex = 33;
+            this.cbExtrinsicsFormat.SelectedIndexChanged += new System.EventHandler(this.cbExtrinsicsFormat_SelectedIndexChanged);
             // 
             // grBody
             // 
@@ -629,65 +716,6 @@
             this.txtFilterDistance.TabIndex = 22;
             this.txtFilterDistance.TextChanged += new System.EventHandler(this.txtFilterDistance_TextChanged);
             // 
-            // exportGroup
-            // 
-            this.exportGroup.Controls.Add(this.rExportRawFrames);
-            this.exportGroup.Controls.Add(this.rExportPointcloud);
-            this.exportGroup.Controls.Add(this.lExtrinsics);
-            this.exportGroup.Controls.Add(this.cbExtrinsicsFormat);
-            this.exportGroup.Location = new System.Drawing.Point(341, 426);
-            this.exportGroup.Name = "exportGroup";
-            this.exportGroup.Size = new System.Drawing.Size(230, 116);
-            this.exportGroup.TabIndex = 50;
-            this.exportGroup.TabStop = false;
-            this.exportGroup.Text = "Export";
-            // 
-            // rExportRawFrames
-            // 
-            this.rExportRawFrames.AutoSize = true;
-            this.rExportRawFrames.Location = new System.Drawing.Point(6, 46);
-            this.rExportRawFrames.Name = "rExportRawFrames";
-            this.rExportRawFrames.Size = new System.Drawing.Size(203, 17);
-            this.rExportRawFrames.TabIndex = 37;
-            this.rExportRawFrames.Text = "Color/Depth Frames (Stored on client)";
-            this.rExportRawFrames.UseVisualStyleBackColor = true;
-            // 
-            // rExportPointcloud
-            // 
-            this.rExportPointcloud.AutoSize = true;
-            this.rExportPointcloud.Checked = true;
-            this.rExportPointcloud.Location = new System.Drawing.Point(6, 23);
-            this.rExportPointcloud.Name = "rExportPointcloud";
-            this.rExportPointcloud.Size = new System.Drawing.Size(164, 17);
-            this.rExportPointcloud.TabIndex = 36;
-            this.rExportPointcloud.TabStop = true;
-            this.rExportPointcloud.Text = "Pointcloud (Stored on Server)";
-            this.rExportPointcloud.UseVisualStyleBackColor = true;
-            this.rExportPointcloud.CheckedChanged += new System.EventHandler(this.rExportPointcloud_CheckedChanged);
-            // 
-            // lExtrinsics
-            // 
-            this.lExtrinsics.AutoSize = true;
-            this.lExtrinsics.Location = new System.Drawing.Point(3, 72);
-            this.lExtrinsics.Name = "lExtrinsics";
-            this.lExtrinsics.Size = new System.Drawing.Size(51, 13);
-            this.lExtrinsics.TabIndex = 35;
-            this.lExtrinsics.Text = "Extrinsics";
-            // 
-            // cbExtrinsicsFormat
-            // 
-            this.cbExtrinsicsFormat.AllowDrop = true;
-            this.cbExtrinsicsFormat.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cbExtrinsicsFormat.FormattingEnabled = true;
-            this.cbExtrinsicsFormat.Items.AddRange(new object[] {
-            "Don\'t Export",
-            "Open3D Style"});
-            this.cbExtrinsicsFormat.Location = new System.Drawing.Point(55, 69);
-            this.cbExtrinsicsFormat.Name = "cbExtrinsicsFormat";
-            this.cbExtrinsicsFormat.Size = new System.Drawing.Size(114, 21);
-            this.cbExtrinsicsFormat.TabIndex = 33;
-            this.cbExtrinsicsFormat.SelectedIndexChanged += new System.EventHandler(this.cbExtrinsicsFormat_SelectedIndexChanged);
-            // 
             // grServer
             // 
             this.grServer.Controls.Add(this.cbCompressionLevel);
@@ -701,7 +729,7 @@
             this.grServer.Controls.Add(this.txtICPIters);
             this.grServer.Controls.Add(this.chMerge);
             this.grServer.Controls.Add(this.lbICPIters);
-            this.grServer.Location = new System.Drawing.Point(12, 426);
+            this.grServer.Location = new System.Drawing.Point(12, 478);
             this.grServer.Name = "grServer";
             this.grServer.Size = new System.Drawing.Size(323, 114);
             this.grServer.TabIndex = 44;
@@ -795,8 +823,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(656, 554);
-            this.Controls.Add(this.exportGroup);
+            this.ClientSize = new System.Drawing.Size(656, 599);
             this.Controls.Add(this.grServer);
             this.Controls.Add(this.grClient);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -810,6 +837,9 @@
             this.grExposure.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).EndInit();
             this.grTempSync.ResumeLayout(false);
+            this.grTempSync.PerformLayout();
+            this.exportGroup.ResumeLayout(false);
+            this.exportGroup.PerformLayout();
             this.grBody.ResumeLayout(false);
             this.grBody.PerformLayout();
             this.grMarkers.ResumeLayout(false);
@@ -818,8 +848,6 @@
             this.grBounding.PerformLayout();
             this.grFiltering.ResumeLayout(false);
             this.grFiltering.PerformLayout();
-            this.exportGroup.ResumeLayout(false);
-            this.exportGroup.PerformLayout();
             this.grServer.ResumeLayout(false);
             this.grServer.PerformLayout();
             this.ResumeLayout(false);
@@ -882,8 +910,6 @@
         private System.Windows.Forms.GroupBox grTempSync;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label lbTempSync;
-        private System.Windows.Forms.Button btSyncDisable;
-        private System.Windows.Forms.Button btSyncEnable;
         private System.Windows.Forms.TrackBar trManualExposure;
         private System.Windows.Forms.GroupBox grExposure;
         private System.Windows.Forms.Label lbManualExposure;
@@ -893,5 +919,9 @@
         private System.Windows.Forms.Label lExtrinsics;
         private System.Windows.Forms.RadioButton rExportRawFrames;
         private System.Windows.Forms.RadioButton rExportPointcloud;
+        private System.Windows.Forms.RadioButton rTempSyncDisabled;
+        private System.Windows.Forms.RadioButton rTempSyncEnabled;
+        private System.Windows.Forms.Button btApplyAllSettings;
+        private System.Windows.Forms.Label lApplyWarning;
     }
 }

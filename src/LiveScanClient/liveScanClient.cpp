@@ -66,6 +66,8 @@ LiveScanClient::LiveScanClient() :
 	m_nFilterNeighbors(10),
 	m_fFilterThreshold(0.01f),
 	m_bRestartingCamera(false),
+	m_bRequestConfiguration(false),
+	m_bSendConfiguration(false),
 	m_bAutoExposureEnabled(true),
 	m_nExposureStep(-5),
 	m_nExtrinsicsStyle(0), // 0 = no export of extrinsics
@@ -201,9 +203,34 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
 
 void LiveScanClient::UpdateFrame()
 {
+	//I don't think we need the RestartingCamera lock here
 	if (!pCapture->bInitialized || m_bRestartingCamera)
 	{
 		return;
+	}
+
+	//Updates hardware settings to the configuration file
+	if (m_bRequestConfiguration) 
+	{
+		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
+		m_bRequestConfiguration = false;
+		m_bSendConfiguration = true;
+	}
+
+	//Updates global settings on the device
+	if (m_bUpdateSettings)
+	{
+		pCapture->SetExposureState(m_bAutoExposureEnabled, m_nExposureStep);
+		m_bUpdateSettings = false;
+	}
+
+	if (m_bRestartCamera) 
+	{
+		if(ReinitAndConfirm())
+			m_bRestartCamera = false;
+
+		if (!pCapture->bAquiresPointcloud)
+			SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 2000, true);
 	}
 
 	//Recording raw frames
@@ -491,6 +518,7 @@ void LiveScanClient::SocketThreadFunction()
 	}
 }
 
+//This is running on a seperate thread, don't call stuff that affects the recording directly from here!
 void LiveScanClient::HandleSocket()
 {
 	char byteToSend;
@@ -517,15 +545,14 @@ void LiveScanClient::HandleSocket()
 		//Restart The Device without changing any settings - must be done after turning on/off temporal sync, and when changing depth mode.
 		else if (received[i] == MSG_REINITIALIZE_WITH_CURRENT_SETTINGS)
 		{
-			m_bRestartingCamera = true;
-			ReinitAndConfirm();
+			m_bRestartCamera = true;
 		}
 
 
 		else if (received[i] == MSG_SET_CONFIGURATION)
 		{
 			i++;
-		std:string message;
+			std:string message;
 			//TODO: this can be done with substrings, im sure.
 			for (int x = 0; x < KinectConfiguration::byteLength; x++)
 			{
@@ -534,11 +561,6 @@ void LiveScanClient::HandleSocket()
 
 			i += KinectConfiguration::byteLength;
 			configuration.SetFromBytes(message);
-
-			//Update the configuration.
-
-			//If it needs to be reinitialized, that will be sent by the server.
-			pCapture->SetConfiguration(configuration);
 
 			i--;
 		}
@@ -611,8 +633,6 @@ void LiveScanClient::HandleSocket()
 			m_nExposureStep = *(int*)(received.c_str() + i);
 			i += sizeof(int);
 
-			pCapture->SetExposureState(m_bAutoExposureEnabled, m_nExposureStep);
-
 			int exportFormat = *(int*)(received.c_str() + i);
 			i += sizeof(int);
 
@@ -623,23 +643,22 @@ void LiveScanClient::HandleSocket()
 
 			if (exportFormat == 1)
 			{
+				//TODO: Don't call it in this thread
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
-				SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 1, true);
 			}
 
 			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
 			i += sizeof(int);
+
+			m_bUpdateSettings = true;
 
 			//so that we do not lose the next character in the stream
 			i--;
 		}
 		//send configuration
 		else if (received[i] == MSG_REQUEST_CONFIGURATION)
-		{
-			byteToSend = MSG_CONFIGURATION;
-			m_pClientSocket->SendBytes(&byteToSend, 1);
-			m_pClientSocket->SendBytes(configuration.ToBytes(), KinectConfiguration::byteLength);
-		}
+			m_bRequestConfiguration = true;
+
 		//send stored frame
 		else if (received[i] == MSG_REQUEST_STORED_FRAME)
 		{
@@ -721,13 +740,8 @@ void LiveScanClient::HandleSocket()
 				m_pClientSocket->SendBytes(buffer, size);
 			}
 
-			std::vector<uint8_t> calibration_buffer;
-			size_t calibration_size = 0;
-
 			//Write the calibration intrinsics into the newly created dir
-			if (pCapture->GetIntrinsicsJSON(calibration_buffer, calibration_size)) {
-				m_framesFileWriterReader.WriteCalibrationJSON(pCapture->GetDeviceIndex(), calibration_buffer, calibration_size);
-			}
+			m_framesFileWriterReader.WriteCalibrationJSON(pCapture->GetDeviceIndex(), pCapture->calibrationBuffer, pCapture->nCalibrationSize);
 
 		}
 	}
@@ -760,20 +774,30 @@ void LiveScanClient::HandleSocket()
 		m_pClientSocket->SendBytes(buffer, size);
 		m_bConfirmCalibrated = false;
 	}
+
+	if (m_bSendConfiguration) 
+	{
+		byteToSend = MSG_CONFIGURATION;
+		m_pClientSocket->SendBytes(&byteToSend, 1);
+		m_pClientSocket->SendBytes(configuration.ToBytes(), KinectConfiguration::byteLength);
+		m_bSendConfiguration = false;
+	}
 }
 
 /// <summary>
 /// Reinitialize. Must be called after changing depthMode or afer changing temporal sync mode.
 /// </summary>
-void LiveScanClient::ReinitAndConfirm()
+bool LiveScanClient::ReinitAndConfirm()
 {
+	m_bRestartingCamera = true;
+
 	bool res = false;
 	res = pCapture->Close();
 	if (!res) {
 		SetStatusMessage(L"device failed to close! Please restart Application!", 10000, true);
 		SendReinitConfirmation(false);
 		m_bRestartingCamera = false;
-		return;
+		return false;
 	}
 
 	res = pCapture->Initialize(configuration);
@@ -781,7 +805,7 @@ void LiveScanClient::ReinitAndConfirm()
 		SetStatusMessage(L"device failed to reinitialize! Please restart Application!", 10000, true);
 		SendReinitConfirmation(false);
 		m_bRestartingCamera = false;
-		return;
+		return false;
 	}
 
 	else
@@ -796,6 +820,7 @@ void LiveScanClient::ReinitAndConfirm()
 	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 	SendReinitConfirmation(true);
 	m_bRestartingCamera = false;
+	return true;
 }
 
 void LiveScanClient::SendReinitConfirmation(bool success)

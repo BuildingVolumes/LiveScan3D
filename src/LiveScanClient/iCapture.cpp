@@ -24,6 +24,8 @@ ICapture::ICapture()
 	nDepthFrameHeight = 0;
 	nDepthFrameWidth = 0;
 
+	nCalibrationSize = 0;
+
 	pDepth = NULL;
 	pColorRGBX = NULL;
 	pBodyIndex = NULL;

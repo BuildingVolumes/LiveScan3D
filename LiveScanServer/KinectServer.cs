@@ -39,7 +39,8 @@ namespace KinectServer
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
         public event SocketListChangedHandler eSocketListChanged;
 
-        public bool bTempSyncEnabled;
+        public bool bTempSyncEnabled = false;
+        public bool bPointCloudMode = true;
 
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
@@ -135,6 +136,10 @@ namespace KinectServer
         public KinectServer(KinectSettings settings)
         {
             this.oSettings = settings;
+
+            if (settings.eExportMode != KinectSettings.ExportMode.Pointcloud)
+                bPointCloudMode = false;
+
             kinectSettingsForms = new Dictionary<int, KinectConfigurationForm>();
         }
 
@@ -314,7 +319,7 @@ namespace KinectServer
                 return false;
             }
 
-            return false;
+            return true;
         }
 
 
@@ -409,7 +414,7 @@ namespace KinectServer
 
             if (!RestartClients(main))
             {
-                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main. Please connect and try again:", 5000);
+                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main. Please try again:", 5000);
                 return false;
             }
 
@@ -492,6 +497,9 @@ namespace KinectServer
 
             else
             {
+                if (!GetConfigurations(lClientSockets))
+                    return false;
+
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
                     KinectConfiguration newConfig = lClientSockets[i].configuration;
@@ -703,7 +711,6 @@ namespace KinectServer
                     }
                 }
             }
-
 
             return true;
 

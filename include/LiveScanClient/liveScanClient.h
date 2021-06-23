@@ -43,7 +43,7 @@ private:
 	bool m_bFilter;
 	bool m_bStreamOnlyBodies;
 
-	bool m_bRestartingCamera;
+
 
 	ICapture *pCapture;
 
@@ -54,6 +54,11 @@ private:
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
+	bool m_bRestartCamera;
+	bool m_bRestartingCamera;
+	bool m_bUpdateSettings;
+	bool m_bRequestConfiguration;
+	bool m_bSendConfiguration;
 
 	bool m_bShowDepth;
 	bool m_bFrameCompression;
@@ -101,7 +106,7 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	void ReinitAndConfirm();
+	bool ReinitAndConfirm();
 	void SendReinitConfirmation(bool success);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
 

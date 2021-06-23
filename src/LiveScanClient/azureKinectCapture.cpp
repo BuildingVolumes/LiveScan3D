@@ -162,6 +162,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	else
 		bAquiresPointcloud = false;
 
+	GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize);
+
 	return bInitialized;
 }
 
@@ -186,6 +188,7 @@ bool AzureKinectCapture::Close()
 	k4a_image_release(colorImageDownscaled);
 	k4a_transformation_destroy(transformationColorDownscaled);
 	k4a_transformation_destroy(transformation);
+	k4a_device_stop_cameras(kinectSensor);
 	k4a_device_close(kinectSensor);
 
 	colorImage = NULL;
@@ -199,7 +202,6 @@ bool AzureKinectCapture::Close()
 	transformation = NULL;
 
 	bInitialized = false;
-
 
 	return true;
 }
@@ -460,23 +462,30 @@ void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureS
 /// <returns>Returns int -1 for Subordinate, int 0 for Master and int 1 for Standalone</returns>
 int AzureKinectCapture::GetSyncJackState()
 {
-	if (K4A_RESULT_SUCCEEDED == k4a_device_get_sync_jack(kinectSensor, &syncInConnected, &syncOutConnected))
+	k4a_result_t syncJackResult = k4a_device_get_sync_jack(kinectSensor, &syncInConnected, &syncOutConnected);
+
+	if (K4A_RESULT_SUCCEEDED == syncJackResult)
 	{
 		if (syncOutConnected)
 		{
-			return 1; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
+			return 0; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
 		}
 
 		else if(syncInConnected)
 		{
-			return 2; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
+			return 1; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
+		}
+
+		else 
+		{
+			return 2;
 		}
 
 	}
 
 	else
 	{
-		return 3; //Probably failed because there are no cabels connected, this means the device should be set as standalone
+		return 2; //Probably failed because there are no cabels connected, this means the device should be set as standalone
 	}
 }
 

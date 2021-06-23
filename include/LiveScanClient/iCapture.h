@@ -67,6 +67,9 @@ public:
 	k4a_image_t colorImage;
 	k4a_image_t depthImage;
 
+	std::vector<uint8_t> calibrationBuffer;
+	size_t nCalibrationSize;
+
 	UINT16 *pDepth;
 	BYTE *pBodyIndex;
 	RGB *pColorRGBX;
