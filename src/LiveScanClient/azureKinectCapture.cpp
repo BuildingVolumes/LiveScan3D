@@ -466,7 +466,7 @@ int AzureKinectCapture::GetSyncJackState()
 
 	if (K4A_RESULT_SUCCEEDED == syncJackResult)
 	{
-		if (syncOutConnected)
+		if (syncOutConnected && !syncInConnected)
 		{
 			return 0; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
 		}
