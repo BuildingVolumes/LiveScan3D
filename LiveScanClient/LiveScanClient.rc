@@ -8,7 +8,6 @@
 // Generated from the TEXTINCLUDE 2 resource.
 //
 #define APSTUDIO_HIDDEN_SYMBOLS
-#define NOMINMAX
 #include "windows.h"
 #undef APSTUDIO_HIDDEN_SYMBOLS
 
@@ -31,13 +30,14 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // remains consistent on all systems.
 IDI_APP                 ICON                    "app.ico"
 
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
 IDD_APP DIALOGEX 0, 0, 643, 415
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
 EXSTYLE WS_EX_CONTROLPARENT | WS_EX_APPWINDOW
 CAPTION "LiveScanClient"
 CLASS "LiveScanClientAppDlgWndClass"
