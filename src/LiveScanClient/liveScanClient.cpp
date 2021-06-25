@@ -29,6 +29,7 @@ int g_winWidth=800;
 int g_winHeight=800;
 int g_winX=0;
 int g_winY=0;
+int g_connectToServerImmediately=0;
 
 int APIENTRY wWinMain(
 	_In_ HINSTANCE hInstance,
@@ -43,12 +44,13 @@ int APIENTRY wWinMain(
 	LPWSTR* szArgList;
 	int argCount; 
 	szArgList = CommandLineToArgvW(GetCommandLine(), &argCount);
-	if (argCount == 5) {
+	if (argCount >= 5) {
 		// assume window width, height, x, y
 		g_winWidth = _wtoi(szArgList[1]);
 		g_winHeight = _wtoi(szArgList[2]);
 		g_winX= _wtoi(szArgList[3]);
 		g_winY = _wtoi(szArgList[4]);
+		if(argCount >=6) g_connectToServerImmediately = _wtoi(szArgList[5]);
 	}
     LiveScanClient application;
     application.Run(hInstance, nShowCmd);
@@ -192,6 +194,7 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
 	::SetWindowPos(m_hWnd, HWND_TOP, g_winX,g_winY, g_winWidth,g_winHeight, NULL);
 	std::thread t1(&LiveScanClient::SocketThreadFunction, this);
     // Main message loop
+	if(g_connectToServerImmediately) Connect();
     while (WM_QUIT != msg.message)
     {
 		UpdateFrame();
@@ -315,7 +318,38 @@ LRESULT CALLBACK LiveScanClient::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wPar
 
     return 0;
 }
+void LiveScanClient::Connect() {
+	std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+	if (m_bConnected)
+	{
+		delete m_pClientSocket;
+		m_pClientSocket = NULL;
 
+		m_bConnected = false;
+		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Connect");
+	}
+	else
+	{
+		try
+		{
+			char address[20];
+			GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
+			m_pClientSocket = new SocketClient(address, 48001);
+
+			m_bConnected = true;
+			if (calibration.bCalibrated)
+				m_bConfirmCalibrated = true;
+
+			SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Disconnect");
+			//Clear the status bar so that the "Failed to connect..." disappears.
+			SetStatusMessage(L"", 1, true);
+		}
+		catch (...)
+		{
+			SetStatusMessage(L"Failed to connect. Did you start the server?", 10000, true);
+		}
+	}
+}
 LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(wParam);
@@ -413,36 +447,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
         case WM_COMMAND:
 			if (IDC_BUTTON_CONNECT == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
 			{
-				std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-				if (m_bConnected)
-				{
-					delete m_pClientSocket;
-					m_pClientSocket = NULL;
-
-					m_bConnected = false;
-					SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Connect");
-				}
-				else
-				{
-					try
-					{
-						char address[20];
-						GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
-						m_pClientSocket = new SocketClient(address, 48001);
-
-						m_bConnected = true;
-						if (calibration.bCalibrated)
-							m_bConfirmCalibrated = true;
-
-						SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Disconnect");
-						//Clear the status bar so that the "Failed to connect..." disappears.
-						SetStatusMessage(L"", 1, true);
-					}
-					catch (...)
-					{
-						SetStatusMessage(L"Failed to connect. Did you start the server?", 10000, true);
-					}
-				}
+				// HOGUE:
+				Connect();
 			}
 			if (IDC_BUTTON_SWITCH == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
 			{
@@ -1232,7 +1238,7 @@ void LiveScanClient::CreateBlankGrayImage(const int width, const int height)
 
 	int imageSize = width * height;
 	RGB greyPixel;
-	greyPixel.rgbBlue = 50;
+	greyPixel.rgbBlue = 150;
 	greyPixel.rgbGreen = 50;
 	greyPixel.rgbRed = 50;
 
