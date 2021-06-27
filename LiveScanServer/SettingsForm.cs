@@ -102,29 +102,27 @@ namespace KinectServer
 
                 oServer.SendSettings();
 
-                if (rTempSyncEnabled.Checked && !oServer.bTempSyncEnabled)
-                    EnableTempSync();
+                //Check if we need to restart the cameras
 
-                else if (rExportPointcloud.Checked && !oServer.bPointCloudMode)
+                if(rTempSyncEnabled.Checked != oServer.bTempSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
                 {
-                    oServer.RestartAllClients();
-                    oServer.bPointCloudMode = true;
+                    if (rTempSyncEnabled.Checked)
+                        RestartWithTempSyncOn();
+
+                    else if (!rTempSyncEnabled.Checked && oServer.bTempSyncEnabled)
+                        RestartWithTempSyncOff();
+
+                    else
+                    {
+                        if (oServer.RestartAllClients())
+                            oServer.bPointCloudMode = rExportPointcloud.Checked;
+                    }
+
                 }
 
+                btApplyAllSettings.Enabled = false;
+                lApplyWarning.Text = "";
 
-                else if (rExportRawFrames.Checked && oServer.bPointCloudMode)
-                {
-                    oServer.RestartAllClients();
-                    oServer.bPointCloudMode = false;
-
-                }
-
-                if (!oServer.bTempSyncEnabled)
-                {
-                    btApplyAllSettings.Enabled = false;
-                    lApplyWarning.Text = "";
-                }
-               
                 oServer.fMainWindowForm.SetButtonsForExport();
 
                 Cursor.Current = Cursors.Default;
@@ -179,7 +177,7 @@ namespace KinectServer
             }
         }
 
-        void EnableTempSync()
+        void RestartWithTempSyncOn()
         {
             if (oServer.nClientCount > 1)
             {
@@ -197,8 +195,6 @@ namespace KinectServer
                 if (oServer.SetTempSyncState(true) && oServer.RestartTemporalSync())
                 {
                     oServer.bTempSyncEnabled = true;
-                    lApplyWarning.Text = "To apply settings, you have to disable Temporal Sync";
-                    btApplyAllSettings.Text = "Disable Temp Sync";
                 }
 
                 else
@@ -209,21 +205,18 @@ namespace KinectServer
                 rTempSyncDisabled.Checked = true;
         }
 
-        void DisableTempSync()
+        void RestartWithTempSyncOff()
         {
             if (oServer.SetTempSyncState(false) && oServer.RestartAllClients())
             {
                 oServer.bTempSyncEnabled = false;
-
-                rTempSyncEnabled.Checked = false;
                 rTempSyncDisabled.Checked = true;
                 chAutoExposureEnabled.Enabled = true;
+            }
 
-                lApplyWarning.Text = "Changed settings are not yet applied!";
-                btApplyAllSettings.Text = "Apply Settings to clients";
-
-                btApplyAllSettings.Enabled = false;
-                lApplyWarning.Enabled = false;
+            else
+            {
+                rTempSyncEnabled.Checked = true;
             }
         }
 
@@ -541,12 +534,7 @@ namespace KinectServer
 
         private void btApplyAllSettings_Click(object sender, EventArgs e)
         {
-            if (oServer.bTempSyncEnabled)
-                DisableTempSync();
-
-            else
                 UpdateClients();
-
         }
 
         private void rTempSyncEnabled_CheckedChanged(object sender, EventArgs e)
