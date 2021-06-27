@@ -392,7 +392,7 @@ namespace KinectServer
         /// (Restarts all subs first, and then the master)
         /// </summary>
         /// <returns>Returns true on successfull restart, false on restart error</returns>
-        public bool RestartTemporalSync()
+        public bool RestartWithTemporalSyncPattern()
         {
             List<KinectSocket> subordinates = new List<KinectSocket>();
             List<KinectSocket> main = new List<KinectSocket>();
@@ -428,6 +428,45 @@ namespace KinectServer
             }
 
             return true;
+        }
+
+        public bool EnableTemporalSync()
+        {
+            if (nClientCount > 1)
+            {
+                //Disable the Auto Exposure, as this could interfere with the temporal sync
+                oSettings.bAutoExposureEnabled = false;
+                oSettings.nExposureStep = -5;
+
+                if(fSettingsForm != null) //Reflect this change in the settings UI
+                    fSettingsForm.SetExposureControlsToManual();
+
+                SendSettings(); //Send settings to update the exposure
+
+                if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
+                {
+                    bTempSyncEnabled = true;
+                    return true;
+                }
+
+                else
+                    return false;
+            }
+
+            else
+                return false;
+        }
+
+        public bool DisableTemporalSync()
+        {
+            if (SetTempSyncState(false) && RestartAllClients())
+            {
+                bTempSyncEnabled = false;
+                return true;
+            }
+
+            else
+                return false;
         }
 
         /// <summary>
@@ -504,6 +543,7 @@ namespace KinectServer
                 {
                     KinectConfiguration newConfig = lClientSockets[i].configuration;
                     newConfig.eSoftwareSyncState = KinectConfiguration.SyncState.Standalone;
+                    newConfig.syncOffset = 0;
 
                     if (!SetAndConfirmConfig(lClientSockets[i], newConfig))
                         return false;
@@ -803,6 +843,11 @@ namespace KinectServer
                     {
                         eSocketListChanged(lClientSockets);
                     }                   
+                }
+
+                if (bTempSyncEnabled)
+                {
+                    
                 }
 
                 //if the export mode is set to anything else than the default, we restart the kinect to apply it

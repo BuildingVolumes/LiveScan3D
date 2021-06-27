@@ -59,7 +59,7 @@ namespace KinectServer
         public KinectSocket(Socket clientSocket)
         {
             oSocket = clientSocket;
-            UpdateSocketState(" Recieving configuration...");
+            UpdateSocketState("");
         }
 
         public void CaptureFrame()

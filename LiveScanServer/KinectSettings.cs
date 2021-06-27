@@ -41,8 +41,6 @@ namespace KinectServer
         public bool bMergeScansForSave = true;
         public bool bSaveAsBinaryPLY = true;
 
-        public bool bSyncEnabled = false;
-
         public bool bAutoExposureEnabled = true;
         public int nExposureStep = -8;
 

@@ -65,16 +65,16 @@ namespace KinectServer
             txtICPIters.Text = oSettings.nNumICPIterations.ToString();
             txtRefinIters.Text = oSettings.nNumRefineIters.ToString();
 
-            rTempSyncEnabled.Checked = false;
             rTempSyncDisabled.Checked = true;
+            rTempSyncEnabled.Checked = false;
 
             chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
             trManualExposure.Value = oSettings.nExposureStep;
 
             cbExtrinsicsFormat.SelectedIndex = (int)oSettings.eExtrinsicsFormat;
 
-            rExportPointcloud.Checked = true;
-            rExportRawFrames.Checked = false;
+            rExportPointcloud.Checked = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud ? true : false;
+            rExportRawFrames.Checked = !rExportPointcloud.Checked;
             
 
             if (oSettings.bSaveAsBinaryPLY)
@@ -107,10 +107,27 @@ namespace KinectServer
                 if(rTempSyncEnabled.Checked != oServer.bTempSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
                 {
                     if (rTempSyncEnabled.Checked)
-                        RestartWithTempSyncOn();
+                    {
+                        if (oServer.EnableTemporalSync())
+                            oServer.bPointCloudMode = rExportPointcloud.Checked;
+
+                        else
+                            rTempSyncDisabled.Checked = true;
+                    }
 
                     else if (!rTempSyncEnabled.Checked && oServer.bTempSyncEnabled)
-                        RestartWithTempSyncOff();
+                    {
+                        if (oServer.DisableTemporalSync())
+                        {
+                            oServer.bPointCloudMode = rExportPointcloud.Checked;
+                            rTempSyncDisabled.Checked = true;
+                            chAutoExposureEnabled.Enabled = true;
+                        }
+
+                        else
+                            rTempSyncEnabled.Checked = true;
+                        
+                    }
 
                     else
                     {
@@ -137,7 +154,7 @@ namespace KinectServer
 
         void UpdateApplyButton()
         {
-            if(settingsChanged && !oServer.bTempSyncEnabled)
+            if(settingsChanged)
             {
                 btApplyAllSettings.Enabled = true;
                 lApplyWarning.Text = "Changed settings are not yet applied!";
@@ -177,47 +194,12 @@ namespace KinectServer
             }
         }
 
-        void RestartWithTempSyncOn()
+        public void SetExposureControlsToManual()
         {
-            if (oServer.nClientCount > 1)
-            {
-                //Disable the Auto Exposure, as this could interfere with the temporal sync
-                oSettings.bAutoExposureEnabled = false;
-                oSettings.nExposureStep = -5;
-
-                chAutoExposureEnabled.Enabled = false;
-                trManualExposure.Enabled = true;
-                trManualExposure.Value = -5;
-                chAutoExposureEnabled.CheckState = CheckState.Unchecked;
-
-                oServer.SendSettings(); //Send settings to update the exposure
-
-                if (oServer.SetTempSyncState(true) && oServer.RestartTemporalSync())
-                {
-                    oServer.bTempSyncEnabled = true;
-                }
-
-                else
-                    rTempSyncDisabled.Checked = true;
-            }
-
-            else
-                rTempSyncDisabled.Checked = true;
-        }
-
-        void RestartWithTempSyncOff()
-        {
-            if (oServer.SetTempSyncState(false) && oServer.RestartAllClients())
-            {
-                oServer.bTempSyncEnabled = false;
-                rTempSyncDisabled.Checked = true;
-                chAutoExposureEnabled.Enabled = true;
-            }
-
-            else
-            {
-                rTempSyncEnabled.Checked = true;
-            }
+            chAutoExposureEnabled.Enabled = false;
+            trManualExposure.Enabled = true;
+            trManualExposure.Value = -5;
+            chAutoExposureEnabled.CheckState = CheckState.Unchecked;
         }
 
         private void txtMinX_TextChanged(object sender, EventArgs e)

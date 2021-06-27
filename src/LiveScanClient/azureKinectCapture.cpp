@@ -71,6 +71,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	else
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
+		configuration.config.subordinate_delay_off_master_usec = 0;
 	}
 
 	// Start the camera with the given configuration
