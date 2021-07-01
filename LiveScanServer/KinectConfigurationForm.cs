@@ -52,6 +52,11 @@ namespace KinectServer
                     cbFilterDepthMap.Checked = kc.FilterDepthMap;
                     tbFilterDepthMapSize.Text = kc.FilterDepthMapSize.ToString();
                     tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
+                    
+                    //Disable changing depth map filtering if we are in raw frames mode.
+                    //Depth filtering only works in point cloud mode.
+                    SetDepthFilterBoxActive(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud);
+
                     int d = (int)kc.eDepthMode;
                     foreach (DepthModeConfiguration item in lDepthModeListBox.Items)
                     {
@@ -77,7 +82,8 @@ namespace KinectServer
 
         private void UpdateButton_Click(object sender, EventArgs e)
         {
-            kinectSocket.SendConfiguration(displayedConfiguration);
+            oServer.SendConfigurationToSocket(kinectSocket, displayedConfiguration);
+            //kinectSocket.SendConfiguration(displayedConfiguration);
         }
 
         private void ListBox1_SelectedIndexChanged(object sender, EventArgs e)
@@ -115,6 +121,15 @@ namespace KinectServer
                 }
                 tbFilterDepthMapSize.Text = result.ToString();
             }
+        }
+
+        /// <summary>
+        /// enable/disable the Set depth filter mode checkbox. This should get disabled in raw capture mode.
+        /// </summary>
+        internal void SetDepthFilterBoxActive(bool enabled)
+        {
+            cbFilterDepthMap.Enabled = enabled;
+            tbFilterDepthMapSize.Enabled = enabled;
         }
     }
 }

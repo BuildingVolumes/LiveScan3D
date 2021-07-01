@@ -69,6 +69,21 @@ namespace KinectServer
             data[18] = (byte)FilterDepthMapSize;
             return data;
         }
-        
+
+        internal static bool RequiresRestartAfterChange(KinectConfiguration oldConfig, KinectConfiguration newConfig)
+        {
+            if(oldConfig.eDepthMode != newConfig.eDepthMode)
+            {
+                return true;
+            }
+            //Todo: this might not require a restart
+            if (oldConfig.FilterDepthMap != newConfig.FilterDepthMap)
+            {
+                return true;
+            }
+
+
+            return false;
+        }
     }
 }

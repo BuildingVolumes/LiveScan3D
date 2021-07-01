@@ -607,22 +607,21 @@ namespace KinectServer
         /// </summary>
         public void SetButtonsForExport()
         {
-            if(oServer.fMainWindowForm != null)
+            bool pointCloudMode = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud;
+            if (oServer.fMainWindowForm != null)
             {
-                if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-                {
-                    oServer.fMainWindowForm.SetCalibrateButtonActive(true);
-                    oServer.fMainWindowForm.SetLiveButtonActive(true);
-                    oServer.fMainWindowForm.SetRefineButtonActive(true);
-                }
+                oServer.fMainWindowForm.SetCalibrateButtonActive(pointCloudMode);
+                oServer.fMainWindowForm.SetLiveButtonActive(pointCloudMode);
+                oServer.fMainWindowForm.SetRefineButtonActive(pointCloudMode);
+            } 
 
-                else
+            foreach(var configForm in oServer.kinectSettingsForms.Values)
+            {
+                if(configForm!=null)
                 {
-                    oServer.fMainWindowForm.SetCalibrateButtonActive(false);
-                    oServer.fMainWindowForm.SetLiveButtonActive(false);
-                    oServer.fMainWindowForm.SetRefineButtonActive(false);
+                    configForm.SetDepthFilterBoxActive(pointCloudMode);
                 }
-            }           
+            }
         }
 
         private void UpdateSettingsButtonEnabled()

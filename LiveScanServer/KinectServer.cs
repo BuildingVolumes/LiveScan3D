@@ -32,7 +32,7 @@ namespace KinectServer
 
         KinectSettings oSettings;
         public SettingsForm fSettingsForm;
-        Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
+        public Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
         public MainWindowForm fMainWindowForm;
         Thread listeningThread;
         Thread receivingThread;
@@ -285,6 +285,38 @@ namespace KinectServer
                 {
                     lClientSockets[i].SendCalibrationData();
                 }
+            }
+        }
+        public void SendConfigurationToSocket(KinectSocket socket, KinectConfiguration newConfig)
+        {
+            var gotConfigurations = GetConfigurations(new List<KinectSocket>() { socket });
+            if(!gotConfigurations)
+            {
+                //error
+                return;
+            }
+
+            var oldConfig = socket.configuration;
+            bool needsRestart = KinectConfiguration.RequiresRestartAfterChange(oldConfig, newConfig);
+            var confirmed = SetAndConfirmConfig(socket,newConfig);
+
+            if(confirmed)
+            {
+                if(needsRestart)
+                {
+                    if (bTempSyncEnabled)
+                    {
+                        RestartWithTemporalSyncPattern();
+                    }
+                    else
+                    {
+                        RestartClients(new List<KinectSocket>() { socket });//todo: method overload for single socket.
+                    }
+                }
+            }
+            else
+            {
+                //error in getting configuration 
             }
         }
 
