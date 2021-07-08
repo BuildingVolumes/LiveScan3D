@@ -34,7 +34,7 @@ public:
     static LRESULT CALLBACK MessageRouter(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     LRESULT CALLBACK        DlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     int                     Run(HINSTANCE hInstance, int nCmdShow);
-
+	void					Connect(); // HOGUE
 	bool m_bSocketThread;
 private:
 	Calibration calibration;

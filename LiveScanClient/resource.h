@@ -1,5 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
+// Used by LiveScanClient.rc
 //
 #define IDI_APP                         100
 #define IDD_APP                         100

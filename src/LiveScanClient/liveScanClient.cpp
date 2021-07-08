@@ -21,8 +21,16 @@
 #include <fstream>
 #include "zstd.h"
 #include <KinectConfiguration.h>
-
+#include <shellapi.h> // HOGUE
 std::mutex m_mSocketThreadMutex;
+
+// HOGUE
+int g_winWidth = 800;
+int g_winHeight = 800;
+int g_winX = 0;
+int g_winY = 0;
+int g_connectToServerImmediately = 0;
+
 
 int APIENTRY wWinMain(
 	_In_ HINSTANCE hInstance,
@@ -32,7 +40,20 @@ int APIENTRY wWinMain(
 )
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
-	UNREFERENCED_PARAMETER(lpCmdLine);
+	//UNREFERENCED_PARAMETER(lpCmdLine);
+	//std::cout << lpCmdLine<<std::endl;
+	// HOGUE: THIS SHOULD BE DONE IN A MUCH BETTER WAY
+	LPWSTR* szArgList;
+	int argCount;
+	szArgList = CommandLineToArgvW(GetCommandLine(), &argCount);
+	if (argCount >= 5) {
+		// assume window width, height, x, y
+		g_winWidth = _wtoi(szArgList[1]);
+		g_winHeight = _wtoi(szArgList[2]);
+		g_winX = _wtoi(szArgList[3]);
+		g_winY = _wtoi(szArgList[4]);
+		if (argCount >= 6) g_connectToServerImmediately = _wtoi(szArgList[5]);
+	}
 
 	LiveScanClient application;
 	application.Run(hInstance, nShowCmd);
@@ -172,8 +193,11 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
 
 	// Show window
 	ShowWindow(hWndApp, nCmdShow);
-
+	// HOGUE
+	::SetWindowPos(m_hWnd, HWND_TOP, g_winX, g_winY, g_winWidth, g_winHeight, NULL);
 	std::thread t1(&LiveScanClient::SocketThreadFunction, this);
+	// HOGUE
+	if (g_connectToServerImmediately) Connect();
 	// Main message loop
 	while (WM_QUIT != msg.message)
 	{
@@ -323,7 +347,39 @@ LRESULT CALLBACK LiveScanClient::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wPar
 
 	return 0;
 }
+// HOGUE
+void LiveScanClient::Connect() {
+	std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+	if (m_bConnected)
+	{
+		delete m_pClientSocket;
+		m_pClientSocket = NULL;
 
+		m_bConnected = false;
+		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Connect");
+	}
+	else
+	{
+		try
+		{
+			char address[20];
+			GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
+			m_pClientSocket = new SocketClient(address, 48001);
+
+			m_bConnected = true;
+			if (calibration.bCalibrated)
+				m_bConfirmCalibrated = true;
+
+			SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Disconnect");
+			//Clear the status bar so that the "Failed to connect..." disappears.
+			SetStatusMessage(L"", 1, true);
+		}
+		catch (...)
+		{
+			SetStatusMessage(L"Failed to connect. Did you start the server?", 10000, true);
+		}
+	}
+}
 LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(wParam);
@@ -374,7 +430,37 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		ReadIPFromFile();
 	}
 	break;
+	case WM_SIZING: {// HOGUE
+		/*	RECT r;
+			::GetWindowRect(m_hWnd, &r);
+			int w = abs(r.right - r.left);
+			int h = abs(r.bottom - r.top);
+			::SetWindowPos(m_hWnd, HWND_TOP, 0, 0, w, (w / 1.55) + 200, NULL);*/
+	}
+	case WM_SIZE: {
+		// HOGUE: this "works" but is pretty dumb logic, needs fewer hardcoded things but it serves its purpose
+		RECT r;
+		::GetWindowRect(m_hWnd, &r);
+		int w = abs(r.right - r.left);
+		int h = abs(r.bottom - r.top);
+		int cw = 90;
+		int ch = 12;
+		float asp = 1920 / 1080;// pCapture->nColorFrameWidth / pCapture->nColorFrameHeight;
+		int h2 = w / asp;
+		int startB = 80;
+		int fixedHeight = 3 * ch + startB;
 
+		::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_CONNECT), HWND_TOP, 0, h - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
+		::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_SWITCH), HWND_TOP, 0, h - 2 * ch - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
+
+		::SetWindowPos(GetDlgItem(m_hWnd, IDC_IP), HWND_TOP, cw + cw / 2, h - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
+		::SetWindowPos(GetDlgItem(m_hWnd, IDC_STATIC), HWND_TOP, cw + cw / 2, h - 2 * ch - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
+		::SetWindowPos(GetDlgItem(m_hWnd, IDC_STATUS), HWND_TOP, 0, h - 60, w, ch * 2, NULL);
+
+		::SetWindowPos(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), HWND_TOP, 0, 0, w, h - fixedHeight, NULL);
+
+		break;
+	}
 	// If the titlebar X is clicked, destroy app
 	case WM_CLOSE:
 		pCapture->Close();
@@ -390,36 +476,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 	case WM_COMMAND:
 		if (IDC_BUTTON_CONNECT == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
 		{
-			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-			if (m_bConnected)
-			{
-				delete m_pClientSocket;
-				m_pClientSocket = NULL;
-
-				m_bConnected = false;
-				SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Connect");
-			}
-			else
-			{
-				try
-				{
-					char address[20];
-					GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
-					m_pClientSocket = new SocketClient(address, 48001);
-
-					m_bConnected = true;
-					if (calibration.bCalibrated)
-						m_bConfirmCalibrated = true;
-
-					SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Disconnect");
-					//Clear the status bar so that the "Failed to connect..." disappears.
-					SetStatusMessage(L"", 1, true);
-				}
-				catch (...)
-				{
-					SetStatusMessage(L"Failed to connect. Did you start the server?", 10000, true);
-				}
-			}
+			Connect();
 		}
 		if (IDC_BUTTON_SWITCH == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
 		{
