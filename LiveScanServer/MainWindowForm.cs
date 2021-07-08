@@ -67,6 +67,7 @@ namespace KinectServer
 
         //The live view window class
         OpenGLWindow oOpenGLWindow;
+        public event EventHandler ResizeEnd;
 
         public MainWindowForm()
         {
@@ -92,6 +93,10 @@ namespace KinectServer
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
             SetButtonsForExport();
 
+        }
+        private void Form1_ResizeEnd(object sender, System.EventArgs e)
+        {
+           
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -636,6 +641,11 @@ namespace KinectServer
             {
                 btKinectSettingsOpenButton.Enabled = true;
             }
+        }
+
+        private void lClientListBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

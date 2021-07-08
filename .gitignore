@@ -196,3 +196,7 @@ FakesAssemblies/
 *.opt
 bin
 LiveScanClient/lastIP.txt
+out/*
+recording*.bin
+takes.json
+settings.bin

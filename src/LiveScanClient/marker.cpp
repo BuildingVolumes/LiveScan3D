@@ -76,7 +76,7 @@ bool MarkerDetector::GetMarker(cv::Mat &img, MarkerInfo &marker)
 
 				order = false;
 			}
-
+			// HOGUE: UNCOMMENTED
 			//I have commented this out as it crashed for some people, if you want additional accuracy in calibration try to uncomment it.
 			//CornersSubPix(cornersFloat, contours[i], order);
 

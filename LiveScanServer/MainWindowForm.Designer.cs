@@ -80,12 +80,15 @@
             // 
             // lClientListBox
             // 
+            this.lClientListBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.lClientListBox.FormattingEnabled = true;
             this.lClientListBox.HorizontalScrollbar = true;
             this.lClientListBox.Location = new System.Drawing.Point(113, 12);
             this.lClientListBox.Name = "lClientListBox";
-            this.lClientListBox.Size = new System.Drawing.Size(219, 108);
+            this.lClientListBox.Size = new System.Drawing.Size(388, 108);
             this.lClientListBox.TabIndex = 5;
+            this.lClientListBox.SelectedIndexChanged += new System.EventHandler(this.lClientListBox_SelectedIndexChanged);
             // 
             // statusStrip1
             // 
@@ -94,7 +97,7 @@
             this.statusLabel});
             this.statusStrip1.Location = new System.Drawing.Point(0, 187);
             this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Size = new System.Drawing.Size(344, 22);
+            this.statusStrip1.Size = new System.Drawing.Size(513, 22);
             this.statusStrip1.SizingGrip = false;
             this.statusStrip1.TabIndex = 6;
             this.statusStrip1.Text = "statusStrip1";
@@ -112,10 +115,12 @@
             // 
             // txtSeqName
             // 
+            this.txtSeqName.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.txtSeqName.Location = new System.Drawing.Point(113, 155);
             this.txtSeqName.MaxLength = 40;
             this.txtSeqName.Name = "txtSeqName";
-            this.txtSeqName.Size = new System.Drawing.Size(106, 20);
+            this.txtSeqName.Size = new System.Drawing.Size(388, 20);
             this.txtSeqName.TabIndex = 7;
             this.txtSeqName.Text = "noname";
             // 
@@ -181,9 +186,11 @@
             // 
             // btKinectSettingsOpenButton
             // 
-            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(235, 126);
+            this.btKinectSettingsOpenButton.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(218, 126);
             this.btKinectSettingsOpenButton.Name = "btKinectSettingsOpenButton";
-            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(97, 23);
+            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(283, 23);
             this.btKinectSettingsOpenButton.TabIndex = 15;
             this.btKinectSettingsOpenButton.Text = "Device Settings";
             this.btKinectSettingsOpenButton.UseVisualStyleBackColor = true;
@@ -193,7 +200,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(344, 209);
+            this.ClientSize = new System.Drawing.Size(513, 209);
             this.Controls.Add(this.btKinectSettingsOpenButton);
             this.Controls.Add(this.lbSeqName);
             this.Controls.Add(this.btSettings);
@@ -205,7 +212,6 @@
             this.Controls.Add(this.btRecord);
             this.Controls.Add(this.btCalibrate);
             this.Controls.Add(this.btStart);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.Name = "MainWindowForm";
             this.Text = "LiveScanServer";
