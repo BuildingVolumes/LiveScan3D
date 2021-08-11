@@ -25,7 +25,6 @@ public:
 	void MapColorFrameToDepthSpace(RGB *pColorInDepthSpace);
 	int GetSyncJackState();
 	uint64_t GetTimeStamp();
-	int GetDeviceIndex();
 	void SetExposureState(bool enableAutoExposure, int exposureStep);
 	bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
 	void SetConfiguration(KinectConfiguration& configuration);
@@ -47,7 +46,7 @@ private:
 	bool syncInConnected = false;
 	bool syncOutConnected = false;
 	uint64_t currentTimeStamp = 0;
-	int deviceIDForRestart = -1;
+	int localDeviceIndex = -1;
 	int restartAttempts = 0;
 	bool autoExposureEnabled = true;
 	int exposureTimeStep = 0;

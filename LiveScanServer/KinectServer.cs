@@ -32,7 +32,7 @@ namespace KinectServer
 
         KinectSettings oSettings;
         public SettingsForm fSettingsForm;
-        Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
+        public Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
         public MainWindowForm fMainWindowForm;
         Thread listeningThread;
         Thread receivingThread;
@@ -285,6 +285,40 @@ namespace KinectServer
                 {
                     lClientSockets[i].SendCalibrationData();
                 }
+            }
+        }
+
+        //TODO: This code isn't needed anymore, as better functions to set the configuration already exist.
+        public void SendConfigurationToSocket(KinectSocket socket, KinectConfiguration newConfig)
+        {
+            var gotConfigurations = GetConfigurations(new List<KinectSocket>() { socket });
+            if(!gotConfigurations)
+            {
+                //error
+                return;
+            }
+
+            var oldConfig = socket.configuration;
+            bool needsRestart = KinectConfiguration.RequiresRestartAfterChange(oldConfig, newConfig);
+            var confirmed = SetAndConfirmConfig(socket,newConfig);
+
+            if(confirmed)
+            {
+                if(needsRestart)
+                {
+                    if (bTempSyncEnabled)
+                    {
+                        RestartWithTemporalSyncPattern();
+                    }
+                    else
+                    {
+                        RestartClients(new List<KinectSocket>() { socket });//todo: method overload for single socket.
+                    }
+                }
+            }
+            else
+            {
+                //error in getting configuration 
             }
         }
 
@@ -836,7 +870,6 @@ namespace KinectServer
                 lock (oClientSocketLock)
                 {
                     lClientSockets.Add(new KinectSocket(newSocket));
-                    lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
                     lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
 
                     if (eSocketListChanged != null)
@@ -845,20 +878,67 @@ namespace KinectServer
                     }                   
                 }
 
-                if (bTempSyncEnabled)
+                //Sending the initial configuration and settings to the device.
+                lClientSockets[lClientSockets.Count - 1].UpdateSocketState("Configuring...");
+
+                if (!GetConfigurations(new List<KinectSocket>() { lClientSockets[lClientSockets.Count - 1] }))
                 {
-                    
+                    DisconnectClient(lClientSockets[lClientSockets.Count - 1]);
+                    fMainWindowForm.SetStatusBarOnTimer("Client couldn't be configured, please reconnect", 5000);
+                    return;
                 }
 
-                //if the export mode is set to anything else than the default, we restart the kinect to apply it
-                if(oSettings.eExportMode != KinectSettings.ExportMode.Pointcloud)
+                KinectConfiguration newConfig = lClientSockets[lClientSockets.Count - 1].configuration;
+                newConfig.globalDeviceIndex = (byte)(lClientSockets.Count - 1);
+
+                if(!SetAndConfirmConfig(lClientSockets[lClientSockets.Count - 1], newConfig))
                 {
-                    List<KinectSocket> restartNeeded = new List<KinectSocket>();
-                    restartNeeded.Add(lClientSockets[lClientSockets.Count - 1]);
-                    RestartClients(restartNeeded);
+                    DisconnectClient(lClientSockets[lClientSockets.Count - 1]);
+                    fMainWindowForm.SetStatusBarOnTimer("Client couldn't be configured, please reconnect", 5000);
+                    return;
                 }
+
+                lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
+
+                //Check if a restart is needed to apply the settings to the kinect device
+                bool requiresRestart = false;
+
+                if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.MJPEG && oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+                    requiresRestart = true;
+
+                if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.BGRA && oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
+                    requiresRestart = true;
+
+                if (bTempSyncEnabled)
+                {
+                    if (RestartWithTemporalSyncPattern())
+                    {
+                        lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
+                    }
+                }
+
+                else if (requiresRestart)
+                {
+                    if(RestartClients(new List<KinectSocket>() { lClientSockets[lClientSockets.Count - 1] }))
+                    {
+                        lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
+                    }
+                }
+
+               
                
             }
+        }
+
+        private void DisconnectClient(KinectSocket client)
+        {
+            lock (oClientSocketLock)
+            {
+                client.DisconnectSocket();
+                lClientSockets.Remove(client);
+                SocketListChanged();
+            }
+               
         }
 
         private void ListeningWorker()

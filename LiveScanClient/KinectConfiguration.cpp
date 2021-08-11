@@ -7,7 +7,8 @@
 	k4a_device_configuration_t config;
 	SYNC_STATE eSoftwareSyncState;
 	SYNC_STATE eHardwareSyncState;
-	int nSync_offset;
+	int nSyncOffset;
+	int nGlobalDeviceIndex;
 	int m_nDepth_camera_width;
 	int m_nDepth_camera_height;
 	bool filter_depth_map;
@@ -27,23 +28,26 @@
 		//add depth mode.
 		char depthMode = (char)config.depth_mode;
 		message[0] = depthMode;
-
-		//Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
+		//add color mode
+		char colorMode = (char)config.color_format;
+		message[1] = colorMode;
 		//add software sync_state
-		message[1] = (char)(int)eSoftwareSyncState;
+		message[2] = (char)(int)eSoftwareSyncState; //Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
 		//add hardware sync_state
-		message[2] = (char)(int)eHardwareSyncState;
+		message[3] = (char)(int)eHardwareSyncState;
 		
 		//add sync_offset
-		message[3] = (char)(int)nSync_offset;
+		message[4] = (char)(int)nSyncOffset;
 
-		for (int i = 4; i < serialNumberSize+4; i++) {
-			message[i] = (int)serialNumber[i - 4];//ascii->char
+		for (int i = 5; i < serialNumberSize+5; i++) {
+			message[i] = (int)serialNumber[i - 5];//ascii->char
 		}
-		
+
+		//Global Device Index
+		message[18] = nGlobalDeviceIndex;
 		//Filter Depth Map option
-		message[17] = filter_depth_map ? 1 : 0;
-		message[18] = filter_depth_map_size;
+		message[19] = filter_depth_map ? 1 : 0;
+		message[20] = filter_depth_map_size;
 		//add color/resolution
 		return message;
 	}
@@ -63,6 +67,8 @@
 		config.depth_mode = static_cast<k4a_depth_mode_t>(depthMode);
 		i++;
 
+		//We skip setting the color mode, as this is done through the Server settings, not configuration
+		i++;
 
 		//set software sync_state
 		//Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
@@ -74,13 +80,15 @@
 
 		//set sync_offset
 
-		nSync_offset = (int)received[i];
+		nSyncOffset = (int)received[i];
 		i++;
 
 		//ignore re-setting the SerialNumber
 		i += serialNumberSize;
 
-		//i == 17 at this point
+		//i == 18 at this point
+		nGlobalDeviceIndex = (int)received[i];
+		i++;
 		filter_depth_map = ((int)received[i] == 0) ? false : true;
 		i++;
 		filter_depth_map_size = int(received[i]);
@@ -96,7 +104,8 @@
 		config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
 		config.synchronized_images_only = true;
 
-		nSync_offset = 0;
+		nGlobalDeviceIndex = 0;
+		nSyncOffset = 0;
 		eSoftwareSyncState = Standalone;
 		eHardwareSyncState = Unknown;
 		filter_depth_map = false;

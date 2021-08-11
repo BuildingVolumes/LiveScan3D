@@ -293,7 +293,7 @@ void LiveScanClient::UpdateFrame()
 			if (m_bCaptureFrame)
 			{
 				uint64_t timeStamp = pCapture->GetTimeStamp();
-				m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, pCapture->GetDeviceIndex());
+				m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
 				m_bConfirmCaptured = true;
 				m_bCaptureFrame = false;
 			}
@@ -398,7 +398,6 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		// Get and initialize the default Kinect sensor as standalone
 		configuration = *new KinectConfiguration();
 		configuration.eSoftwareSyncState = Standalone;
-		configuration.nSync_offset = 0;
 		bool res = pCapture->Initialize(configuration);
 		if (res)
 		{
@@ -784,7 +783,7 @@ void LiveScanClient::HandleSocket()
 			char* buffer = new char[size];
 			buffer[0] = MSG_CONFIRM_DIR_CREATION;
 
-			if (m_framesFileWriterReader.CreateRecordDirectory(dirPath, pCapture->GetDeviceIndex()))
+			if (m_framesFileWriterReader.CreateRecordDirectory(dirPath, configuration.nGlobalDeviceIndex))
 			{
 				buffer[1] = 1;
 				m_pClientSocket->SendBytes(buffer, size);
@@ -798,7 +797,7 @@ void LiveScanClient::HandleSocket()
 			}
 
 			//Write the calibration intrinsics into the newly created dir
-			m_framesFileWriterReader.WriteCalibrationJSON(pCapture->GetDeviceIndex(), pCapture->calibrationBuffer, pCapture->nCalibrationSize);
+			m_framesFileWriterReader.WriteCalibrationJSON(configuration.nGlobalDeviceIndex, pCapture->calibrationBuffer, pCapture->nCalibrationSize);
 
 		}
 	}
@@ -834,9 +833,11 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bSendConfiguration) 
 	{
-		byteToSend = MSG_CONFIGURATION;
-		m_pClientSocket->SendBytes(&byteToSend, 1);
-		m_pClientSocket->SendBytes(configuration.ToBytes(), KinectConfiguration::byteLength);
+		int size = configuration.byteLength + 1;
+		char* buffer = new char[size];
+		buffer[0] = MSG_CONFIGURATION;
+		memcpy(buffer + 1, configuration.ToBytes(), KinectConfiguration::byteLength);
+		m_pClientSocket->SendBytes(buffer, size);
 		m_bSendConfiguration = false;
 	}
 }
