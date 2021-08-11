@@ -435,5 +435,11 @@ namespace KinectServer
             return oSocket.RemoteEndPoint.ToString();
         }
 
+        public void DisconnectSocket()
+        {
+            oSocket.Shutdown(SocketShutdown.Both);
+            oSocket.Disconnect(false);
+        }
+
     }
 }

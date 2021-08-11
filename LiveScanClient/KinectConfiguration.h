@@ -14,8 +14,9 @@ public:
 	k4a_device_configuration_t config;
 	SYNC_STATE eSoftwareSyncState;
 	SYNC_STATE eHardwareSyncState;
-	int nSync_offset;
-	static const int byteLength = 19;//Expected length of the serialized form sent over the network. 
+	int nSyncOffset;
+	int nGlobalDeviceIndex;
+	static const int byteLength = 21;//Expected length of the serialized form sent over the network. 
 	bool filter_depth_map;
 	int filter_depth_map_size = 5;
 	char* ToBytes();

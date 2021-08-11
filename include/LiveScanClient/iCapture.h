@@ -53,7 +53,6 @@ public:
 	virtual void MapColorFrameToDepthSpace(RGB *pDepthSpacePoints) = 0;
 	virtual int GetSyncJackState() = 0;
 	virtual uint64_t GetTimeStamp() = 0;
-	virtual int GetDeviceIndex() = 0;
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep) = 0;
 	virtual void SetConfiguration(KinectConfiguration& configuration) = 0;
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) = 0;	

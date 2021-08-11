@@ -37,14 +37,14 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	//When the cameras are reinitialized during runtime, we can then gurantee
 	//that each LiveScan instance uses the same device as before (In case two or more Kinects are connected to the same PC)
 	//A device ID of -1 means that no Kinects has been successfully initalized yet (only happens when the Client starts)
-	if (deviceIDForRestart != -1) {
-		deviceIdx = deviceIDForRestart;
+	if (localDeviceIndex != -1) {
+		deviceIdx = localDeviceIndex;
 	}
 
 	kinectSensor = NULL;
 	while (K4A_FAILED(k4a_device_open(deviceIdx, &kinectSensor)))
 	{
-		if (deviceIDForRestart == -1)
+		if (localDeviceIndex == -1)
 		{
 			deviceIdx++;
 			if (deviceIdx >= count)
@@ -65,7 +65,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
 		//Sets the offset on subordinate devices. Should be a multiple of 160, each subordinate having a different multiplier in ascending order.
 		//It avoids firing the Kinects lasers at the same time.		
-		configuration.config.subordinate_delay_off_master_usec = 160 * configuration.nSync_offset;//
+		configuration.config.subordinate_delay_off_master_usec = 160 * configuration.nSyncOffset;
 	}
 
 	else
@@ -153,7 +153,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
 	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 
-	deviceIDForRestart = deviceIdx;
+	localDeviceIndex = deviceIdx;
 
 	SetConfiguration(configuration);//We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
 
@@ -515,10 +515,5 @@ bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buf
 uint64_t AzureKinectCapture::GetTimeStamp()
 {
 	return currentTimeStamp;
-}
-
-int AzureKinectCapture::GetDeviceIndex()
-{
-	return deviceIDForRestart;
 }
 
