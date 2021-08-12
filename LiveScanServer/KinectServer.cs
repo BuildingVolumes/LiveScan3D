@@ -305,7 +305,7 @@ namespace KinectServer
         public void SendConfigurationToSocket(KinectSocket socket, KinectConfiguration newConfig)
         {
             var gotConfigurations = GetConfigurations(new List<KinectSocket>() { socket });
-            if(!gotConfigurations)
+            if (!gotConfigurations)
             {
                 //error
                 return;
@@ -313,11 +313,11 @@ namespace KinectServer
 
             var oldConfig = socket.configuration;
             bool needsRestart = KinectConfiguration.RequiresRestartAfterChange(oldConfig, newConfig);
-            var confirmed = SetAndConfirmConfig(socket,newConfig);
+            var confirmed = SetAndConfirmConfig(socket, newConfig);
 
-            if(confirmed)
+            if (confirmed)
             {
-                if(needsRestart)
+                if (needsRestart)
                 {
                     if (bTempSyncEnabled)
                     {
@@ -485,7 +485,7 @@ namespace KinectServer
                 oSettings.bAutoExposureEnabled = false;
                 oSettings.nExposureStep = -5;
 
-                if(fSettingsForm != null) //Reflect this change in the settings UI
+                if (fSettingsForm != null) //Reflect this change in the settings UI
                     fSettingsForm.SetExposureControlsToManual();
 
                 SendSettings(); //Send settings to update the exposure
@@ -639,64 +639,61 @@ namespace KinectServer
                 }
             }
 
-            //TODO: When exporting intrinsics, also create Dir
-            //When storing raw frames or intrinsics on the client, we create a directory on the client PC
-            if (oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
+            //We create a directory on the client PC to store the bin file and timestamps
+            lock (oClientSocketLock)
             {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendCreateTakeDir(takePathClients);
+                    //Wait just a tiny amount of time to avoid that the clients race each other on creating the dirs.
+                    //Important if two clients are on the same pc
+                    Thread.Sleep(10);
+                }
+            }
+
+
+            //Wait for confirmation that the dir has been created by the clients
+            bool allConfirmedDir = false;
+            while (!allConfirmedDir)
+            {
+                allConfirmedDir = true;
+
                 lock (oClientSocketLock)
                 {
                     for (int i = 0; i < lClientSockets.Count; i++)
                     {
-                        lClientSockets[i].SendCreateTakeDir(takePathClients);
-                        //Wait just a tiny amount of time to avoid that the clients race each other on creating the dirs.
-                        //Important if two clients are on the same pc
-                        Thread.Sleep(10);
-                    }
-                }
-
-
-                //Wait for confirmation that the dir has been created by the clients
-                bool allConfirmedDir = false;
-                while (!allConfirmedDir)
-                {
-                    allConfirmedDir = true;
-
-                    lock (oClientSocketLock)
-                    {
-                        for (int i = 0; i < lClientSockets.Count; i++)
+                        if (!lClientSockets[i].bDirCreationConfirmed)
                         {
-                            if (!lClientSockets[i].bDirCreationConfirmed)
-                            {
-                                allConfirmedDir = false;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                //Check if there were errors during the dir creation
-                bool clientDirError = false;
-                lock (oClientSocketLock)
-                {
-                    for (int i = 0; i < lClientSockets.Count; i++)
-                    {
-                        if (lClientSockets[i].bDirCreationError)
-                        {
-                            clientDirError = true;
+                            allConfirmedDir = false;
                             break;
                         }
                     }
+                }
+            }
 
-                    for (int i = 0; i < lClientSockets.Count; i++)
+            //Check if there were errors during the dir creation
+            bool clientDirError = false;
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    if (lClientSockets[i].bDirCreationError)
                     {
-                        lClientSockets[i].bDirCreationConfirmed = false;
-                        lClientSockets[i].bDirCreationError = false;
+                        clientDirError = true;
+                        break;
                     }
                 }
 
-                if (clientDirError)
-                    return null;
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].bDirCreationConfirmed = false;
+                    lClientSockets[i].bDirCreationError = false;
+                }
             }
+
+            if (clientDirError)
+                return null;
+
 
             return takePathServer;
         }
@@ -864,6 +861,34 @@ namespace KinectServer
             }
         }
 
+
+
+        public void SendRecordingStartSignal()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendRecordingStart();
+                }
+            }
+        }
+
+
+
+        public void SendRecordingStopSignal()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendRecordingStop();
+                }
+            }
+        }
+
+
+
         private void AcceptCallback(IAsyncResult ar)
         {
             // Get the socket that handles the client request.
@@ -888,7 +913,7 @@ namespace KinectServer
                     if (eSocketListChanged != null)
                     {
                         eSocketListChanged(lClientSockets);
-                    }                   
+                    }
                 }
 
                 //Sending the initial configuration and settings to the device.
@@ -904,7 +929,7 @@ namespace KinectServer
                 KinectConfiguration newConfig = lClientSockets[lClientSockets.Count - 1].configuration;
                 newConfig.globalDeviceIndex = (byte)(lClientSockets.Count - 1);
 
-                if(!SetAndConfirmConfig(lClientSockets[lClientSockets.Count - 1], newConfig))
+                if (!SetAndConfirmConfig(lClientSockets[lClientSockets.Count - 1], newConfig))
                 {
                     DisconnectClient(lClientSockets[lClientSockets.Count - 1]);
                     fMainWindowForm.SetStatusBarOnTimer("Client couldn't be configured, please reconnect", 5000);
@@ -932,14 +957,14 @@ namespace KinectServer
 
                 else if (requiresRestart)
                 {
-                    if(RestartClients(new List<KinectSocket>() { lClientSockets[lClientSockets.Count - 1] }))
+                    if (RestartClients(new List<KinectSocket>() { lClientSockets[lClientSockets.Count - 1] }))
                     {
                         lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
                     }
                 }
 
-               
-               
+
+
             }
         }
 
@@ -951,7 +976,7 @@ namespace KinectServer
                 lClientSockets.Remove(client);
                 SocketListChanged();
             }
-               
+
         }
 
         private void ListeningWorker()

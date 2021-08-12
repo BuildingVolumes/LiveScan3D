@@ -76,6 +76,8 @@ LiveScanClient::LiveScanClient() :
 	m_bFilter(false),
 	m_bStreamOnlyBodies(false),
 	m_bCaptureFrame(false),
+	m_bRecordingStart(false),
+	m_bRecordingStop(false),
 	m_bConnected(false),
 	m_bConfirmCaptured(false),
 	m_bConfirmCalibrated(false),
@@ -257,6 +259,21 @@ void LiveScanClient::UpdateFrame()
 			SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 2000, true);
 	}
 
+	if (m_bRecordingStart) 
+	{
+		m_nFrameIndex = 0;
+		m_vTimestamps.clear();
+		m_vFrameNumbers.clear();
+
+		m_bRecordingStart = false;
+	}
+
+	if(m_bRecordingStop)
+	{
+		m_framesFileWriterReader.WriteTimestampLog(m_vFrameNumbers, m_vTimestamps, configuration.nGlobalDeviceIndex);
+		m_bRecordingStop = false;
+	}
+
 	//Recording raw frames
 	if (!pCapture->bAquiresPointcloud)
 	{
@@ -267,6 +284,9 @@ void LiveScanClient::UpdateFrame()
 
 		if (m_bCaptureFrame)
 		{
+			m_vFrameNumbers.push_back(m_nFrameIndex);
+			m_vTimestamps.push_back(pCapture->GetTimeStamp());
+
 			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex);
 			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex);
 			m_nFrameIndex++;
@@ -293,6 +313,12 @@ void LiveScanClient::UpdateFrame()
 			if (m_bCaptureFrame)
 			{
 				uint64_t timeStamp = pCapture->GetTimeStamp();
+
+				m_vFrameNumbers.push_back(m_nFrameIndex);
+				m_vTimestamps.push_back(timeStamp);
+
+				m_nFrameIndex++;
+
 				m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
 				m_bConfirmCaptured = true;
 				m_bCaptureFrame = false;
@@ -594,6 +620,16 @@ void LiveScanClient::HandleSocket()
 			m_bCaptureFrame = true;
 		}
 
+		if (received[i] == MSG_RECORDING_START)
+		{
+			m_bRecordingStart = true;
+		}
+
+		if (received[i] == MSG_RECORDING_STOP) 
+		{
+			m_bRecordingStop = true;
+		}
+
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
 			m_bCalibrate = true;
@@ -768,8 +804,6 @@ void LiveScanClient::HandleSocket()
 
 		else if (received[i] == MSG_CREATE_DIR) //Creates a dir on the client. Message also marks the start of the recording
 		{
-			m_nFrameIndex = 0;
-
 			i++;
 			int stringLength = *(int*)(received.c_str() + i); //Get the length of the following string
 			i += sizeof(int);
@@ -796,8 +830,9 @@ void LiveScanClient::HandleSocket()
 				m_pClientSocket->SendBytes(buffer, size);
 			}
 
-			//Write the calibration intrinsics into the newly created dir
-			m_framesFileWriterReader.WriteCalibrationJSON(configuration.nGlobalDeviceIndex, pCapture->calibrationBuffer, pCapture->nCalibrationSize);
+			//Write the calibration intrinsics into the newly created dir if we record raw frames
+			if(configuration.config.color_format != K4A_IMAGE_FORMAT_COLOR_BGRA32)
+				m_framesFileWriterReader.WriteCalibrationJSON(configuration.nGlobalDeviceIndex, pCapture->calibrationBuffer, pCapture->nCalibrationSize);
 
 		}
 	}

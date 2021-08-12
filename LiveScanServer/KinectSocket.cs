@@ -174,6 +174,24 @@ namespace KinectServer
             oSocket.Send(byteList.ToArray());
         }
 
+        /// <summary>
+        /// This doesn't actually start or stop a recording on a client, it just let's it know that we are now in record mode
+        /// </summary>
+        public void SendRecordingStart()
+        {
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_RECORDING_START;
+            SendByte();
+        }
+
+        /// <summary>
+        /// Let's the client know that record mode is now off
+        /// </summary>
+        public void SendRecordingStop()
+        {
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_RECORDING_STOP;
+            SendByte();
+        }
+
 
         public void ClearStoredFrames()
         {

@@ -56,8 +56,9 @@ void FrameFileWriterReader::openNewFileForWriting(int deviceID)
 	time_t t = time(0);
 	struct tm * now = localtime(&t);
 	sprintf(filename, "recording_%01d_%04d_%02d_%02d_%02d_%02d.bin", deviceID, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
-	m_sFilename = filename; 
-	m_pFileHandle = fopen(filename, "wb");
+	m_sFilename = m_sFrameRecordingsDir;
+	m_sFilename +=	filename; 
+	m_pFileHandle = fopen(m_sFilename.c_str(), "wb");
 
 	m_bFileOpenedForReading = false;
 	m_bFileOpenedForWriting = true;
@@ -200,6 +201,27 @@ void FrameFileWriterReader::WriteDepthTiffFile(const k4a_image_t &im, int frameI
 	{
 		fprintf(stderr, "Exception converting image to Tiff format: %s\n", ex.what());
 	}
+}
+
+void FrameFileWriterReader::WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex) 
+{
+	std::string filename = m_sFrameRecordingsDir;
+	filename += "Timestamps_Client";
+	filename += std::to_string(deviceIndex);
+	filename += ".txt";
+
+	if (frames.size() < 1)
+		return;
+
+	std::ofstream file;
+	file.open(filename);
+	
+	for (int i = 0; i < frames.size(); i++)
+	{
+		file << frames[i] << "\t" << timestamps[i] << "\n";
+	}
+
+	file.close();
 }
 
 /// <summary>

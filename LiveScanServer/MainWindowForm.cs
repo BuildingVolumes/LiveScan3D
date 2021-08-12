@@ -486,11 +486,13 @@ namespace KinectServer
                 btRecord.Text = "Stop recording";
                 btRefineCalib.Enabled = false;
                 btCalibrate.Enabled = false;
+                oServer.SendRecordingStartSignal();
             }
             else 
             {
                 btRecord.Enabled = false;
-                recordingWorker.CancelAsync();                
+                recordingWorker.CancelAsync();
+                oServer.SendRecordingStopSignal();
             }
             
         }

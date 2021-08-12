@@ -51,6 +51,8 @@ private:
 	float m_fFilterThreshold;
 
 	bool m_bCaptureFrame;
+	bool m_bRecordingStart;
+	bool m_bRecordingStop;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
@@ -78,6 +80,9 @@ private:
 	std::vector<Point3s> m_vLastFrameVertices;
 	std::vector<RGB> m_vLastFrameRGB;
 	std::vector<Body> m_vLastFrameBody;
+
+	std::vector<int> m_vFrameNumbers;
+	std::vector<uint64_t> m_vTimestamps;
 
 	HWND m_hWnd;
     INT64 m_nLastCounter;
