@@ -162,6 +162,19 @@ namespace KinectServer
         {
             return lClientSockets[socketIndex];
         }
+
+        public List<string> GetSerialNumbers()
+        {
+            List<string> serialNumbers = new List<string>();
+
+            for (int i = 0; i < lClientSockets.Count; i++)
+            {
+                serialNumbers.Add(lClientSockets[i].configuration.SerialNumber);
+            }
+
+            return serialNumbers;
+        }
+
         public void SetMainWindowForm(MainWindowForm main)
         {
             fMainWindowForm = main;

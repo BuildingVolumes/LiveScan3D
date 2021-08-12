@@ -574,7 +574,7 @@ void LiveScanClient::SocketThreadFunction()
 	}
 }
 
-//This is running on a seperate thread, don't call stuff that affects the recording directly from here!
+//This is running on a seperate thread!
 void LiveScanClient::HandleSocket()
 {
 	char byteToSend;

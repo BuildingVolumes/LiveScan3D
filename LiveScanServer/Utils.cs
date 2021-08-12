@@ -211,14 +211,14 @@ namespace KinectServer
             fileStream.Close();
         }
 
-        public static void SaveExtrinsics(KinectSettings.ExtrinsicsStyle extrinsicsStyle, List<AffineTransform> cameraPoses, string filePath)
+        public static void SaveExtrinsics(KinectSettings.ExtrinsicsStyle extrinsicsStyle, List<AffineTransform> cameraPoses, string filePath, List<string> serialNumbers)
         {
             switch (extrinsicsStyle)
             {
                 case KinectSettings.ExtrinsicsStyle.None:
                     break;
                 case KinectSettings.ExtrinsicsStyle.Open3D:
-                    SaveExtrinsicsOpen3DStyle(cameraPoses, filePath);
+                    SaveExtrinsicsOpen3DStyle(cameraPoses, filePath, serialNumbers);
                     break;
                 case KinectSettings.ExtrinsicsStyle.OpenMVS:
                     break;
@@ -227,7 +227,7 @@ namespace KinectServer
             }
         }
 
-        private static void SaveExtrinsicsOpen3DStyle(List<AffineTransform> cameraPoses, string filePath)
+        private static void SaveExtrinsicsOpen3DStyle(List<AffineTransform> cameraPoses, string filePath, List<string> serialNumbers)
         {
             filePath += "Extrinsics_Open3D.log";
 
@@ -238,7 +238,7 @@ namespace KinectServer
 
             for (int i = 0; i < cameraPoses.Count; i++)
             {
-                content += "0\t0\t" + i + Environment.NewLine;
+                content += "0\t" + serialNumbers[i] + "\t" + i + Environment.NewLine;
 
                 for (int j = 0; j < 3; j++)
                 {
