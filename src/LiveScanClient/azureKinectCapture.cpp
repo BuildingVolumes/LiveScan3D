@@ -30,6 +30,8 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns>Returns true on success, false on error</returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
+	std::cout << "Initialiting Azure Kinect Device" << std::endl;
+
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
 
@@ -58,10 +60,12 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	if (configuration.eSoftwareSyncState == Main)
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
+		std::cout << "Initializing Azure Kinect as Main" << std::endl;
 	}
 
 	else if (configuration.eSoftwareSyncState == Subordinate)
 	{
+		std::cout << "Initializing Azure Kinect as Subordinate" << std::endl;
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
 		//Sets the offset on subordinate devices. Should be a multiple of 160, each subordinate having a different multiplier in ascending order.
 		//It avoids firing the Kinects lasers at the same time.		
@@ -70,6 +74,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	else
 	{
+		std::cout << "Initializing Azure Kinect as Standalone" << std::endl;
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
 		configuration.config.subordinate_delay_off_master_usec = 0;
 	}
@@ -92,6 +97,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	//then switch to manual mode again if it has been enabled before
 
 	if (autoExposureEnabled == false) {
+
+		std::cout << "Manual exposure enabled. Setting camera to auto exposure and adjust for one second as a workaround for a bug in exposure settings" << std::endl;
 
 		k4a_device_set_color_control(kinectSensor, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
 
@@ -155,7 +162,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	localDeviceIndex = deviceIdx;
 
-	SetConfiguration(configuration);//We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
+	SetConfiguration(configuration); //We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
 
 	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
 		bAquiresPointcloud = true;
@@ -165,16 +172,22 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize);
 
+	std::cout << "Initialization successfull: " << bInitialized << std::endl;
+
 	return bInitialized;
 }
 
 void AzureKinectCapture::SetConfiguration(KinectConfiguration& configuration)
 {
+	std::cout << "Setting configuration to device" << std::endl;
+
 	this->configuration = configuration;
 }
 
 bool AzureKinectCapture::Close()
 {
+	std::cout << "Closing Azure Kinect device" << std::endl;
+
 	if (!bInitialized)
 	{
 		return false;
@@ -238,6 +251,8 @@ bool AzureKinectCapture::AquireRawFrame() {
 	}
 
 	k4a_capture_release(capture);
+
+	std::cout << "Successfully captured raw Frame" << std::endl;
 
 	return true;
 
@@ -324,6 +339,8 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 
 
 	k4a_capture_release(capture);
+
+	std::cout << "Successfully captured Pointcloud Frame" << std::endl;
 
 	return true;
 }
@@ -429,6 +446,8 @@ void AzureKinectCapture::MapColorFrameToDepthSpace(RGB* pColorInDepthSpace)
 /// <param name="exposureStep">The Exposure Step between -11 and 1</param>
 void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureStep)
 {
+	std::cout << "Setting Exposure. Auto exposure enabled: " << enableAutoExposure << " , exposure step: " << exposureStep << std::endl;
+
 	if (bInitialized)
 	{
 		if (enableAutoExposure)
@@ -463,6 +482,8 @@ void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureS
 /// <returns>Returns int -1 for Subordinate, int 0 for Master and int 1 for Standalone</returns>
 int AzureKinectCapture::GetSyncJackState()
 {
+	std::cout << "Getting hardware sync jack state" << std::endl;
+
 	k4a_result_t syncJackResult = k4a_device_get_sync_jack(kinectSensor, &syncInConnected, &syncOutConnected);
 
 	if (K4A_RESULT_SUCCEEDED == syncJackResult)
@@ -496,6 +517,8 @@ int AzureKinectCapture::GetSyncJackState()
 /// <returns> Returns true when the calibration file got successfully retrieved from the sensor, false when an error has occured</returns>
 bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size)
 {
+	std::cout << "Getting intrinsics as JSON" << std::endl;
+
 	calibration_size = 0;
 	k4a_buffer_result_t buffer_result = k4a_device_get_raw_calibration(kinectSensor, NULL, &calibration_size);
 	if (buffer_result == K4A_BUFFER_RESULT_TOO_SMALL)
@@ -514,6 +537,7 @@ bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buf
 
 uint64_t AzureKinectCapture::GetTimeStamp()
 {
+	std::cout << "Getting timestamp. Timestamp is: " << currentTimeStamp << std::endl;
 	return currentTimeStamp;
 }
 

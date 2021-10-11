@@ -64,6 +64,7 @@ namespace KinectServer
 
         public void CaptureFrame()
         {
+            Console.WriteLine("Capture Frame Client: " + configuration.SerialNumber + "  : " + DateTime.Now.Millisecond);
             bFrameCaptured = false;
             byteToSend[0] = (byte)OutgoingMessageType.MSG_CAPTURE_FRAME;
             SendByte();

@@ -1040,6 +1040,7 @@ namespace KinectServer
                             if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CAPTURED)
                             {
                                 lClientSockets[i].bFrameCaptured = true;
+                                Console.WriteLine("Confirmed Frame Client: " + lClientSockets[i].configuration.SerialNumber + "  : " + DateTime.Now.Millisecond);
                             }
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CALIBRATED)
                             {

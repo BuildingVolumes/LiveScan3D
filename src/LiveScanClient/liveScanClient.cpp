@@ -55,6 +55,12 @@ int APIENTRY wWinMain(
 		if (argCount >= 6) g_connectToServerImmediately = _wtoi(szArgList[5]);
 	}
 
+#ifdef _DEBUG
+	AllocConsole();
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
+#endif
+
 	LiveScanClient application;
 	application.Run(hInstance, nShowCmd);
 }
@@ -195,6 +201,7 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
 
 	// Show window
 	ShowWindow(hWndApp, nCmdShow);
+
 	// HOGUE
 	::SetWindowPos(m_hWnd, HWND_TOP, g_winX, g_winY, g_winWidth, g_winHeight, NULL);
 	std::thread t1(&LiveScanClient::SocketThreadFunction, this);
@@ -286,6 +293,7 @@ void LiveScanClient::UpdateFrame()
 		{
 			m_vFrameNumbers.push_back(m_nFrameIndex);
 			m_vTimestamps.push_back(pCapture->GetTimeStamp());
+			std::cout << "Capturing Raw Frame" << std::endl;
 
 			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex);
 			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex);
@@ -312,6 +320,8 @@ void LiveScanClient::UpdateFrame()
 
 			if (m_bCaptureFrame)
 			{
+				std::cout << "Capturing Pointcloud Frame" << std::endl;
+
 				uint64_t timeStamp = pCapture->GetTimeStamp();
 
 				m_vFrameNumbers.push_back(m_nFrameIndex);
@@ -327,6 +337,8 @@ void LiveScanClient::UpdateFrame()
 
 		if (m_bCalibrate)
 		{
+			std::cout << "Calibrating Client" << std::endl;
+
 			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
 			Point3f* pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 			pCapture->MapColorFrameToCameraSpace(pCameraCoordinates);
@@ -337,6 +349,8 @@ void LiveScanClient::UpdateFrame()
 
 			if (res)
 			{
+				std::cout << "Calibration successfull" << std::endl;
+
 				calibration.SaveCalibration(pCapture->serialNumber);
 				m_bConfirmCalibrated = true;
 				m_bCalibrate = false;
@@ -376,8 +390,10 @@ LRESULT CALLBACK LiveScanClient::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wPar
 // HOGUE
 void LiveScanClient::Connect() {
 	std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+
 	if (m_bConnected)
 	{
+		std::cout << "Disconnecting from server" << std::endl;
 		delete m_pClientSocket;
 		m_pClientSocket = NULL;
 
@@ -387,7 +403,8 @@ void LiveScanClient::Connect() {
 	else
 	{
 		try
-		{
+		{	
+			std::cout << "Trying to connect to server" << std::endl;
 			char address[20];
 			GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
 			m_pClientSocket = new SocketClient(address, 48001);
@@ -402,6 +419,7 @@ void LiveScanClient::Connect() {
 		}
 		catch (...)
 		{
+			std::cout << "ERROR: Couldn't connect to server" << std::endl;
 			SetStatusMessage(L"Failed to connect. Did you start the server?", 10000, true);
 		}
 	}
@@ -427,6 +445,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		bool res = pCapture->Initialize(configuration);
 		if (res)
 		{
+			std::cout << "Device could be opened successfully" << std::endl;
+
 			configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 			calibration.LoadCalibration(pCapture->serialNumber);
 			m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
@@ -437,6 +457,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		}
 		else
 		{
+			std::cout << "ERROR: Device failed to open/initialize" << std::endl;
 			SetStatusMessage(L"Capture device failed to initialize!", 10000, true);
 		}
 
@@ -447,6 +468,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		hr = m_pDrawColor->Initialize(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), m_pD2DFactory, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight, pCapture->nColorFrameWidth * sizeof(RGB));
 		if (FAILED(hr))
 		{
+			std::cout << "ERROR: Failed to initialize the Direct2D draw device" << std::endl;
 			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 		}
 
@@ -612,37 +634,49 @@ void LiveScanClient::HandleSocket()
 	}
 
 	string received = m_pClientSocket->ReceiveBytes();
+
 	for (unsigned int i = 0; i < received.length(); i++)
 	{
+		std::cout << "Received Server message: " << char(received[i]) << std::endl;
+
 		//capture a frame
 		if (received[i] == MSG_CAPTURE_FRAME)
 		{
+			std::cout << "Capture single frame Received" << std::endl;
 			m_bCaptureFrame = true;
 		}
 
 		if (received[i] == MSG_RECORDING_START)
 		{
+			std::cout << "Capture frame start received" << std::endl;
 			m_bRecordingStart = true;
 		}
 
 		if (received[i] == MSG_RECORDING_STOP) 
 		{
+			std::cout << "Capture frame stop received" << std::endl;
 			m_bRecordingStop = true;
 		}
 
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
+		{
+			std::cout << "Calibrate command recieved" << std::endl;
 			m_bCalibrate = true;
+		}
 
 		//Restart The Device without changing any settings - must be done after turning on/off temporal sync, and when changing depth mode.
 		else if (received[i] == MSG_REINITIALIZE_WITH_CURRENT_SETTINGS)
 		{
+			std::cout << "Reinitializing device with current settings" << std::endl;
 			m_bRestartCamera = true;
 		}
 
 
 		else if (received[i] == MSG_SET_CONFIGURATION)
 		{
+			std::cout << "Recieved new configuration" << std::endl;
+
 			i++;
 			std:string message;
 			//TODO: this can be done with substrings, im sure.
@@ -661,6 +695,9 @@ void LiveScanClient::HandleSocket()
 		//TODO: what if packet is split?
 		else if (received[i] == MSG_RECEIVE_SETTINGS)
 		{
+			std::cout << "Recieved new settings" << std::endl;
+
+
 			vector<float> bounds(6);
 			i++;
 			int nBytes = *(int*)(received.c_str() + i);
@@ -730,12 +767,13 @@ void LiveScanClient::HandleSocket()
 
 			if (exportFormat == 0)
 			{
+				std::cout << "Export format set to BGRA" << std::endl;
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 			}
 
 			if (exportFormat == 1)
 			{
-				//TODO: Don't call it in this thread
+				std::cout << "Export format set to MJPG" << std::endl;
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
 			}
 
@@ -747,13 +785,18 @@ void LiveScanClient::HandleSocket()
 			//so that we do not lose the next character in the stream
 			i--;
 		}
+
 		//send configuration
-		else if (received[i] == MSG_REQUEST_CONFIGURATION)
+		else if (received[i] == MSG_REQUEST_CONFIGURATION) 
+		{
+			std::cout << "Server requests configuration" << std::endl;
 			m_bRequestConfiguration = true;
+		}
 
 		//send stored frame
 		else if (received[i] == MSG_REQUEST_STORED_FRAME)
 		{
+			std::cout << "Server requests stored frame" << std::endl;
 			byteToSend = MSG_STORED_FRAME;
 			m_pClientSocket->SendBytes(&byteToSend, 1);
 
@@ -771,14 +814,18 @@ void LiveScanClient::HandleSocket()
 		//send last frame
 		else if (received[i] == MSG_REQUEST_LAST_FRAME)
 		{
+			std::cout << "Server requests lastest frame" << std::endl;
 			byteToSend = MSG_LAST_FRAME;
 			m_pClientSocket->SendBytes(&byteToSend, 1);
 
 			SendFrame(m_vLastFrameVertices, m_vLastFrameRGB, m_vLastFrameBody);
 		}
+
 		//receive calibration data
 		else if (received[i] == MSG_RECEIVE_CALIBRATION)
 		{
+			std::cout << "Recieving calibration data" << std::endl;
+
 			i++;
 			for (int j = 0; j < 3; j++)
 			{
@@ -799,11 +846,15 @@ void LiveScanClient::HandleSocket()
 		}
 		else if (received[i] == MSG_CLEAR_STORED_FRAMES)
 		{
+			std::cout << "Recieving Clearing stored frames" << std::endl;
 			m_framesFileWriterReader.closeFileIfOpened();
 		}
 
 		else if (received[i] == MSG_CREATE_DIR) //Creates a dir on the client. Message also marks the start of the recording
 		{
+			std::cout << "Creating new take directory" << std::endl;
+
+
 			i++;
 			int stringLength = *(int*)(received.c_str() + i); //Get the length of the following string
 			i += sizeof(int);
@@ -839,6 +890,8 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCaptured)
 	{
+		std::cout << "Sending capture confirmed" << std::endl;
+
 		byteToSend = MSG_CONFIRM_CAPTURED;
 		m_pClientSocket->SendBytes(&byteToSend, 1);
 		m_bConfirmCaptured = false;
@@ -846,6 +899,8 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCalibrated)
 	{
+		std::cout << "Sending calibration confirmed" << std::endl;
+
 		int size = (9 + 3) * sizeof(float) + sizeof(int) + 1;
 		char* buffer = new char[size];
 		buffer[0] = MSG_CONFIRM_CALIBRATED;
@@ -868,6 +923,8 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bSendConfiguration) 
 	{
+		std::cout << "Sending configuration" << std::endl;
+
 		int size = configuration.byteLength + 1;
 		char* buffer = new char[size];
 		buffer[0] = MSG_CONFIGURATION;
@@ -882,6 +939,8 @@ void LiveScanClient::HandleSocket()
 /// </summary>
 bool LiveScanClient::ReinitAndConfirm()
 {
+	std::cout << "Reinitializing camera" << std::endl;
+
 	m_bRestartingCamera = true;
 
 	bool res = false;
@@ -918,6 +977,8 @@ bool LiveScanClient::ReinitAndConfirm()
 
 void LiveScanClient::SendReinitConfirmation(bool success)
 {
+	std::cout << "Sending reinitialization confirmation. Reinitialization successfull: " << success << std::endl;
+
 	int size = 2;
 	char* buffer = new char[size];
 	buffer[0] = MSG_CONFIRM_RESTART;
@@ -933,6 +994,8 @@ void LiveScanClient::SendReinitConfirmation(bool success)
 
 void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body)
 {
+	std::cout << "Sending Frame" << std::endl;
+
 	int size = RGB.size() * (3 + 3 * sizeof(short)) + sizeof(int);
 
 	vector<char> buffer(size);
@@ -1023,6 +1086,8 @@ void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector
 
 void LiveScanClient::StoreFrame(Point3f* vertices, RGB* colorInDepth, vector<Body>& bodies, BYTE* bodyIndex)
 {
+	std::cout << "Storing Pointcloud Frame" << std::endl;
+
 	unsigned int nVertices = pCapture->nColorFrameHeight * pCapture->nColorFrameWidth;
 
 	//To save some processing cost, we allocate a full frame size (nVertices) of a Point3f Vector beforehand
@@ -1156,6 +1221,8 @@ void LiveScanClient::ShowFPS()
 
 void LiveScanClient::ReadIPFromFile()
 {
+	std::cout << "Reading IP from File" << std::endl;
+
 	ifstream file;
 	file.open("lastIP.txt");
 	if (file.is_open())
@@ -1169,6 +1236,8 @@ void LiveScanClient::ReadIPFromFile()
 
 void LiveScanClient::WriteIPToFile()
 {
+	std::cout << "Writing IP to File" << std::endl;
+
 	ofstream file;
 	file.open("lastIP.txt");
 	char lastUsedIPAddress[20];
@@ -1179,6 +1248,8 @@ void LiveScanClient::WriteIPToFile()
 
 void LiveScanClient::CreateBlankGrayImage(const int width, const int height)
 {
+	std::cout << "Creating a blank gray image for the preview" << std::endl;
+
 	if (m_pBlankGreyImage) //Cleanup the previous image
 	{
 		delete[] m_pBlankGreyImage;

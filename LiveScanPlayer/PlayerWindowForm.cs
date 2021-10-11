@@ -151,6 +151,8 @@ namespace LiveScanPlayer
 
                         tempAllVertices.AddRange(vertices);                        
                         tempAllColors.AddRange(colors);
+
+                        Console.WriteLine("Frame: " + curFrameIdx + " FileID: " + i + " Timestamp: " + timeStamp);
                     }
                 }
 
