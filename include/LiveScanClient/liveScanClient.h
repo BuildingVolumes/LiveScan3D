@@ -50,7 +50,8 @@ private:
 	int m_nFilterNeighbors;
 	float m_fFilterThreshold;
 
-	bool m_bCaptureFrame;
+	bool m_bCaptureFrames;
+	bool m_bCaptureSingleFrame;
 	bool m_bRecordingStart;
 	bool m_bRecordingStop;
 	bool m_bConnected;
@@ -61,6 +62,8 @@ private:
 	bool m_bUpdateSettings;
 	bool m_bRequestConfiguration;
 	bool m_bSendConfiguration;
+	bool m_bSendTimeStampList;
+	bool m_bPostSyncedListReceived;
 
 	bool m_bShowDepth;
 	bool m_bFrameCompression;
@@ -83,6 +86,8 @@ private:
 
 	std::vector<int> m_vFrameNumbers;
 	std::vector<uint64_t> m_vTimestamps;
+	std::vector<int> m_vFrameID;
+	std::vector<int> m_vSyncedFrameID;
 
 	HWND m_hWnd;
     INT64 m_nLastCounter;

@@ -9,7 +9,7 @@ namespace KinectServer
 	//The names are copied from this client, so the awkward phrasing on "recieve" for things we are sending is a byproduct of the convenience of copying/pasting the enums to be sure their indices match.
 	public enum OutgoingMessageType
 	{
-		MSG_CAPTURE_FRAME,
+		MSG_CAPTURE_SINGLE_FRAME,
 		MSG_CALIBRATE,
 		MSG_RECEIVE_SETTINGS,
 		MSG_REQUEST_STORED_FRAME,
@@ -21,7 +21,11 @@ namespace KinectServer
 		MSG_REQUEST_CONFIGURATION,
 		MSG_CREATE_DIR,
 		MSG_RECORDING_START,
-		MSG_RECORDING_STOP
+		MSG_RECORDING_STOP,
+		MSG_START_CAPTURING_FRAMES,
+		MSG_STOP_CAPTURING_FRAMES,
+		MSG_REQUEST_TIMESTAMP_LIST,
+		MSG_SEND_POSTSYNC_LIST
 	};
 	//copied from LiveScanClient/utils.h. 
 	//Must match OUTGOING_MESSAGE_TYPE
@@ -33,7 +37,8 @@ namespace KinectServer
 		MSG_LAST_FRAME,
 		MSG_CONFIGURATION,
 		MSG_CONFIRM_RESTART,
-		MSG_CONFIRM_DIR_CREATION
+		MSG_CONFIRM_DIR_CREATION,
+		MSG_SEND_TIMESTAMP_LIST
 	};
 
 	public struct DepthModeConfiguration

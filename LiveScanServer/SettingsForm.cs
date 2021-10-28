@@ -528,5 +528,10 @@ namespace KinectServer
         {
             SettingsChanged();
         }
+
+        private void chNetworkSync_CheckedChanged(object sender, EventArgs e)
+        {
+            oSettings.bNetworkSync = chNetworkSync.Checked;
+        }
     }
 }

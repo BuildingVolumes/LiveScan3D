@@ -52,6 +52,8 @@ namespace KinectServer
 
         public string takePath;
 
+        public bool bNetworkSync = false;
+
         public KinectSettings()
         {
             aMinBounds[0] = -5f;

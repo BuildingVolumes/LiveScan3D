@@ -245,6 +245,34 @@ void FrameFileWriterReader::WriteTimestampLog(std::vector<int> frames, std::vect
 }
 
 /// <summary>
+/// Renames a raw frame pair (Color & Depth File). Changes the index in the filename and optionally adds a prefix 
+/// </summary>
+/// <param name="oldFrameIndex"></param>
+/// <param name="newFrameIndex"></param>
+/// <param name="newPrefix"></param>
+/// <returns></returns>
+bool FrameFileWriterReader::RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string newPrefix)
+{
+	fs::path oldFilePathColor = m_sFrameRecordingsDir + std::string("Color_") + std::to_string(oldFrameIndex) + ".jpg";
+	fs::path oldFilePathDepth = m_sFrameRecordingsDir + std::string("Depth_") + std::to_string(oldFrameIndex) + ".tiff";
+
+	fs::path newFilePathColor = m_sFrameRecordingsDir + newPrefix + std::string("Color_") + std::to_string(newFrameIndex) + ".jpg";
+	fs::path newFilePathDepth = m_sFrameRecordingsDir + newPrefix + std::string("Depth_") + std::to_string(newFrameIndex) + ".tiff";
+
+	try {
+		fs::rename(oldFilePathColor, newFilePathColor);
+		fs::rename(oldFilePathDepth, newFilePathDepth);
+	}
+
+	catch (const fs::filesystem_error& ex) {
+		std::cout << "Error trying to rename: " << ex.path1() << ex.path2() << ex.what() << std::endl;
+		return false;
+	}
+
+	return true;
+}
+
+/// <summary>
 /// Creates a directory. Should be given an absolute path
 /// </summary>
 /// <param name="path"></param>

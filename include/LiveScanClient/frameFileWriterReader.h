@@ -26,6 +26,7 @@ public:
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
 	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex);
 	void WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex);
+	bool RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string newPrefix);
 	void WriteTimestampLog();
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
 	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);

@@ -850,6 +850,45 @@ namespace KinectServer
             }
         }
 
+        public bool GetTimestampLists()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].RequestTimestamps();
+                }
+            }
+
+            bool allGathered = false;
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            while (!allGathered || timer.Elapsed.TotalSeconds < networkTimeout)
+            {
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bTimeStampsRecieved)
+                        {
+                            allGathered = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (allGathered)
+                return false;
+
+            else
+            {
+                return false;
+            }
+
+        }
+
         public void ClearStoredFrames()
         {
             lock (oClientSocketLock)
@@ -862,8 +901,49 @@ namespace KinectServer
         }
 
 
+        public bool CreatePostSyncList()
+        {
+            List<DeviceSyncData> allDeviceSyncData = new List<DeviceSyncData>();
 
-        public void SendRecordingStartSignal()
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    allDeviceSyncData.Add(new DeviceSyncData(lClientSockets[i].lFrameNumbers, lClientSockets[i].lTimeStamps, i));
+                }
+            }
+
+            List<DeviceSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData);
+
+            if(postSyncDeviceData == null)
+            {
+                return false;
+            }
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].postSyncedFrames = postSyncDeviceData[i];
+                }
+            }
+
+            return true;
+        }
+
+       
+        public void SendPostSyncList()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendPostSyncList();
+                }
+            }
+        }
+
+        public void SendRecordingStart()
         {
             lock (oClientSocketLock)
             {
@@ -874,15 +954,35 @@ namespace KinectServer
             }
         }
 
-
-
-        public void SendRecordingStopSignal()
+        public void SendRecordingStop()
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
                     lClientSockets[i].SendRecordingStop();
+                }
+            }
+        }
+
+        public void SendCaptureFramesStart()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendCaptureFramesStart();
+                }
+            }
+        }
+
+        public void SendCaptureFramesStop()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendCaptureFramesStop();
                 }
             }
         }
@@ -1069,11 +1169,14 @@ namespace KinectServer
                                 lClientSockets[i].RecieveRestartConfirmation();
                             }
 
-
-
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
                             {
                                 lClientSockets[i].RecieveDirConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_SEND_TIMESTAMP_LIST)
+                            {
+                                lClientSockets[i].RecieveTimestampList();
                             }
 
                             buffer = lClientSockets[i].Receive(1);

@@ -81,7 +81,8 @@ LiveScanClient::LiveScanClient() :
 	m_bCalibrate(false),
 	m_bFilter(false),
 	m_bStreamOnlyBodies(false),
-	m_bCaptureFrame(false),
+	m_bCaptureFrames(false),
+	m_bCaptureSingleFrame(false),
 	m_bRecordingStart(false),
 	m_bRecordingStop(false),
 	m_bConnected(false),
@@ -97,6 +98,8 @@ LiveScanClient::LiveScanClient() :
 	m_bRestartingCamera(false),
 	m_bRequestConfiguration(false),
 	m_bSendConfiguration(false),
+	m_bSendTimeStampList(false),
+	m_bPostSyncedListReceived(false),
 	m_bAutoExposureEnabled(true),
 	m_nExposureStep(-5),
 	m_nExtrinsicsStyle(0), // 0 = no export of extrinsics
@@ -271,7 +274,6 @@ void LiveScanClient::UpdateFrame()
 		m_nFrameIndex = 0;
 		m_vTimestamps.clear();
 		m_vFrameNumbers.clear();
-
 		m_bRecordingStart = false;
 	}
 
@@ -279,6 +281,25 @@ void LiveScanClient::UpdateFrame()
 	{
 		m_framesFileWriterReader.WriteTimestampLog(m_vFrameNumbers, m_vTimestamps, configuration.nGlobalDeviceIndex);
 		m_bRecordingStop = false;
+	}
+
+	if (m_bPostSyncedListReceived) 
+	{
+		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG) 
+		{
+			for (size_t i = 0; i < m_vFrameNumbers.size(); i++)
+			{
+				m_framesFileWriterReader.RenameRawFramePair(m_vFrameNumbers[i], m_vSyncedFrameID[i], std::string("synced_"));
+			}
+		}
+
+		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32) 
+		{
+
+		}
+
+
+		m_bPostSyncedListReceived = false;
 	}
 
 	//Recording raw frames
@@ -289,7 +310,7 @@ void LiveScanClient::UpdateFrame()
 		if (!bNewFrameAcquired)
 			return;
 
-		if (m_bCaptureFrame)
+		if (m_bCaptureFrames || m_bCaptureSingleFrame)
 		{
 			m_vFrameNumbers.push_back(m_nFrameIndex);
 			m_vTimestamps.push_back(pCapture->GetTimeStamp());
@@ -299,8 +320,11 @@ void LiveScanClient::UpdateFrame()
 			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex);
 			m_nFrameIndex++;
 
-			m_bConfirmCaptured = true;
-			m_bCaptureFrame = false;
+			if (m_bCaptureSingleFrame) 
+			{
+				m_bConfirmCaptured = true;
+				m_bCaptureSingleFrame = false;
+			}						
 		}
 	}
 
@@ -318,7 +342,7 @@ void LiveScanClient::UpdateFrame()
 			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
 			StoreFrame(m_pCameraSpaceCoordinates, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
 
-			if (m_bCaptureFrame)
+			if (m_bCaptureFrames || m_bCaptureSingleFrame)
 			{
 				std::cout << "Capturing Pointcloud Frame" << std::endl;
 
@@ -330,8 +354,12 @@ void LiveScanClient::UpdateFrame()
 				m_nFrameIndex++;
 
 				m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
-				m_bConfirmCaptured = true;
-				m_bCaptureFrame = false;
+				
+				if (m_bCaptureSingleFrame)
+				{
+					m_bConfirmCaptured = true;
+					m_bCaptureSingleFrame = false;
+				}
 			}
 		}
 
@@ -639,24 +667,39 @@ void LiveScanClient::HandleSocket()
 	{
 		std::cout << "Received Server message: " << char(received[i]) << std::endl;
 
-		//capture a frame
-		if (received[i] == MSG_CAPTURE_FRAME)
+		//Capture a single frame. Used for network-synced recording
+		if (received[i] == MSG_CAPTURE_SINGLE_FRAME)
 		{
 			std::cout << "Capture single frame Received" << std::endl;
-			m_bCaptureFrame = true;
+			m_bCaptureSingleFrame = true;
+		}
+
+		//Capture frames as fast as possible. Used for hardware-synced, or not-synced recording
+		if (received[i] == MSG_START_CAPTURING_FRAMES)
+		{
+			std::cout << "Capture frames start received" << std::endl;
+			m_bCaptureFrames = true;
+		}
+
+		if (received[i] == MSG_STOP_CAPTURING_FRAMES)
+		{
+			std::cout << "Capture frames stop received" << std::endl;
+			m_bCaptureFrames = false;
 		}
 
 		if (received[i] == MSG_RECORDING_START)
 		{
-			std::cout << "Capture frame start received" << std::endl;
+			std::cout << "Recording start received" << std::endl;
 			m_bRecordingStart = true;
 		}
 
 		if (received[i] == MSG_RECORDING_STOP) 
 		{
-			std::cout << "Capture frame stop received" << std::endl;
+			std::cout << "Recording stop received" << std::endl;
 			m_bRecordingStop = true;
 		}
+
+		
 
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
@@ -886,6 +929,29 @@ void LiveScanClient::HandleSocket()
 				m_framesFileWriterReader.WriteCalibrationJSON(configuration.nGlobalDeviceIndex, pCapture->calibrationBuffer, pCapture->nCalibrationSize);
 
 		}
+
+		else if (received[i] == MSG_SEND_POSTSYNC_LIST) 
+		{
+			std::cout << "Receiving Postsync List" << std::endl;
+
+			i++;
+			int size = *(int*)(received.c_str() + i);
+			i += sizeof(int);
+
+			m_vFrameID.clear();
+			m_vSyncedFrameID.clear();
+			m_vFrameID.resize(size);
+			m_vSyncedFrameID.resize(size);
+
+			memcpy(m_vFrameID.data(), &received[i], size * sizeof(int));
+			i += size * sizeof(int);
+
+			memcpy(m_vSyncedFrameID.data(), &received[i], size * sizeof(int));
+			i += size * sizeof(int);
+
+			m_bPostSyncedListReceived = true;
+		}
+		
 	}
 
 	if (m_bConfirmCaptured)
@@ -931,6 +997,42 @@ void LiveScanClient::HandleSocket()
 		memcpy(buffer + 1, configuration.ToBytes(), KinectConfiguration::byteLength);
 		m_pClientSocket->SendBytes(buffer, size);
 		m_bSendConfiguration = false;
+	}
+
+	if (m_bSendTimeStampList) 
+	{
+		std::cout << "Sending Timestamp list" << std::endl;
+
+		//Structure of timestamp byte list:
+		// Message Char + Timestamps Array Size + Timestamps Array as uint64 + FrameNumbers Array Size + FrameNumbers as Int32
+
+		int byteSizeTimestamps = m_vTimestamps.size() * sizeof(uint64);
+		int byteSizeFrameNumbers = m_vFrameNumbers.size() * sizeof(int);
+		int size = (1 + sizeof(int) + byteSizeTimestamps + sizeof(int) + byteSizeFrameNumbers);
+		char* buffer = new char[size];
+		buffer[0] = MSG_SEND_TIMESTAMP_LIST;
+		int i = 1;
+
+		int timestampSize = m_vTimestamps.size();
+		memcpy(buffer + i, &timestampSize, sizeof(int));
+		i += sizeof(int);
+
+		char* timestampsPtr = (char*)m_vTimestamps.data();
+		memcpy(buffer + i, timestampsPtr, byteSizeTimestamps);
+		i += byteSizeTimestamps;
+
+		int frameNumberSize = m_vFrameNumbers.size();
+		memcpy(buffer + i, &frameNumberSize, sizeof(int));
+		i += sizeof(int);
+
+		char* frameNumberPointer = (char*)m_vFrameNumbers.data();
+		memcpy(buffer + i, frameNumberPointer, byteSizeFrameNumbers);
+		i += byteSizeFrameNumbers;
+
+		m_pClientSocket->SendBytes(buffer, size);
+		m_bSendTimeStampList = false;
+
+		delete[] buffer;
 	}
 }
 
