@@ -9,6 +9,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include "KinectConfiguration.h"
 
 class FrameFileWriterReader
 {
@@ -26,9 +27,15 @@ public:
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
 	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex);
 	void WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex);
+	void WriteText(std::string fileNameAndExtension, std::string contents);
 	void WriteTimestampLog();
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
 	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);
+	std::string ReadText(std::string fileNameAndExtension);
+
+	void SaveKinectConfiguration(KinectConfiguration config);
+	bool OpenKinectConfiguration(KinectConfiguration& configuration);
+
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
 	bool openedForReading() { return m_bFileOpenedForReading; }

@@ -264,6 +264,7 @@ void LiveScanClient::UpdateFrame()
 		m_nFrameIndex = 0;
 		m_vTimestamps.clear();
 		m_vFrameNumbers.clear();
+		m_framesFileWriterReader.SaveKinectConfiguration(configuration); //Save the current config for Pointcloud reconstruction later
 
 		m_bRecordingStart = false;
 	}
@@ -424,6 +425,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		// Get and initialize the default Kinect sensor as standalone
 		configuration = *new KinectConfiguration();
 		configuration.eSoftwareSyncState = Standalone;
+
 		bool res = pCapture->Initialize(configuration);
 		if (res)
 		{
@@ -656,8 +658,7 @@ void LiveScanClient::HandleSocket()
 			i--;
 
 			KinectConfigSerializer configSerializer;
-			configSerializer.SerializeKinectConfig(configuration, "");
-			
+			configSerializer.SerializeKinectConfig(configuration);
 		}
 
 		//receive settings

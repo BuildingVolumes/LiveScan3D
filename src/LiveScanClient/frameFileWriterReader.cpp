@@ -1,4 +1,5 @@
 #include "frameFileWriterReader.h"
+#include "KinectConfiguration.h"
 #include <ctime>
 
 #include <fstream>
@@ -222,6 +223,76 @@ void FrameFileWriterReader::WriteTimestampLog(std::vector<int> frames, std::vect
 	}
 
 	file.close();
+}
+
+/// <summary>
+/// Saves the Kinect Configuration as a serialized .json into the current recording dir
+/// </summary>
+/// <param name="config"></param>
+void FrameFileWriterReader::SaveKinectConfiguration(KinectConfiguration config) {
+	KinectConfigSerializer configSerializer;
+	std::string serializedConfig = configSerializer.SerializeKinectConfig(config);
+	WriteText("KinectConfiguration.json", serializedConfig);
+}
+
+/// <summary>
+/// Opens a Kinect configuration .json file from the current recordings dir.
+/// </summary>
+/// <param name="configuration"></param>
+/// <returns>Returns true on success, false on error</returns>
+bool FrameFileWriterReader::OpenKinectConfiguration(KinectConfiguration& configuration) {
+	KinectConfigSerializer configSerializer;
+	std::string serializedConfig = ReadText("KinectConfiguration.json");
+
+	if (serializedConfig != "") {
+		configuration = configSerializer.DeserializeKinectConfig(serializedConfig);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+/// <summary>
+/// Writes and saves a text file to the current recording dir. Overwrites a file if it already exists
+/// </summary>
+/// <param name="fileNameAndExtension">The name of the file, with the extension. Ex: "Myfile.json"</param>
+/// <param name="contents"></param>
+void FrameFileWriterReader::WriteText(std::string fileNameAndExtension, std::string content)
+{
+	std::string filename = m_sFrameRecordingsDir;
+	filename += fileNameAndExtension;
+
+	std::ofstream configFile;
+	configFile.open(filename, std::ios::out | std::ios::trunc);
+	configFile << content;
+	configFile.close();
+}
+
+/// <summary>
+/// Loads text as a string from a specified file in the current recordings dir
+/// </summary>
+/// <param name="fileNameAndExtension">fileNameAndExtension">The name of the file, with the extension. Ex: "Myfile.json"</param>
+std::string FrameFileWriterReader::ReadText(std::string fileNameAndExtension)
+{
+	std::string filename = m_sFrameRecordingsDir;
+	filename += fileNameAndExtension;
+
+	std::ifstream configFile;
+	std::stringstream ss;
+	std::string content;
+	
+	configFile.open(filename, std::ios::in);
+	if (configFile.is_open()) {
+		ss << configFile.rdbuf();
+		configFile.close();
+		content = ss.str();
+		return content;
+	}
+
+	else {
+		return "";
+	}
 }
 
 /// <summary>

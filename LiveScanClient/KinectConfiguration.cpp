@@ -2,6 +2,8 @@
 #include <k4a/k4atypes.h>
 #include <utils.h>
 #include <cereal/archives/json.hpp>
+#include <fstream>
+#include <iostream>
 
 
 	std::string sSerialNumber;
@@ -166,22 +168,42 @@
 		this->serialNumber = serialNumber;
 	}
 
-
-
-
-
 	KinectConfigSerializer::KinectConfigSerializer(){}
 
-	void KinectConfigSerializer::SerializeKinectConfig(KinectConfiguration config, std::string relativePathToSave) {
+	/// <summary>
+	/// Serializes a Kinect config into a .json and returns it as a string.
+	/// Unfortunately, enums will only be stored as int values. It's surprisingly 
+	/// laborious to serialize enums as string values, so I'll leave it like this for now.
+	/// </summary>
+	/// <param name="config"></param>
+	/// <param name="relativePathToSave"></param>
+	std::string KinectConfigSerializer::SerializeKinectConfig(KinectConfiguration config) {
 
-		std::stringstream ss; // any stream can be used
-		{
+		std::stringstream ss;
+		{	//Important to encapsulate this, as the archive only flushes when going out of scope
 			cereal::JSONOutputArchive oarchive(ss);
 			oarchive(CEREAL_NVP(config));
 		}
-
 		std::string json_string = ss.str();
-		std::cout << json_string << std::endl;
+		return json_string;
+	}
+
+	/// <summary>
+	/// Returns a new Kinect Configuration, recreated from a given .json file string
+	/// </summary>
+	/// <param name="serializedConfig">The string from a serialized Kinectconfiguration</param>
+	/// <returns></returns>
+	KinectConfiguration KinectConfigSerializer::DeserializeKinectConfig(std::string serializedConfig) {
+
+		KinectConfiguration newConfig;
+
+		std::stringstream ss;
+		ss.str(serializedConfig);
+		{
+			cereal::JSONInputArchive iarchive(ss);
+			iarchive(newConfig);
+		}		
+		return newConfig;
 	}
 
 	KinectConfigSerializer::~KinectConfigSerializer(){}

@@ -3,6 +3,8 @@
 #include <string>
 #include "utils.h"
 #include <cereal/archives/json.hpp>
+#include <fstream>
+#include <iostream>
 
 //Kinect Configuration holds information that may be specific to kinects.
 // It does not completely describe a configuration. See azureKinectCapture for that (which contains one of these)
@@ -32,10 +34,16 @@ public:
 	void SetSerialNumber(std::string serialNumber);
 	//todo: exposure.
 
+
+	//This allows us to use cereal to serialize our data into a json. If more data needs to be serialized, it needs to be added to this list!
 	template<class Archive>
 	void serialize(Archive& archive)
 	{
-		archive(serialNumber, eSoftwareSyncState, eHardwareSyncState, nSyncOffset, nGlobalDeviceIndex, filter_depth_map, filter_depth_map_size); // serialize things by passing them to the archive
+		archive(CEREAL_NVP(serialNumber), CEREAL_NVP(config.camera_fps), CEREAL_NVP(config.color_format), CEREAL_NVP(config.color_resolution),
+			CEREAL_NVP(config.depth_delay_off_color_usec), CEREAL_NVP(config.depth_mode), CEREAL_NVP(config.disable_streaming_indicator),
+			CEREAL_NVP(config.subordinate_delay_off_master_usec), CEREAL_NVP(config.synchronized_images_only),
+			CEREAL_NVP(config.wired_sync_mode), CEREAL_NVP(eSoftwareSyncState), CEREAL_NVP(eHardwareSyncState), CEREAL_NVP(nSyncOffset),
+			CEREAL_NVP(nGlobalDeviceIndex), CEREAL_NVP(filter_depth_map), CEREAL_NVP(filter_depth_map_size));
 	}
 
 };
@@ -44,6 +52,6 @@ class KinectConfigSerializer {
 public:
 	KinectConfigSerializer();
 	~KinectConfigSerializer();
-	void SerializeKinectConfig(KinectConfiguration config, std::string pathToSave);
-	KinectConfiguration DeserializeKinectConfig(std::string path);
+	static std::string SerializeKinectConfig(KinectConfiguration config);
+	static KinectConfiguration DeserializeKinectConfig(std::string serializedConfig);
 };
