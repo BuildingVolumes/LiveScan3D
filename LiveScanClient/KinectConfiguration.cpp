@@ -1,6 +1,7 @@
 #include "KinectConfiguration.h"
 #include <k4a/k4atypes.h>
 #include <utils.h>
+#include <cereal/archives/json.hpp>
 
 
 	std::string sSerialNumber;
@@ -164,3 +165,23 @@
 	{
 		this->serialNumber = serialNumber;
 	}
+
+
+
+
+
+	KinectConfigSerializer::KinectConfigSerializer(){}
+
+	void KinectConfigSerializer::SerializeKinectConfig(KinectConfiguration config, std::string relativePathToSave) {
+
+		std::stringstream ss; // any stream can be used
+		{
+			cereal::JSONOutputArchive oarchive(ss);
+			oarchive(CEREAL_NVP(config));
+		}
+
+		std::string json_string = ss.str();
+		std::cout << json_string << std::endl;
+	}
+
+	KinectConfigSerializer::~KinectConfigSerializer(){}

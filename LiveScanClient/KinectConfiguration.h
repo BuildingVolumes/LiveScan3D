@@ -2,6 +2,8 @@
 #include <k4a/k4atypes.h>
 #include <string>
 #include "utils.h"
+#include <cereal/archives/json.hpp>
+
 //Kinect Configuration holds information that may be specific to kinects.
 // It does not completely describe a configuration. See azureKinectCapture for that (which contains one of these)
 // This is a subset of the kinect information that may need to set over the network.
@@ -29,4 +31,19 @@ public:
 	void SetDepthMode(k4a_depth_mode_t depthMode);
 	void SetSerialNumber(std::string serialNumber);
 	//todo: exposure.
+
+	template<class Archive>
+	void serialize(Archive& archive)
+	{
+		archive(serialNumber, eSoftwareSyncState, eHardwareSyncState, nSyncOffset, nGlobalDeviceIndex, filter_depth_map, filter_depth_map_size); // serialize things by passing them to the archive
+	}
+
+};
+
+class KinectConfigSerializer {
+public:
+	KinectConfigSerializer();
+	~KinectConfigSerializer();
+	void SerializeKinectConfig(KinectConfiguration config, std::string pathToSave);
+	KinectConfiguration DeserializeKinectConfig(std::string path);
 };

@@ -653,8 +653,11 @@ void LiveScanClient::HandleSocket()
 
 			i += KinectConfiguration::byteLength;
 			configuration.SetFromBytes(message);
-
 			i--;
+
+			KinectConfigSerializer configSerializer;
+			configSerializer.SerializeKinectConfig(configuration, "");
+			
 		}
 
 		//receive settings
