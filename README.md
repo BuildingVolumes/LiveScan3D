@@ -49,3 +49,4 @@ Acquisition System for Multiple Kinect v2 Sensors". in 3D Vision (3DV), 2015 Int
 ## Authors ##
   * Marek Kowalski <m.kowalski@ire.pw.edu.pl>, homepage: http://home.elka.pw.edu.pl/~mkowals6/
   * Jacek Naruniec <j.naruniec@ire.pw.edu.pl>, homepage: http://home.elka.pw.edu.pl/~jnarunie/
+
