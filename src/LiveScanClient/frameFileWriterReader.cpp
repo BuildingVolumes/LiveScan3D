@@ -46,9 +46,10 @@ void FrameFileWriterReader::openCurrentFileForReading()
 
 	m_bFileOpenedForReading = true;
 	m_bFileOpenedForWriting = false;
+	m_nCurrentReadFrameID = 0;
 }
 
-void FrameFileWriterReader::openNewFileForWriting(int deviceID)
+void FrameFileWriterReader::openNewFileForWriting(int deviceID, std::string prefix)
 {
 	closeFileIfOpened();
 
@@ -57,6 +58,7 @@ void FrameFileWriterReader::openNewFileForWriting(int deviceID)
 	struct tm * now = localtime(&t);
 	sprintf(filename, "recording_%01d_%04d_%02d_%02d_%02d_%02d.bin", deviceID, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 	m_sFilename = m_sFrameRecordingsDir;
+	m_sFilename += prefix + "_";
 	m_sFilename +=	filename; 
 	m_pFileHandle = fopen(m_sFilename.c_str(), "wb");
 
@@ -66,7 +68,7 @@ void FrameFileWriterReader::openNewFileForWriting(int deviceID)
 	resetTimer();
 }
 
-bool FrameFileWriterReader::readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors)
+bool FrameFileWriterReader::readNextBinaryFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors, int &outTimestamp)
 {
 	std::cout << "Reading Pointcloud Frame" << std::endl;
 
@@ -93,17 +95,19 @@ bool FrameFileWriterReader::readFrame(std::vector<Point3s> &outPoints, std::vect
 	fread((void*)outPoints.data(), sizeof(outPoints[0]), nPoints, f);
 	fread((void*)outColors.data(), sizeof(outColors[0]), nPoints, f);
 	fgetc(f);		// '\n'
+
+	m_nCurrentReadFrameID++; //Keep track of the latest read frame ID 
+	outTimestamp = timestamp;
 	return true;
 
 }
 
-
-void FrameFileWriterReader::writeFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID)
+void FrameFileWriterReader::writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID)
 {
 	std::cout << "Writing pointcloud frame" << std::endl;
 
 	if (!m_bFileOpenedForWriting)
-		openNewFileForWriting(deviceID);
+		openNewFileForWriting(deviceID, "");
 
 	FILE *f = m_pFileHandle;
 
@@ -120,6 +124,50 @@ void FrameFileWriterReader::writeFrame(std::vector<Point3s> points, std::vector<
 		fwrite((void*)colors.data(), sizeof(colors[0]), nPoints, f);
 	}
 	fprintf(f, "\n");
+}
+
+void FrameFileWriterReader::seekBinaryReaderToFrame(int frameID) {
+
+	if (frameID > m_nCurrentReadFrameID) {
+
+		while (frameID > m_nCurrentReadFrameID) {
+			skipOneFrameBinaryReader();
+		}
+		return;
+	}
+
+	else if (frameID == m_nCurrentReadFrameID)
+		return;
+
+	//If the desired frame ID is below the current frame ID, we need to search from the start of the file again,
+	//because we can't read the file backwards (yet)
+	else if (frameID < m_nCurrentReadFrameID) {
+
+		m_nCurrentReadFrameID = 0;
+		FILE* f = m_pFileHandle; 
+		fseek(f, 0, SEEK_SET); //Reset the file stream reader to the beginning of the file
+
+		while (frameID > m_nCurrentReadFrameID) {
+			skipOneFrameBinaryReader();
+		}
+		return;
+	}
+}
+
+void FrameFileWriterReader::skipOneFrameBinaryReader() {
+
+	FILE* f = m_pFileHandle;
+	int nPoints, timestamp;
+	char tmp[1024];
+	int nread = fscanf_s(f, "%s %d %s %d", tmp, 1024, &nPoints, tmp, 1024, &timestamp); //Get the size of nPoints so that we can skip them
+	long offsetVerts = nPoints * sizeof(Point3s);
+	long offsetColors = nPoints * sizeof(RGB);
+
+	fgetc(f);		//  '\n'
+	fseek(f, offsetVerts, SEEK_CUR); //Skip vertices
+	fseek(f, offsetColors, SEEK_CUR); //Skip colors
+	fgetc(f);		// '\n'
+	m_nCurrentReadFrameID++;
 }
 
 

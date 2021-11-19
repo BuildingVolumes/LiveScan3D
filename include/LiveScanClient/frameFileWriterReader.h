@@ -14,13 +14,15 @@ class FrameFileWriterReader
 {
 public:
     FrameFileWriterReader();
-	void openNewFileForWriting(int deviceID);
+	void openNewFileForWriting(int deviceID, std::string prefix);
 	void openCurrentFileForReading();
+
+	void openNewFileForWriting(int deviceID, std::string prefix);
 
 	// leave filename blank if you want the filename to be generated from the date
 	void setCurrentFilename(std::string filename = "");
 
-	void writeFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
+	void writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
 	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
 	bool DirExists(std::string path);
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
@@ -29,7 +31,9 @@ public:
 	bool RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string newPrefix);
 	void WriteTimestampLog();
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
-	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);
+	bool readNextBinaryFrame(std::vector<Point3s>& outPoints, std::vector<RGB>& outColors, int& outTimestamp);
+	void seekBinaryReaderToFrame(int frameID);
+	void skipOneFrameBinaryReader();
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
 	bool openedForReading() { return m_bFileOpenedForReading; }
@@ -47,6 +51,7 @@ private:
 	FILE *m_pFileHandle = nullptr;
 	bool m_bFileOpenedForWriting = false;
 	bool m_bFileOpenedForReading = false;
+	int m_nCurrentReadFrameID = 0;
 
 	std::string m_sFilename = "";
 
