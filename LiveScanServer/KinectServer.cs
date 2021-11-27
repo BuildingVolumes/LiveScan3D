@@ -614,6 +614,7 @@ namespace KinectServer
 
             if (takeIndex == -1)
             {
+                fMainWindowForm.SetStatusBarOnTimer("Error reading takes.json. Please check or delete file", 5000);
                 return null;
             }
 
@@ -860,12 +861,14 @@ namespace KinectServer
                 }
             }
 
-            bool allGathered = false;
+            bool allGathered = true;
             Stopwatch timer = new Stopwatch();
             timer.Start();
 
             while (!allGathered || timer.Elapsed.TotalSeconds < networkTimeout)
             {
+                allGathered = true;
+
                 lock (oClientSocketLock)
                 {
                     for (int i = 0; i < lClientSockets.Count; i++)
@@ -880,7 +883,7 @@ namespace KinectServer
             }
 
             if (allGathered)
-                return false;
+                return true;
 
             else
             {
@@ -903,17 +906,17 @@ namespace KinectServer
 
         public bool CreatePostSyncList()
         {
-            List<DeviceSyncData> allDeviceSyncData = new List<DeviceSyncData>();
+            List<ClientSyncData> allDeviceSyncData = new List<ClientSyncData>();
 
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    allDeviceSyncData.Add(new DeviceSyncData(lClientSockets[i].lFrameNumbers, lClientSockets[i].lTimeStamps, i));
+                    allDeviceSyncData.Add(new ClientSyncData(lClientSockets[i].lFrameNumbers, lClientSockets[i].lTimeStamps, i));
                 }
             }
 
-            List<DeviceSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData);
+            List<ClientSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData);
 
             if(postSyncDeviceData == null)
             {
@@ -932,7 +935,11 @@ namespace KinectServer
         }
 
        
-        public void SendPostSyncList()
+        /// <summary>
+        /// Sends the postsync-List to the clients and waits until all clients have confirmed that they renumbered their files correctly
+        /// </summary>
+        /// <returns></returns>
+        public bool SendAndConfirmPostSyncList()
         {
             lock (oClientSocketLock)
             {
@@ -941,6 +948,37 @@ namespace KinectServer
                     lClientSockets[i].SendPostSyncList();
                 }
             }
+
+            bool postSyncConfirmed = false;
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            while (!postSyncConfirmed && timer.Elapsed.TotalSeconds < networkTimeout)
+            {
+                postSyncConfirmed = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPostSyncConfirmed)
+                            postSyncConfirmed = false;
+                    }
+                }                
+            }
+
+            timer.Stop();
+            
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    if (lClientSockets[i].bPostSyncError)
+                        return false;
+                }
+            }
+
+            return true;
         }
 
         public void SendRecordingStart()
@@ -1166,17 +1204,22 @@ namespace KinectServer
 
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_RESTART)
                             {
-                                lClientSockets[i].RecieveRestartConfirmation();
+                                lClientSockets[i].ReceiveRestartConfirmation();
                             }
 
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
                             {
-                                lClientSockets[i].RecieveDirConfirmation();
+                                lClientSockets[i].ReceiveDirConfirmation();
                             }
 
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_SEND_TIMESTAMP_LIST)
                             {
-                                lClientSockets[i].RecieveTimestampList();
+                                lClientSockets[i].ReceiveTimestampList();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_POSTSYNCED)
+                            {
+                                lClientSockets[i].ReceivePostSyncConfirmation();
                             }
 
                             buffer = lClientSockets[i].Receive(1);

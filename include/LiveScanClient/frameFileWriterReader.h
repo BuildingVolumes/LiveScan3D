@@ -17,18 +17,18 @@ public:
 	void openNewFileForWriting(int deviceID, std::string prefix);
 	void openCurrentFileForReading();
 
-	void openNewFileForWriting(int deviceID, std::string prefix);
-
 	// leave filename blank if you want the filename to be generated from the date
 	void setCurrentFilename(std::string filename = "");
 
-	void writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
+	bool writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
 	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
+	std::string GetRecordingDirPath();
+	void SetFrameRecordingDirPath(std::string path);
 	bool DirExists(std::string path);
-	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
-	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex);
+	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex, std::string optionalPrefix);
+	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex, std::string optionalPrefix);
 	void WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex);
-	bool RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string newPrefix);
+	bool RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string optionalPrefix);
 	void WriteTimestampLog();
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
 	bool readNextBinaryFrame(std::vector<Point3s>& outPoints, std::vector<RGB>& outColors, int& outTimestamp);

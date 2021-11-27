@@ -93,6 +93,10 @@ namespace KinectServer
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
             SetButtonsForExport();
 
+            PostSync postSync = new PostSync();
+            List<ClientSyncData> testdata = PostSync.GetTestData();
+            PostSync.GenerateSyncList(testdata);
+
         }
         private void Form1_ResizeEnd(object sender, System.EventArgs e)
         {
@@ -164,7 +168,7 @@ namespace KinectServer
 
                 while (!worker.CancellationPending)
                 {
-                    SetStatusBarOnTimer("Recording: " + counter.Elapsed.Minutes + ":" + counter.Elapsed.Seconds, 5000);
+                    SetStatusBarOnTimer("Recording: " + counter.Elapsed.Minutes.ToString("D2") + ":" + counter.Elapsed.Seconds.ToString("D2"), 5000);
                 }
 
                 oServer.SendCaptureFramesStop();
@@ -193,43 +197,60 @@ namespace KinectServer
             //Saving is downloading the frames from clients and saving them locally.
 
             //TODO: Order frames when hardware-sync was enabled
-            if (oServer.bTempSyncEnabled)
-            {
-                SetStatusBarOnTimer("Syncing Frames, please wait", 5000);
 
-                if (!oServer.GetTimestampLists())
-                    SetStatusBarOnTimer("Could not get Timestamp List. Saved recording might be unsychronized", 5000);
+            bool syncedFiles = true;
+
+            //if (oServer.bTempSyncEnabled)
+            //{
+            SetStatusBarOnTimer("Syncing Frames, please wait, this could take some time", 5000);
+
+            if (!oServer.GetTimestampLists())
+            {
+                SetStatusBarOnTimer("Could not get Timestamp List. Saved recording is unsychronized!", 5000);
+                syncedFiles = false;
+            }
+
+            else
+            {
+                if (!oServer.CreatePostSyncList())
+                {
+                    SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!", 5000);
+                    syncedFiles = false;
+                }
 
                 else
                 {
-                    if(!oServer.CreatePostSyncList())
-                        SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and kinect firmware!", 5000);
-
-                    else
+                    if (!oServer.SendAndConfirmPostSyncList())
                     {
-                        oServer.SendPostSyncList();
-                        //TODO: Wait for Renaming confirmation
+                        SetStatusBarOnTimer("Could not reorganize files for sync on at least one device!", 5000);
+                        syncedFiles = false;
                     }
+                }
 
+            }
+            //}
+
+            if (syncedFiles)
+            {
+                //Only store frames when capturing pointclouds
+                if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+                {
+                    bSaving = true;
+
+                    btRecord.Text = "Stop saving";
+                    btRecord.Enabled = true;
+
+                    savingWorker.RunWorkerAsync();
+                }
+
+                else
+                {
+                    btRecord.Enabled = true;
+                    btRecord.Text = "Start recording";
                 }
             }
 
-
-            //Only store frames when capturing pointclouds
-            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-            {
-                bSaving = true;
-
-                btRecord.Text = "Stop saving";
-                btRecord.Enabled = true;
-
-                savingWorker.RunWorkerAsync();
-            }
-            else
-            {
-                btRecord.Enabled = true;
-                btRecord.Text = "Start recording";
-            }
+           
 
         }
 

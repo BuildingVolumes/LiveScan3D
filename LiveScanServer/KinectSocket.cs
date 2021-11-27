@@ -40,6 +40,9 @@ namespace KinectServer
         public bool bDirCreationConfirmed = false;
         public bool bDirCreationError = false;
 
+        public bool bPostSyncConfirmed = false;
+        public bool bPostSyncError = false;
+
         public KinectConfiguration configuration;
 
         //The pose of the sensor in the scene (used by the OpenGLWindow to show the sensor)
@@ -56,7 +59,7 @@ namespace KinectServer
 
         public List<ulong> lTimeStamps = new List<ulong>();
         public List<int> lFrameNumbers = new List<int>();
-        public DeviceSyncData postSyncedFrames;
+        public ClientSyncData postSyncedFrames = new ClientSyncData();
 
         public event SocketChangedHandler eChanged;
 
@@ -111,7 +114,10 @@ namespace KinectServer
             lTimeStamps.Clear();
             lFrameNumbers.Clear();
             postSyncedFrames.frames.Clear();
+
             bTimeStampsRecieved = false;
+            bPostSyncConfirmed = false;
+            bPostSyncError = false;
 
             byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_TIMESTAMP_LIST;
             SendByte();
@@ -195,7 +201,7 @@ namespace KinectServer
         {
             List<byte> byteList = new List<byte>();
 
-            byteList.Add((byte)OutgoingMessageType.MSG_SEND_POSTSYNC_LIST);
+            byteList.Add((byte)OutgoingMessageType.MSG_RECEIVE_POSTSYNC_LIST);
 
             byteList.AddRange(BitConverter.GetBytes(postSyncedFrames.frames.Count));
             
@@ -296,7 +302,7 @@ namespace KinectServer
         /// Gets a confirmation from the client that the restart has either been successfull, or a failure
         /// </summary>
         /// <returns></returns>
-        public void RecieveRestartConfirmation()
+        public void ReceiveRestartConfirmation()
         {
             bReinitialized = true;
 
@@ -435,7 +441,7 @@ namespace KinectServer
             }
         }
 
-        public void RecieveDirConfirmation()
+        public void ReceiveDirConfirmation()
         {
             bDirCreationConfirmed = true;
 
@@ -445,7 +451,7 @@ namespace KinectServer
                 bDirCreationError = true;
         }
 
-        public void RecieveTimestampList()
+        public void ReceiveTimestampList()
         {
             byte[] buffer = Receive(sizeof(int));
             int timestampSize = BitConverter.ToInt32(buffer, 0);
@@ -458,19 +464,29 @@ namespace KinectServer
             lTimeStamps.Clear();
             lFrameNumbers.Clear();
 
-            for (int i = 0; i < timestampSize; i+= sizeof(ulong))
+            for (int i = 0; i < timestampSize; i++)
             {
-                lTimeStamps.Add(BitConverter.ToUInt64(timestampByteList, i));
+                lTimeStamps.Add(BitConverter.ToUInt64(timestampByteList, i * sizeof(ulong)));
             }
 
-            for (int i = 0; i < frameNumberSize; i += sizeof(int))
+            for (int i = 0; i < frameNumberSize; i ++)
             {
-                lFrameNumbers.Add(BitConverter.ToInt32(frameNumberByteList, i));
+                lFrameNumbers.Add(BitConverter.ToInt32(frameNumberByteList, i * sizeof(int)));
             }
 
             bTimeStampsRecieved = true;
         }
 
+        public void ReceivePostSyncConfirmation()
+        {
+            bPostSyncConfirmed = true;
+
+            byte[] success = Receive(1);
+
+            if (success[0] == 0)
+                bPostSyncError = true;
+
+        }
 
         public byte[] Receive(int nBytes)
         {

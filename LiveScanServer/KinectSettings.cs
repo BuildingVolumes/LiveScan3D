@@ -150,6 +150,9 @@ namespace KinectServer
                 {
                     jsonContent = File.ReadAllText(jsonPath);
                     takeDict = JsonConvert.DeserializeObject<Dictionary<string, int>>(jsonContent);
+
+                    if (takeDict == null)
+                        return -1; //Error reading file
                 }
 
                 catch (Exception e)

@@ -39,6 +39,10 @@ public:
 private:
 	Calibration calibration;
 
+	//Used to fill in dropped/skipped frames
+	k4a_image_t emptyColorFrame; 
+	k4a_image_t emptyDepthFrame;
+
 	bool m_bCalibrate;
 	bool m_bFilter;
 	bool m_bStreamOnlyBodies;
@@ -118,7 +122,10 @@ private:
 	void HandleSocket();
 	bool ReinitAndConfirm();
 	void SendReinitConfirmation(bool success);
+	void SendPostSyncConfirmation(bool success);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
+	bool PostSyncPointclouds();
+	bool PostSyncRawFrames();
 
 	void SocketThreadFunction();
 	void StoreFrame(Point3f *vertices, RGB *colorInDepth, vector<Body> &bodies, BYTE* bodyIndex);
