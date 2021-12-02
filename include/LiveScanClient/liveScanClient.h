@@ -39,10 +39,6 @@ public:
 private:
 	Calibration calibration;
 
-	//Used to fill in dropped/skipped frames
-	k4a_image_t emptyColorFrame; 
-	k4a_image_t emptyDepthFrame;
-
 	bool m_bCalibrate;
 	bool m_bFilter;
 	bool m_bStreamOnlyBodies;
@@ -88,10 +84,10 @@ private:
 	std::vector<RGB> m_vLastFrameRGB;
 	std::vector<Body> m_vLastFrameBody;
 
-	std::vector<int> m_vFrameNumbers;
-	std::vector<uint64_t> m_vTimestamps;
+	std::vector<int> m_vFrameCount;
+	std::vector<uint64_t> m_vFrameTimestamps;
 	std::vector<int> m_vFrameID;
-	std::vector<int> m_vSyncedFrameID;
+	std::vector<int> m_vPostSyncedFrameID;
 
 	HWND m_hWnd;
     INT64 m_nLastCounter;
@@ -109,8 +105,16 @@ private:
     // Direct2D
     ImageRenderer* m_pDrawColor;
     ID2D1Factory* m_pD2DFactory;
+
+
+	//Image Resources
+	std::vector<uchar>* emptyJPEGBuffer;
+	cv::Mat* emptyDepthMat;
+	k4a_image_t emptyDepthFrame;
 	RGB* m_pDepthRGBX;
 	RGB* m_pBlankGreyImage;
+
+
 	void CreateBlankGrayImage(const int width, const int height);
 
 	void UpdateFrame();

@@ -143,12 +143,6 @@ LiveScanClient::~LiveScanClient()
 		m_pDepthRGBX = NULL;
 	}
 
-	if (m_pBlankGreyImage)
-	{
-		delete[] m_pBlankGreyImage;
-		m_pBlankGreyImage = NULL;
-	}
-
 	if (m_pCameraSpaceCoordinates)
 	{
 		delete[] m_pCameraSpaceCoordinates;
@@ -175,9 +169,22 @@ LiveScanClient::~LiveScanClient()
 	// clean up Direct2D
 	SafeRelease(m_pD2DFactory);
 
-	//clean up empty pictures
-	k4a_image_release(emptyColorFrame);
+	//clean up picture resources
 	k4a_image_release(emptyDepthFrame);
+
+	delete emptyJPEGBuffer;
+	emptyJPEGBuffer = NULL;
+
+	emptyDepthMat->release();
+	emptyDepthMat = NULL;
+
+	if (m_pBlankGreyImage)
+	{
+		delete[] m_pBlankGreyImage;
+		m_pBlankGreyImage = NULL;
+	}
+
+	
 }
 
 int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
@@ -277,14 +284,14 @@ void LiveScanClient::UpdateFrame()
 	if (m_bRecordingStart)
 	{
 		m_nFrameIndex = 0;
-		m_vTimestamps.clear();
-		m_vFrameNumbers.clear();
+		m_vFrameTimestamps.clear();
+		m_vFrameCount.clear();
 		m_bRecordingStart = false;
 	}
 
 	if (m_bRecordingStop)
 	{
-		m_framesFileWriterReader.WriteTimestampLog(m_vFrameNumbers, m_vTimestamps, configuration.nGlobalDeviceIndex);
+		m_framesFileWriterReader.WriteTimestampLog(m_vFrameCount, m_vFrameTimestamps, configuration.nGlobalDeviceIndex);
 		m_bRecordingStop = false;
 	}
 
@@ -319,8 +326,8 @@ void LiveScanClient::UpdateFrame()
 
 		if (m_bCaptureFrames || m_bCaptureSingleFrame)
 		{
-			m_vFrameNumbers.push_back(m_nFrameIndex);
-			m_vTimestamps.push_back(pCapture->GetTimeStamp());
+			m_vFrameCount.push_back(m_nFrameIndex);
+			m_vFrameTimestamps.push_back(pCapture->GetTimeStamp());
 			std::cout << "Capturing Raw Frame" << std::endl;
 
 			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex, "");
@@ -355,8 +362,8 @@ void LiveScanClient::UpdateFrame()
 
 				uint64_t timeStamp = pCapture->GetTimeStamp();
 
-				m_vFrameNumbers.push_back(m_nFrameIndex);
-				m_vTimestamps.push_back(timeStamp);
+				m_vFrameCount.push_back(m_nFrameIndex);
+				m_vFrameTimestamps.push_back(timeStamp);
 
 				m_nFrameIndex++;
 
@@ -507,9 +514,17 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 		}
 
+		//Create empty images for filling in dropped frames
 		CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
-		k4a_image_create(K4A_IMAGE_FORMAT_COLOR_MJPG, 1, 1, 0, &emptyColorFrame);
-		k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, 1, 1, 0, &emptyDepthFrame);
+
+		cv::Mat emptyColorMat(1, 1, CV_8UC3);
+		emptyJPEGBuffer = new vector<uchar>();
+		emptyColorMat = cv::Scalar(0, 0, 255);
+		cv::imencode(".jpg", emptyColorMat, *emptyJPEGBuffer);
+
+		emptyDepthMat = new cv::Mat(1, 1, CV_16U);
+		*emptyDepthMat = cv::Scalar(0);
+		k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_DEPTH16, 1, 1, 0, emptyDepthMat->data, emptyDepthMat->total() * emptyDepthMat->elemSize(), NULL, NULL, &emptyDepthFrame);
 
 		ReadIPFromFile();
 	}
@@ -951,14 +966,14 @@ void LiveScanClient::HandleSocket()
 			i += sizeof(int);
 
 			m_vFrameID.clear();
-			m_vSyncedFrameID.clear();
+			m_vPostSyncedFrameID.clear();
 			m_vFrameID.resize(size);
-			m_vSyncedFrameID.resize(size);
+			m_vPostSyncedFrameID.resize(size);
 
 			memcpy(m_vFrameID.data(), &received[i], size * sizeof(int));
 			i += size * sizeof(int);
 
-			memcpy(m_vSyncedFrameID.data(), &received[i], size * sizeof(int));
+			memcpy(m_vPostSyncedFrameID.data(), &received[i], size * sizeof(int));
 			i += size * sizeof(int);
 
 			m_bPostSyncedListReceived = true;
@@ -1018,26 +1033,26 @@ void LiveScanClient::HandleSocket()
 		//Structure of timestamp byte list:
 		// Message Char + Timestamps Array Size + Timestamps Array as uint64 + FrameNumbers Array Size + FrameNumbers as Int32
 
-		int byteSizeTimestamps = m_vTimestamps.size() * sizeof(uint64);
-		int byteSizeFrameNumbers = m_vFrameNumbers.size() * sizeof(int);
+		int byteSizeTimestamps = m_vFrameTimestamps.size() * sizeof(uint64);
+		int byteSizeFrameNumbers = m_vFrameCount.size() * sizeof(int);
 		int size = (1 + sizeof(int) + byteSizeTimestamps + sizeof(int) + byteSizeFrameNumbers);
 		char* buffer = new char[size];
 		buffer[0] = MSG_SEND_TIMESTAMP_LIST;
 		int i = 1;
 
-		int timestampSize = m_vTimestamps.size();
+		int timestampSize = m_vFrameTimestamps.size();
 		memcpy(buffer + i, &timestampSize, sizeof(int));
 		i += sizeof(int);
 
-		char* timestampsPtr = (char*)m_vTimestamps.data();
+		char* timestampsPtr = (char*)m_vFrameTimestamps.data();
 		memcpy(buffer + i, timestampsPtr, byteSizeTimestamps);
 		i += byteSizeTimestamps;
 
-		int frameNumberSize = m_vFrameNumbers.size();
+		int frameNumberSize = m_vFrameCount.size();
 		memcpy(buffer + i, &frameNumberSize, sizeof(int));
 		i += sizeof(int);
 
-		char* frameNumberPointer = (char*)m_vFrameNumbers.data();
+		char* frameNumberPointer = (char*)m_vFrameCount.data();
 		memcpy(buffer + i, frameNumberPointer, byteSizeFrameNumbers);
 		i += byteSizeFrameNumbers;
 
@@ -1421,14 +1436,14 @@ bool LiveScanClient::PostSyncPointclouds() {
 
 	int desiredSyncedFrame = 0;
 
-	for (size_t i = 0; i < m_vSyncedFrameID.size(); i++)
+	for (size_t i = 0; i < m_vFrameID.size(); i++)
 	{
-		if (m_vSyncedFrameID[i] == -1) {
+		if (m_vFrameID[i] == -1) {
 			if(!syncedFileWriter.writeNextBinaryFrame(emptyPoints, emptyColors, 0, configuration.nGlobalDeviceIndex))
 				success = false;
 		}
 
-		m_framesFileWriterReader.seekBinaryReaderToFrame(m_vFrameNumbers[m_vSyncedFrameID[i]]);
+		m_framesFileWriterReader.seekBinaryReaderToFrame(m_vFrameCount[m_vFrameID[i]]);
 		m_framesFileWriterReader.readNextBinaryFrame(points, colors, timestamp);
 		if (!syncedFileWriter.writeNextBinaryFrame(points, colors, timestamp, configuration.nGlobalDeviceIndex)) {
 			success = false;
@@ -1444,17 +1459,19 @@ bool LiveScanClient::PostSyncRawFrames() {
 
 	bool success = true;
 
-	for (size_t i = 0; i < m_vFrameNumbers.size(); i++)
+	for (size_t i = 0; i < m_vFrameID.size(); i++)
 	{
-		if (m_vFrameNumbers[i] == -1) {
-			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(emptyColorFrame), k4a_image_get_size(emptyColorFrame), m_vSyncedFrameID[i], "synced");
-			m_framesFileWriterReader.WriteDepthTiffFile(emptyDepthFrame, m_vSyncedFrameID[i], "synced");
+		if (m_vFrameID[i] == -1) {
+			m_framesFileWriterReader.WriteColorJPGFile(emptyJPEGBuffer->data(), emptyJPEGBuffer->size(), m_vPostSyncedFrameID[i], "synced");
+			m_framesFileWriterReader.WriteDepthTiffFile(emptyDepthFrame, m_vPostSyncedFrameID[i], "synced");
 		}
 
-		if (!m_framesFileWriterReader.RenameRawFramePair(m_vFrameNumbers[i], m_vSyncedFrameID[i], std::string("synced_"))) {
-			std::cout << "Could no rename Frame " << m_vFrameNumbers[i] << std::endl;
-			success = false;
-		}
+		else {
+			if (!m_framesFileWriterReader.RenameRawFramePair(m_vFrameID[i], m_vPostSyncedFrameID[i], std::string("synced_"))) {
+				std::cout << "Could no rename Frame " << m_vFrameID[i] << std::endl;
+				success = false;
+			}
+		}		
 	}
 
 	return success;

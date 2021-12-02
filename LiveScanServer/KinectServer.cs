@@ -501,7 +501,10 @@ namespace KinectServer
             }
 
             else
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("At least two client are needed for temporal hardware sync", 5000);
                 return false;
+            }
         }
 
         public bool DisableTemporalSync()
@@ -923,6 +926,22 @@ namespace KinectServer
                 return false;
             }
 
+            for (int i = 0; i < postSyncDeviceData.Count; i++)
+            {
+                for (int j = 0;  j< postSyncDeviceData[i].frames.Count; j++)
+                {
+                    if(postSyncDeviceData[i].frames[j].frameID == -1)
+                    {
+                        Debug.Print("Break");
+                    }
+
+                    if (postSyncDeviceData[i].frames[j].syncedFrameID == -1)
+                    {
+                        Debug.Print("Break");
+                    }
+                }
+            }
+
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
@@ -939,7 +958,7 @@ namespace KinectServer
         /// Sends the postsync-List to the clients and waits until all clients have confirmed that they renumbered their files correctly
         /// </summary>
         /// <returns></returns>
-        public bool SendAndConfirmPostSyncList()
+        public bool ReorderSyncFramesOnClient()
         {
             lock (oClientSocketLock)
             {

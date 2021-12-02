@@ -93,9 +93,10 @@ namespace KinectServer
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
             SetButtonsForExport();
 
-            PostSync postSync = new PostSync();
-            List<ClientSyncData> testdata = PostSync.GetTestData();
-            PostSync.GenerateSyncList(testdata);
+            //TODO: REMOVE TEST DATA
+            //PostSync postSync = new PostSync();
+            //List<ClientSyncData> testdata = PostSync.GetTestData();
+            //PostSync.GenerateSyncList(testdata);
 
         }
         private void Form1_ResizeEnd(object sender, System.EventArgs e)
@@ -158,6 +159,7 @@ namespace KinectServer
             BackgroundWorker worker = (BackgroundWorker)sender;
 
             oServer.SendRecordingStart();
+            Thread.Sleep(1); //Give the clients a short amount of time to process the command
 
             if (!networkSyncEnabled || oServer.bTempSyncEnabled)
             {
@@ -198,60 +200,54 @@ namespace KinectServer
 
             //TODO: Order frames when hardware-sync was enabled
 
-            bool syncedFiles = true;
+            bool synced = true;
 
-            //if (oServer.bTempSyncEnabled)
-            //{
-            SetStatusBarOnTimer("Syncing Frames, please wait, this could take some time", 5000);
-
-            if (!oServer.GetTimestampLists())
+            if (oServer.bTempSyncEnabled)
             {
-                SetStatusBarOnTimer("Could not get Timestamp List. Saved recording is unsychronized!", 5000);
-                syncedFiles = false;
+                SetStatusBarOnTimer("Syncing Frames, please wait, this could take some time", 5000);
+
+                if (!oServer.GetTimestampLists())
+                {
+                    SetStatusBarOnTimer("Could not get Timestamp List. Saved recording is unsychronized!", 5000);
+                    synced = false;
+                }
+
+                else
+                {
+                    if (!oServer.CreatePostSyncList())
+                    {
+                        SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!", 5000);
+                        synced = false;
+                    }
+
+                    else
+                    {
+                        if (!oServer.ReorderSyncFramesOnClient())
+                        {
+                            SetStatusBarOnTimer("Could not reorganize files for sync on at least one device!", 5000);
+                            synced = false;
+                        }
+                    }
+
+                }
+            }
+
+            //Only store frames when capturing pointclouds
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud && synced)
+            {
+                bSaving = true;
+
+                btRecord.Text = "Stop saving";
+                btRecord.Enabled = true;
+
+                savingWorker.RunWorkerAsync();
             }
 
             else
             {
-                if (!oServer.CreatePostSyncList())
-                {
-                    SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!", 5000);
-                    syncedFiles = false;
-                }
-
-                else
-                {
-                    if (!oServer.SendAndConfirmPostSyncList())
-                    {
-                        SetStatusBarOnTimer("Could not reorganize files for sync on at least one device!", 5000);
-                        syncedFiles = false;
-                    }
-                }
-
+                btRecord.Enabled = true;
+                btRecord.Text = "Start recording";
             }
-            //}
-
-            if (syncedFiles)
-            {
-                //Only store frames when capturing pointclouds
-                if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-                {
-                    bSaving = true;
-
-                    btRecord.Text = "Stop saving";
-                    btRecord.Enabled = true;
-
-                    savingWorker.RunWorkerAsync();
-                }
-
-                else
-                {
-                    btRecord.Enabled = true;
-                    btRecord.Text = "Start recording";
-                }
-            }
-
-           
-
         }
 
         //Opens the live view window

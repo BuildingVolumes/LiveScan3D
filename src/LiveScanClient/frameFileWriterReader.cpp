@@ -227,15 +227,18 @@ void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, i
 {
 	std::cout << "Writing Color JPEG File with index: " << frameIndex << std::endl;
 
-	std::string colorFileName = "Color_";
+	
+	std::string colorFileName;
+	if (optionalPrefix.size() > 0) {
+		colorFileName += optionalPrefix + "_";
+	}
+	colorFileName += "Color_";
 	colorFileName += std::to_string(frameIndex);
 	colorFileName += ".jpg";
 
 	std::string filePath = m_sFrameRecordingsDir;
 
-	if (optionalPrefix.size() > 0) {
-		m_sFilename += optionalPrefix + "_";
-	}
+	
 
 	filePath += colorFileName;
 
@@ -268,16 +271,16 @@ void FrameFileWriterReader::WriteDepthTiffFile(const k4a_image_t &im, int frameI
 {
 	std::cout << "Writing Depth Tiff File with index: " << frameIndex << std::endl;
 
-	std::string depthFileName = "Depth_";
+	std::string depthFileName;
+	if (optionalPrefix.size() > 0) {
+		depthFileName += optionalPrefix + "_";
+	} 
+	
+	depthFileName += "Depth_";
 	depthFileName += std::to_string(frameIndex);
 	depthFileName += ".tiff";
 
 	std::string filePath = m_sFrameRecordingsDir;
-
-	if (optionalPrefix.size() > 0) {
-		m_sFilename += optionalPrefix + "_";
-	}
-
 	filePath += depthFileName;
 
 	cv::Mat depthMat = cv::Mat(k4a_image_get_height_pixels(im), k4a_image_get_width_pixels(im), CV_16U, k4a_image_get_buffer(im), static_cast<size_t>(k4a_image_get_stride_bytes(im)));

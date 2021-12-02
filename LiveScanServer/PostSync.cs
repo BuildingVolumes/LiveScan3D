@@ -183,7 +183,7 @@ namespace KinectServer
                     //This prevents dropped frames from messing up the frametiming
                     if (!deviceFoundInCurrentFrame)
                     {
-                        postSyncedData[k].frames.Add(new SyncFrame(-1, k, -1));
+                        postSyncedData[k].frames.Add(new SyncFrame(-1, k, i));
                     }
                 }
             }

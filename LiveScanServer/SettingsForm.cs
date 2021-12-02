@@ -65,7 +65,10 @@ namespace KinectServer
             txtICPIters.Text = oSettings.nNumICPIterations.ToString();
             txtRefinIters.Text = oSettings.nNumRefineIters.ToString();
 
-            chHardwareSync.Checked = false;
+            if (oServer != null)
+                chHardwareSync.Checked = oServer.bTempSyncEnabled;
+            else
+                chHardwareSync.Checked = false;
 
             chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
             trManualExposure.Value = oSettings.nExposureStep;
@@ -109,6 +112,8 @@ namespace KinectServer
                     {
                         if (oServer.EnableTemporalSync())
                             oServer.bPointCloudMode = rExportPointcloud.Checked;
+                        else
+                            chHardwareSync.Checked = false;
                     }
 
                     else if (!chHardwareSync.Checked && oServer.bTempSyncEnabled)
@@ -519,6 +524,8 @@ namespace KinectServer
 
             else
                 chHardwareSync.Enabled = true;
+
+            SettingsChanged();
         }
 
         private void chHardwareSync_CheckedChanged(object sender, EventArgs e)
@@ -532,6 +539,8 @@ namespace KinectServer
             {
                 chNetworkSync.Enabled = true;
             }
+
+            SettingsChanged();
         }
     }
 }
