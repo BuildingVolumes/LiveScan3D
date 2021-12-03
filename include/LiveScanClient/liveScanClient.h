@@ -124,7 +124,7 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	bool ReinitAndConfirm();
+	bool Reinit();
 	void SendReinitConfirmation(bool success);
 	void SendPostSyncConfirmation(bool success);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);

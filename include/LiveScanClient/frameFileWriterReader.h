@@ -14,16 +14,18 @@ class FrameFileWriterReader
 {
 public:
     FrameFileWriterReader();
-	void openNewFileForWriting(int deviceID, std::string prefix);
-	void openCurrentFileForReading();
+	void openNewBinFileForWriting(int deviceID, std::string prefix);
+	void openNewBinFileForReading(std::string path);
+	void openCurrentBinFileForReading();
 
 	// leave filename blank if you want the filename to be generated from the date
 	void setCurrentFilename(std::string filename = "");
+	std::string GetBinFilePath();
 
 	bool writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
 	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
 	std::string GetRecordingDirPath();
-	void SetFrameRecordingDirPath(std::string path);
+	void SetRecordingDirPath(std::string path);
 	bool DirExists(std::string path);
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex, std::string optionalPrefix);
 	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex, std::string optionalPrefix);
@@ -53,7 +55,7 @@ private:
 	bool m_bFileOpenedForReading = false;
 	int m_nCurrentReadFrameID = 0;
 
-	std::string m_sFilename = "";
+	std::string m_sBinFilePath = "";
 
 	std::string m_sFrameRecordingsDir = "";
 

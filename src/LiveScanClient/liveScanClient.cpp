@@ -274,8 +274,10 @@ void LiveScanClient::UpdateFrame()
 
 	if (m_bRestartCamera)
 	{
-		if (ReinitAndConfirm())
-			m_bRestartCamera = false;
+		bool success = Reinit();
+		SendReinitConfirmation(success);
+
+		m_bRestartCamera = false;
 
 		if (!pCapture->bAquiresPointcloud)
 			SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 2000, true);
@@ -298,22 +300,17 @@ void LiveScanClient::UpdateFrame()
 	if (m_bPostSyncedListReceived)
 	{
 		m_bPostSyncedListReceived = false;
-
 		bool success = true;
 
 		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG)
-		{
 			success = PostSyncRawFrames();
-		}
 
-		//TODO: Write intwo own function
+		
 		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
-		{
 			success = PostSyncPointclouds();
-		}
+
 		
-		SendPostSyncConfirmation(success);
-		
+		SendPostSyncConfirmation(success);		
 	}
 
 	//Recording raw frames
@@ -1066,7 +1063,7 @@ void LiveScanClient::HandleSocket()
 /// <summary>
 /// Reinitialize. Must be called after changing depthMode or afer changing temporal sync mode.
 /// </summary>
-bool LiveScanClient::ReinitAndConfirm()
+bool LiveScanClient::Reinit()
 {
 	std::cout << "Reinitializing camera" << std::endl;
 
@@ -1099,7 +1096,6 @@ bool LiveScanClient::ReinitAndConfirm()
 	}
 
 	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
-	SendReinitConfirmation(true);
 	m_bRestartingCamera = false;
 	return true;
 }
@@ -1430,28 +1426,32 @@ bool LiveScanClient::PostSyncPointclouds() {
 	int timestamp = 0;
 
 	FrameFileWriterReader syncedFileWriter;
-	syncedFileWriter.SetFrameRecordingDirPath(m_framesFileWriterReader.GetRecordingDirPath());
-	syncedFileWriter.openNewFileForWriting(configuration.nGlobalDeviceIndex, "synced");
-	m_framesFileWriterReader.openCurrentFileForReading();
-
-	int desiredSyncedFrame = 0;
+	syncedFileWriter.SetRecordingDirPath(m_framesFileWriterReader.GetRecordingDirPath());
+	syncedFileWriter.openNewBinFileForWriting(configuration.nGlobalDeviceIndex, "synced");
+	m_framesFileWriterReader.openCurrentBinFileForReading();
 
 	for (size_t i = 0; i < m_vFrameID.size(); i++)
 	{
+		//-1 indicates that this device doesn't have a valid frame for this capture. To keep a good frame timing, we fill in an empty frame
 		if (m_vFrameID[i] == -1) {
 			if(!syncedFileWriter.writeNextBinaryFrame(emptyPoints, emptyColors, 0, configuration.nGlobalDeviceIndex))
 				success = false;
 		}
 
-		m_framesFileWriterReader.seekBinaryReaderToFrame(m_vFrameCount[m_vFrameID[i]]);
-		m_framesFileWriterReader.readNextBinaryFrame(points, colors, timestamp);
-		if (!syncedFileWriter.writeNextBinaryFrame(points, colors, timestamp, configuration.nGlobalDeviceIndex)) {
-			success = false;
-		}
+		else {
+			m_framesFileWriterReader.seekBinaryReaderToFrame(m_vFrameID[i]);
+			m_framesFileWriterReader.readNextBinaryFrame(points, colors, timestamp);
+			if (!syncedFileWriter.writeNextBinaryFrame(points, colors, timestamp, configuration.nGlobalDeviceIndex)) {
+				std::cout << "Could not write Pointcloud Frame during post sync. Frame ID: " << m_vFrameID[i] << std::endl;
+				success = false;
+			}
+		}		
 	}
 
+	std::string syncedFilePath = syncedFileWriter.GetBinFilePath();
 	syncedFileWriter.closeFileIfOpened();
-
+	m_framesFileWriterReader.closeFileIfOpened();
+	m_framesFileWriterReader.openNewBinFileForReading(syncedFilePath); //Open the synced file in the framewriter as when the server requests frames, we will provide the synced frames
 	return success;
 }
 
@@ -1461,6 +1461,7 @@ bool LiveScanClient::PostSyncRawFrames() {
 
 	for (size_t i = 0; i < m_vFrameID.size(); i++)
 	{
+		//-1 indicates that this device doesn't have a valid frame for this capture. To keep a good frame timing, we fill in an empty frame
 		if (m_vFrameID[i] == -1) {
 			m_framesFileWriterReader.WriteColorJPGFile(emptyJPEGBuffer->data(), emptyJPEGBuffer->size(), m_vPostSyncedFrameID[i], "synced");
 			m_framesFileWriterReader.WriteDepthTiffFile(emptyDepthFrame, m_vPostSyncedFrameID[i], "synced");
@@ -1468,7 +1469,7 @@ bool LiveScanClient::PostSyncRawFrames() {
 
 		else {
 			if (!m_framesFileWriterReader.RenameRawFramePair(m_vFrameID[i], m_vPostSyncedFrameID[i], std::string("synced_"))) {
-				std::cout << "Could no rename Frame " << m_vFrameID[i] << std::endl;
+				std::cout << "Could not rename Frame with ID: " << m_vFrameID[i] << std::endl;
 				success = false;
 			}
 		}		

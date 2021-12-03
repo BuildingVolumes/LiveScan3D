@@ -66,7 +66,7 @@ namespace KinectServer
             txtRefinIters.Text = oSettings.nNumRefineIters.ToString();
 
             if (oServer != null)
-                chHardwareSync.Checked = oServer.bTempSyncEnabled;
+                chHardwareSync.Checked = oServer.bTempHwSyncEnabled;
             else
                 chHardwareSync.Checked = false;
 
@@ -106,7 +106,7 @@ namespace KinectServer
 
                 //Check if we need to restart the cameras
 
-                if(chHardwareSync.Checked != oServer.bTempSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
+                if(chHardwareSync.Checked != oServer.bTempHwSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
                 {
                     if (chHardwareSync.Checked)
                     {
@@ -116,7 +116,7 @@ namespace KinectServer
                             chHardwareSync.Checked = false;
                     }
 
-                    else if (!chHardwareSync.Checked && oServer.bTempSyncEnabled)
+                    else if (!chHardwareSync.Checked && oServer.bTempHwSyncEnabled)
                     {
                         if (oServer.DisableTemporalSync())
                         {
@@ -196,6 +196,17 @@ namespace KinectServer
             trManualExposure.Enabled = true;
             trManualExposure.Value = -5;
             chAutoExposureEnabled.CheckState = CheckState.Unchecked;
+        }
+
+        public void DisableHardwareSyncButton()
+        {
+            if (chHardwareSync.Checked)
+            {
+                chHardwareSync.Checked = false;
+                chNetworkSync.Enabled = true;
+                UpdateClients();
+            }
+
         }
 
         private void txtMinX_TextChanged(object sender, EventArgs e)

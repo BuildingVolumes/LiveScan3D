@@ -39,7 +39,7 @@ namespace KinectServer
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
         public event SocketListChangedHandler eSocketListChanged;
 
-        public bool bTempSyncEnabled = false;
+        public bool bTempHwSyncEnabled = false;
         public bool bPointCloudMode = true;
 
         object oClientSocketLock = new object();
@@ -319,7 +319,7 @@ namespace KinectServer
             {
                 if (needsRestart)
                 {
-                    if (bTempSyncEnabled)
+                    if (bTempHwSyncEnabled)
                     {
                         RestartWithTemporalSyncPattern();
                     }
@@ -492,7 +492,7 @@ namespace KinectServer
 
                 if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
                 {
-                    bTempSyncEnabled = true;
+                    bTempHwSyncEnabled = true;
                     return true;
                 }
 
@@ -511,7 +511,7 @@ namespace KinectServer
         {
             if (SetTempSyncState(false) && RestartAllClients())
             {
-                bTempSyncEnabled = false;
+                bTempHwSyncEnabled = false;
                 return true;
             }
 
@@ -601,6 +601,46 @@ namespace KinectServer
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// This methods checks if all connected clients are in a valid Hardware-Sync configuration
+        /// </summary>
+        /// <returns></returns>
+        public bool CheckTempHwSyncValid()
+        {
+            int mainCount = 0;
+            int subCount = 0;
+            int standaloneCount = 0;
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    switch (lClientSockets[i].configuration.eSoftwareSyncState)
+                    {
+                        case KinectConfiguration.SyncState.Main:
+                            mainCount++;
+                            break;
+                        case KinectConfiguration.SyncState.Subordinate:
+                            subCount++;
+                            break;
+                        case KinectConfiguration.SyncState.Standalone:
+                        case KinectConfiguration.SyncState.Unknown:
+                            standaloneCount++;
+                            break;
+
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            if (mainCount == 1 && standaloneCount == 0 && subCount > 0)
+                return true;
+
+            else
+                return false;
 
         }
 
@@ -865,10 +905,8 @@ namespace KinectServer
             }
 
             bool allGathered = true;
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
 
-            while (!allGathered || timer.Elapsed.TotalSeconds < networkTimeout)
+            while (allGathered)
             {
                 allGathered = true;
 
@@ -969,10 +1007,8 @@ namespace KinectServer
             }
 
             bool postSyncConfirmed = false;
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
 
-            while (!postSyncConfirmed && timer.Elapsed.TotalSeconds < networkTimeout)
+            while (!postSyncConfirmed)
             {
                 postSyncConfirmed = true;
 
@@ -985,8 +1021,6 @@ namespace KinectServer
                     }
                 }                
             }
-
-            timer.Stop();
             
             lock (oClientSocketLock)
             {
@@ -1104,7 +1138,7 @@ namespace KinectServer
                 if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.BGRA && oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
                     requiresRestart = true;
 
-                if (bTempSyncEnabled)
+                if (bTempHwSyncEnabled)
                 {
                     if (RestartWithTemporalSyncPattern())
                     {

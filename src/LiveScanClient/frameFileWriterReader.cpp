@@ -38,18 +38,28 @@ int FrameFileWriterReader::getRecordingTimeMilliseconds()
 	return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds >(end - recording_start_time).count());
 }
 
-void FrameFileWriterReader::openCurrentFileForReading()
+void FrameFileWriterReader::openCurrentBinFileForReading()
 {
 	closeFileIfOpened();
 
-	m_pFileHandle = fopen(m_sFilename.c_str(), "rb");
+	m_pFileHandle = fopen(m_sBinFilePath.c_str(), "rb");
 
 	m_bFileOpenedForReading = true;
 	m_bFileOpenedForWriting = false;
 	m_nCurrentReadFrameID = 0;
 }
 
-void FrameFileWriterReader::openNewFileForWriting(int deviceID, std::string prefix)
+void FrameFileWriterReader::openNewBinFileForReading(std::string path) {
+	closeFileIfOpened();
+
+	m_pFileHandle = fopen(path.c_str(), "rb");
+
+	m_bFileOpenedForReading = true;
+	m_bFileOpenedForWriting = false;
+	m_nCurrentReadFrameID = 0;
+}
+
+void FrameFileWriterReader::openNewBinFileForWriting(int deviceID, std::string prefix)
 {
 	closeFileIfOpened();
 
@@ -58,14 +68,14 @@ void FrameFileWriterReader::openNewFileForWriting(int deviceID, std::string pref
 	struct tm* now = localtime(&t);
 	sprintf(filename, "recording_%01d_%04d_%02d_%02d_%02d_%02d.bin", deviceID, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 
-	m_sFilename = m_sFrameRecordingsDir;
+	m_sBinFilePath = m_sFrameRecordingsDir;
 
 	if (prefix.size() > 0) {
-		m_sFilename += prefix + "_";
+		m_sBinFilePath += prefix + "_";
 	}
 
-	m_sFilename += filename;
-	m_pFileHandle = fopen(m_sFilename.c_str(), "wb");
+	m_sBinFilePath += filename;
+	m_pFileHandle = fopen(m_sBinFilePath.c_str(), "wb");
 
 	m_bFileOpenedForReading = false;
 	m_bFileOpenedForWriting = true;
@@ -78,7 +88,7 @@ bool FrameFileWriterReader::readNextBinaryFrame(std::vector<Point3s> &outPoints,
 	std::cout << "Reading Pointcloud Frame" << std::endl;
 
 	if (!m_bFileOpenedForReading)
-		openCurrentFileForReading();
+		openCurrentBinFileForReading();
 
 	outPoints.clear();
 	outColors.clear();
@@ -112,7 +122,7 @@ bool FrameFileWriterReader::writeNextBinaryFrame(std::vector<Point3s> points, st
 	std::cout << "Writing pointcloud frame" << std::endl;
 
 	if (!m_bFileOpenedForWriting)
-		openNewFileForWriting(deviceID, "");
+		openNewBinFileForWriting(deviceID, "");
 
 	FILE *f = m_pFileHandle;
 
@@ -387,7 +397,11 @@ std::string FrameFileWriterReader::GetRecordingDirPath() {
 	return m_sFrameRecordingsDir;
 }
 
-void FrameFileWriterReader::SetFrameRecordingDirPath(std::string path) {
+std::string FrameFileWriterReader::GetBinFilePath() {
+	return m_sBinFilePath;
+}
+
+void FrameFileWriterReader::SetRecordingDirPath(std::string path) {
 	m_sFrameRecordingsDir = path;
 }
 
