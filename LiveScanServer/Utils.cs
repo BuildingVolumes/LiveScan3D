@@ -211,14 +211,14 @@ namespace KinectServer
             fileStream.Close();
         }
 
-        public static void SaveExtrinsics(KinectSettings.ExtrinsicsStyle extrinsicsStyle, List<AffineTransform> cameraPoses, string filePath, List<string> serialNumbers)
+        public static void SaveExtrinsics(KinectSettings.ExtrinsicsStyle extrinsicsStyle, string filePath, List<KinectSocket> kinectSockets)
         {
             switch (extrinsicsStyle)
             {
                 case KinectSettings.ExtrinsicsStyle.None:
                     break;
                 case KinectSettings.ExtrinsicsStyle.Open3D:
-                    SaveExtrinsicsOpen3DStyle(cameraPoses, filePath, serialNumbers);
+                    SaveExtrinsicsOpen3DStyle(filePath, kinectSockets);
                     break;
                 case KinectSettings.ExtrinsicsStyle.OpenMVS:
                     break;
@@ -227,7 +227,7 @@ namespace KinectServer
             }
         }
 
-        private static void SaveExtrinsicsOpen3DStyle(List<AffineTransform> cameraPoses, string filePath, List<string> serialNumbers)
+        private static void SaveExtrinsicsOpen3DStyle(string filePath, List<KinectSocket> kinectSockets)
         {
             filePath += "Extrinsics_Open3D.log";
 
@@ -236,18 +236,18 @@ namespace KinectServer
             string zero = "0.0000000000";
             string one = "1.0000000000";
 
-            for (int i = 0; i < cameraPoses.Count; i++)
+            for (int i = 0; i < kinectSockets.Count; i++)
             {
-                content += "0\t" + serialNumbers[i] + "\t" + i + Environment.NewLine;
+                content += "0\t" + kinectSockets[i].configuration.SerialNumber + "\t" + kinectSockets[i].configuration.globalDeviceIndex + Environment.NewLine;
 
                 for (int j = 0; j < 3; j++)
                 {
                     for (int k = 0; k < 3; k++)
                     {
-                        content += cameraPoses[i].R[j, k].ToString("G11", CultureInfo.InvariantCulture) + "\t";
+                        content += kinectSockets[i].oCameraPose.R[j, k].ToString("G11", CultureInfo.InvariantCulture) + "\t";
                     }
 
-                    content += cameraPoses[i].t[j].ToString("G11", CultureInfo.InvariantCulture) + Environment.NewLine;
+                    content += kinectSockets[i].oCameraPose.t[j].ToString("G11", CultureInfo.InvariantCulture) + Environment.NewLine;
                 }
 
                 content += zero + "\t" +zero + "\t" + zero + "\t" + one;

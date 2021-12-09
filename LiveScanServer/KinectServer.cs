@@ -158,6 +158,13 @@ namespace KinectServer
                 kinectSettingsForms.Add(id, form);
             }
         }
+
+        public List<KinectSocket> GetClientSocketsCopy()
+        {
+            List<KinectSocket> sockets = new List<KinectSocket>(lClientSockets);
+            return sockets;
+        }
+
         public KinectSocket GetKinectSocketByIndex(int socketIndex)
         {
             return lClientSockets[socketIndex];
@@ -622,7 +629,7 @@ namespace KinectServer
 
             string takePathClients = takeName + "\\";
 
-            string takePathServer = "out\\" + takePathClients; //For the server, we also add the general output dir in which all recordings are stored. The client handles that himself
+            string takePathServer = "out\\" + takePathClients; //For the server, we also add the general output dir in which all recordings are stored. The client handles that themself
 
 
             //If we record pointclouds or export the extrinsics, we create a directory on the Server PC
@@ -927,7 +934,25 @@ namespace KinectServer
                 }
 
                 KinectConfiguration newConfig = lClientSockets[lClientSockets.Count - 1].configuration;
-                newConfig.globalDeviceIndex = (byte)(lClientSockets.Count - 1);
+
+
+                //Find a global device index that is unique
+                bool found = false;
+                int uniqueIndex = 0;
+                while (!found)
+                {
+                    found = true;
+                    for (int i = 0; i < lClientSockets.Count - 1; i++)
+                    {
+                        if (uniqueIndex == lClientSockets[i].configuration.globalDeviceIndex)
+                        {
+                            found = false;
+                            uniqueIndex++;
+                        }
+                    }
+                }
+
+                newConfig.globalDeviceIndex = (byte)uniqueIndex;
 
                 if (!SetAndConfirmConfig(lClientSockets[lClientSockets.Count - 1], newConfig))
                 {

@@ -34,7 +34,7 @@ namespace KinectServer
             eHardwareSyncState = SyncState.Unknown;
             syncOffset = 0;
             SerialNumber = "Unknown";
-            globalDeviceIndex = 0;
+            globalDeviceIndex = 0; // 255 = invalid index
             FilterDepthMap = false;
             FilterDepthMapSize = 0;
         }

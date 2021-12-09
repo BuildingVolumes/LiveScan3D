@@ -480,7 +480,7 @@ namespace KinectServer
                 }
 
                 //Store the camera extrinsics
-                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, oServer.lCameraPoses, takePath, oServer.GetSerialNumbers());
+                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, takePath, oServer.GetClientSocketsCopy());
 
                 recordingWorker.RunWorkerAsync();
                 btRecord.Text = "Stop recording";
