@@ -904,9 +904,9 @@ namespace KinectServer
                 }
             }
 
-            bool allGathered = true;
+            bool allGathered = false;
 
-            while (allGathered)
+            while (!allGathered)
             {
                 allGathered = true;
 
@@ -964,22 +964,6 @@ namespace KinectServer
                 return false;
             }
 
-            for (int i = 0; i < postSyncDeviceData.Count; i++)
-            {
-                for (int j = 0;  j< postSyncDeviceData[i].frames.Count; j++)
-                {
-                    if(postSyncDeviceData[i].frames[j].frameID == -1)
-                    {
-                        Debug.Print("Break");
-                    }
-
-                    if (postSyncDeviceData[i].frames[j].syncedFrameID == -1)
-                    {
-                        Debug.Print("Break");
-                    }
-                }
-            }
-
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
@@ -1034,24 +1018,56 @@ namespace KinectServer
             return true;
         }
 
-        public void SendRecordingStart()
+        public void SendAndConfirmPreRecordProcess()
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    lClientSockets[i].SendRecordingStart();
+                    lClientSockets[i].SendPreRecordProcessStart();
+                }
+            }
+
+            bool preProcessConfirmed = false;
+
+            while (!preProcessConfirmed)
+            {
+                preProcessConfirmed = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPreRecordProcessConfirmed)
+                            preProcessConfirmed = false;
+                    }
                 }
             }
         }
 
-        public void SendRecordingStop()
+        public void SendAndConfirmPostRecordProcess()
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    lClientSockets[i].SendRecordingStop();
+                    lClientSockets[i].SendPostRecordProcessStart();
+                }
+            }
+
+            bool postProcessConfirmation = false;
+
+            while (!postProcessConfirmation)
+            {
+                postProcessConfirmation = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPostRecordProcessConfirmed)
+                            postProcessConfirmation = false;
+                    }
                 }
             }
         }
@@ -1273,6 +1289,16 @@ namespace KinectServer
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_POSTSYNCED)
                             {
                                 lClientSockets[i].ReceivePostSyncConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_PRE_RECORD_PROCESS)
+                            {
+                                lClientSockets[i].ReceivePreRecordProcessConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_POST_RECORD_PROCESS)
+                            {
+                                lClientSockets[i].ReceivePostRecordProcessConfirmation();
                             }
 
                             buffer = lClientSockets[i].Receive(1);

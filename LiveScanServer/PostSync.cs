@@ -1,8 +1,115 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 
 namespace KinectServer
 {
+    /// <summary>
+    /// Contains all data needed to sync for a single frame
+    /// </summary>
+    public class SyncFrame
+    {
+        public int frameID;
+        public int syncedFrameID;
+        public int deviceIndex;
+        public ulong timestamp;
+        public bool grouped;
+
+        public SyncFrame(int frameID, ulong timestamp, int deviceIndex)
+        {
+            this.frameID = frameID;
+            this.timestamp = timestamp;
+            this.syncedFrameID = 0;
+            this.grouped = false;
+            this.deviceIndex = deviceIndex;
+        }
+
+        public SyncFrame(int frameID, int deviceIndex, int syncedFrameID)
+        {
+            this.frameID = frameID;
+            this.timestamp = 0;
+            this.syncedFrameID = syncedFrameID;
+            this.grouped = false;
+            this.deviceIndex = deviceIndex;
+        }
+
+        public SyncFrame(int frameID, int deviceIndex, int syncedFrameID, ulong timestamp)
+        {
+            this.frameID = frameID;
+            this.timestamp = timestamp;
+            this.syncedFrameID = syncedFrameID;
+            this.grouped = false;
+            this.deviceIndex = deviceIndex;
+        }
+    }
+
+    /// <summary>
+    /// Groups all frames, from all devices, which have a matching timestamp 
+    /// </summary>
+    public class GroupedFrame
+    {
+        public List<ClientFrame> listIndex;
+        public ulong minTimestamp;
+
+        public GroupedFrame()
+        {
+            this.listIndex = new List<ClientFrame>();
+            this.minTimestamp = 0;
+        }
+
+        public GroupedFrame(List<ClientFrame> frames, ulong minTimestamp)
+        {
+            this.listIndex = frames;
+            this.minTimestamp = minTimestamp;
+        }
+    }
+
+    /// <summary>
+    /// Contains a collection of a frame matched to a device
+    /// </summary>
+    public class ClientFrame
+    {
+        public int indexFrame;
+        public int indexClient;
+
+        public ClientFrame(int indexFrame, int indexClient)
+        {
+            this.indexFrame = indexFrame;
+            this.indexClient = indexClient;
+        }
+
+    }
+
+    /// <summary>
+    /// Contains all sync data for one device & recording
+    /// </summary>
+    public class ClientSyncData
+    {
+        public List<SyncFrame> frames;
+
+        public ClientSyncData()
+        {
+            this.frames = new List<SyncFrame>();
+        }
+
+        public ClientSyncData(List<SyncFrame> frames)
+        {
+            this.frames = frames;
+        }
+
+        public ClientSyncData(List<int> frameNumbers, List<ulong> timestamps, int deviceIndex)
+        {
+            List<SyncFrame> newSyncFrames = new List<SyncFrame>();
+
+            for (int i = 0; i < frameNumbers.Count; i++)
+            {
+                newSyncFrames.Add(new SyncFrame(frameNumbers[i], timestamps[i], deviceIndex));
+            }
+
+            this.frames = newSyncFrames;
+        }
+    }
+
     public class PostSync
     {
         public static List<ClientSyncData> GenerateSyncList(List<ClientSyncData> allDeviceSyncData)
@@ -79,15 +186,12 @@ namespace KinectServer
             for (int i = 0; i < allSyncData.Count; i++)
             {
                 firstTimeStamps.Add(allSyncData[i].frames[0].timestamp);
-                //Console.WriteLine("First Frame of Device " + i + " : " + firstTimeStamps[i]);
             }
 
             firstTimeStamps.Sort();
 
             ulong difference = firstTimeStamps[firstTimeStamps.Count - 1] - firstTimeStamps[0];
             ulong maxToleratedTime = frameTiming * maxToleranceFrames;
-
-            //Console.WriteLine("Difference Between Timestamp starts is: " + difference + ", max tolerated time is: " + maxToleratedTime);
 
             if (difference < maxToleratedTime)
                 return true;
@@ -141,16 +245,8 @@ namespace KinectServer
 
             allGroupedFrames.Sort((x, y) => x.minTimestamp.CompareTo(y.minTimestamp));
 
-            foreach (GroupedFrame gf in allGroupedFrames)
-            {
-                Console.WriteLine("Grouped Frame " + gf.minTimestamp + " Contains: ");
-                foreach (ClientFrame cf in gf.listIndex)
-                {
-                    Console.WriteLine("Client: " + cf.indexClient + " Frame " + cf.indexFrame);
-                }
-
-                Console.WriteLine("");
-            }
+            if (System.Diagnostics.Debugger.IsAttached)
+                LogGroupedFrameData(allGroupedFrames);
 
             //Create a new List that contains all the correctly synced frames for each device 
             List<ClientSyncData> postSyncedData = new List<ClientSyncData>();
@@ -188,19 +284,10 @@ namespace KinectServer
                 }
             }
 
-            //for (int i = 0; i < syncCollections.Count; i++)
-            //{
-            //    for (int j = 0; j < syncCollections[i].frames.Count; j++)
-            //    {
-            //        Console.WriteLine("SyncID: " + syncCollections[i].frames[j].syncedFrameID + ", Timestamp: " + syncCollections[i].frames[j].timestamp);
-            //    }
-
-            //    Console.WriteLine("\r");
-            //    Console.WriteLine("\r");
-            //}
+            if (System.Diagnostics.Debugger.IsAttached)
+                LogSyncData(postSyncedData);
 
             return postSyncedData;
-
         }
 
         /// <summary>
@@ -228,103 +315,48 @@ namespace KinectServer
 
             return -1;
         }
-    }
 
-    /// <summary>
-    /// Contains all sync data for one device & recording
-    /// </summary>
-    public class ClientSyncData
-    {
-        public List<SyncFrame> frames;
-
-        public ClientSyncData()
+        static void LogSyncData(List<ClientSyncData> syncData)
         {
-            this.frames = new List<SyncFrame>();
-        }
+            string text = "";
 
-        public ClientSyncData(List<SyncFrame> frames)
-        {
-            this.frames = frames;
-        }
-
-        public ClientSyncData(List<int> frameNumbers, List<ulong> timestamps, int deviceIndex)
-        {
-            List<SyncFrame> newSyncFrames = new List<SyncFrame>();
-
-            for (int i = 0; i < frameNumbers.Count; i++)
+            for (int i = 0; i < syncData.Count; i++)
             {
-                newSyncFrames.Add(new SyncFrame(frameNumbers[i], timestamps[i], deviceIndex));
+                text += "Sync Data for Client: " + i + "\n";
+
+                for (int j = 0; j < syncData[i].frames.Count; j++)
+                {
+                    text += "Frame original number: " + syncData[i].frames[j].frameID + ", new Sync number: " + syncData[i].frames[j].syncedFrameID + "\n";
+                }
+
+                text += "\n\n";
             }
 
-            this.frames = newSyncFrames;
+            File.WriteAllText("PostSyncDataForClientsLog.txt", text);
+        }
+
+        static void LogGroupedFrameData(List<GroupedFrame> groupedFrames)
+        {
+            string text = "";
+
+            foreach (GroupedFrame gf in groupedFrames)
+            {
+                text += "Grouped Frame " + gf.minTimestamp + " Contains: " + "\n";
+
+                foreach (ClientFrame cf in gf.listIndex)
+                {
+                    text += "Client: " + cf.indexClient + " Frame " + cf.indexFrame + "\n";
+                }
+
+                text += "\n";
+            }
+
+            File.WriteAllText("PostSyncGroupedFramesLog.txt", text);
         }
     }
 
-    /// <summary>
-    /// Class contains all data needed to sync for a single frame
-    /// </summary>
-    public class SyncFrame
-    {
-        public int frameID;
-        public int syncedFrameID;
-        public int deviceIndex;
-        public ulong timestamp;
-        public bool grouped;
+    
 
-        public SyncFrame(int frameID, ulong timestamp, int deviceIndex)
-        {
-            this.frameID = frameID;
-            this.timestamp = timestamp;
-            this.syncedFrameID = 0;
-            this.grouped = false;
-            this.deviceIndex = deviceIndex;
-        }
-
-        public SyncFrame(int frameID, int deviceIndex, int syncedFrameID)
-        {
-            this.frameID = frameID;
-            this.timestamp = 0;
-            this.syncedFrameID = syncedFrameID;
-            this.grouped = false;
-            this.deviceIndex = deviceIndex;
-        }
-    }
-
-    /// <summary>
-    /// Groups all frames, from all devices, which have a matching timestamp 
-    /// </summary>
-    public class GroupedFrame
-    {
-        public List<ClientFrame> listIndex;
-        public ulong minTimestamp;
-
-        public GroupedFrame()
-        {
-            this.listIndex = new List<ClientFrame>();
-            this.minTimestamp = 0;
-        }
-
-        public GroupedFrame(List<ClientFrame> frames, ulong minTimestamp)
-        {
-            this.listIndex = frames;
-            this.minTimestamp = minTimestamp;
-        }
-    }
-
-    /// <summary>
-    /// Contains a collection of a frame matched to a device
-    /// </summary>
-    public class ClientFrame
-    {
-        public int indexFrame;
-        public int indexClient;
-
-        public ClientFrame(int indexFrame, int indexClient)
-        {
-            this.indexFrame = indexFrame;
-            this.indexClient = indexClient;
-        }
-
-    }
+    
 }
 

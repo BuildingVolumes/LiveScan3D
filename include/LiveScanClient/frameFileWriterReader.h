@@ -42,6 +42,7 @@ public:
 
 
 	void closeFileIfOpened();
+	void closeAndDeleteFile();
 
     ~FrameFileWriterReader();
 

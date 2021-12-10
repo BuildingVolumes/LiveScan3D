@@ -172,8 +172,7 @@ namespace KinectServer
             bool networkSyncEnabled = oSettings.bNetworkSync;
             BackgroundWorker worker = (BackgroundWorker)sender;
 
-            oServer.SendRecordingStart();
-            Thread.Sleep(1); //Give the clients a short amount of time to process the command
+            oServer.SendAndConfirmPreRecordProcess();
 
             if (!networkSyncEnabled || oServer.bTempHwSyncEnabled)
             {
@@ -203,7 +202,7 @@ namespace KinectServer
                 }
             }
 
-            oServer.SendRecordingStop();
+            oServer.SendAndConfirmPostRecordProcess();
 
         }
 
@@ -229,6 +228,8 @@ namespace KinectServer
         {
             //TODO: What if sync was not successfull?
             bool synced = true;
+
+            Console.ReadLine();
 
             if (oServer.bTempHwSyncEnabled)
             {

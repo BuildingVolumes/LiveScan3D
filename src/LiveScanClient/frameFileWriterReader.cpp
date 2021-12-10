@@ -27,6 +27,20 @@ void FrameFileWriterReader::closeFileIfOpened()
 	m_bFileOpenedForWriting = false;
 }
 
+void FrameFileWriterReader::closeAndDeleteFile()
+{
+	if (m_pFileHandle == nullptr)
+		return;
+
+	fclose(m_pFileHandle);
+	remove(m_sBinFilePath.c_str());
+
+	m_pFileHandle = nullptr;
+	m_sBinFilePath = "";
+	m_bFileOpenedForReading = false;
+	m_bFileOpenedForWriting = false;
+}
+
 void FrameFileWriterReader::resetTimer()
 {
 	recording_start_time = std::chrono::steady_clock::now();

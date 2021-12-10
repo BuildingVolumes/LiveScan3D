@@ -43,6 +43,9 @@ namespace KinectServer
         public bool bPostSyncConfirmed = false;
         public bool bPostSyncError = false;
 
+        public bool bPreRecordProcessConfirmed = false;
+        public bool bPostRecordProcessConfirmed = false;
+
         public KinectConfiguration configuration;
 
         //The pose of the sensor in the scene (used by the OpenGLWindow to show the sensor)
@@ -219,20 +222,22 @@ namespace KinectServer
         }
 
         /// <summary>
-        /// This doesn't actually start or stop a recording on a client, it just let's it know that we are in record mode
+        /// Allows the client to prepare itself for the recording
         /// </summary>
-        public void SendRecordingStart()
+        public void SendPreRecordProcessStart()
         {
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_RECORDING_START;
+            bPreRecordProcessConfirmed = false;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_PRE_RECORD_PROCESS_START;
             SendByte();
         }
 
         /// <summary>
-        /// Let's the client know that record mode is now off
+        /// Allows the client to process it's data after recording
         /// </summary>
-        public void SendRecordingStop()
+        public void SendPostRecordProcessStart()
         {
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_RECORDING_STOP;
+            bPostRecordProcessConfirmed = false;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_POST_RECORD_PROCESS_START;
             SendByte();
         }
 
@@ -486,6 +491,16 @@ namespace KinectServer
             if (success[0] == 0)
                 bPostSyncError = true;
 
+        }
+
+        public void ReceivePreRecordProcessConfirmation()
+        {
+            bPreRecordProcessConfirmed = true;
+        }
+
+        public void ReceivePostRecordProcessConfirmation()
+        {
+            bPostRecordProcessConfirmed = true;
         }
 
         public byte[] Receive(int nBytes)

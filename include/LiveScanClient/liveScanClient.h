@@ -52,8 +52,10 @@ private:
 
 	bool m_bCaptureFrames;
 	bool m_bCaptureSingleFrame;
-	bool m_bRecordingStart;
-	bool m_bRecordingStop;
+	bool m_bStartPreRecordingProcess;
+	bool m_bConfirmPreRecordingProcess;
+	bool m_bStartPostRecordingProcess;
+	bool m_bConfirmPostRecordingProcess;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
