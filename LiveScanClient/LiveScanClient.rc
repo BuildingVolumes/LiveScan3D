@@ -15,7 +15,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Englisch (USA) resources
+// English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
@@ -96,7 +96,7 @@ END
 
 #endif    // APSTUDIO_INVOKED
 
-#endif    // Englisch (USA) resources
+#endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

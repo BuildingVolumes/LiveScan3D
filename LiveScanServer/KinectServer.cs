@@ -301,40 +301,6 @@ namespace KinectServer
             }
         }
 
-        //TODO: This code isn't needed anymore, as better functions to set the configuration already exist.
-        public void SendConfigurationToSocket(KinectSocket socket, KinectConfiguration newConfig)
-        {
-            var gotConfigurations = GetConfigurations(new List<KinectSocket>() { socket });
-            if (!gotConfigurations)
-            {
-                //error
-                return;
-            }
-
-            var oldConfig = socket.configuration;
-            bool needsRestart = KinectConfiguration.RequiresRestartAfterChange(oldConfig, newConfig);
-            var confirmed = SetAndConfirmConfig(socket, newConfig);
-
-            if (confirmed)
-            {
-                if (needsRestart)
-                {
-                    if (bTempHwSyncEnabled)
-                    {
-                        RestartWithTemporalSyncPattern();
-                    }
-                    else
-                    {
-                        RestartClients(new List<KinectSocket>() { socket });//todo: method overload for single socket.
-                    }
-                }
-            }
-            else
-            {
-                //error in getting configuration 
-            }
-        }
-
         public bool SetAndConfirmConfig(KinectSocket socket, KinectConfiguration newConfig)
         {
             lock (oClientSocketLock)
@@ -370,60 +336,110 @@ namespace KinectServer
         }
 
 
+        public bool CloseClient(KinectSocket client)
+        {
+            return CloseClient(new List<KinectSocket>() { client });
+        }
+
         /// <summary>
-        /// Restarts all clients in the list 
+        /// Closes all clients in the list 
         /// </summary>
         /// <returns>Returns true on successfull restart, false on restart error</returns>
-        public bool RestartClients(List<KinectSocket> clients)
+        public bool CloseClient(List<KinectSocket> clients)
         {
+            bool cameraError = false;
+
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < clients.Count; i++)
                 {
-                    clients[i].ReinitializeAndConfirm();
-                    clients[i].UpdateSocketState(" Restarting... ");
+                    clients[i].CloseCameraAndConfirm();
+                    clients[i].UpdateSocketState(" Reinitializing Camera... ");
                 }
             }
 
-            bool recievedData = false;
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-            while (!recievedData && timer.Elapsed.TotalSeconds < networkTimeout)
+            bool camerasClosed = false;
+            while (!camerasClosed)
             {
-                recievedData = true;
+                camerasClosed = true;
 
                 lock (oClientSocketLock)
                 {
                     for (int i = 0; i < clients.Count; i++)
                     {
-                        if (!clients[i].bReinitialized)
-                            recievedData = false;
+                        if (!clients[i].bCameraClosed)
+                            camerasClosed = false;
                     }
                 }
-
-
             }
 
-            timer.Stop();
-
-            bool restartSuccess = true;
 
             for (int i = 0; i < clients.Count; i++)
             {
-                if (!clients[i].bReinitialized || clients[i].bReinizializationError)
+                if (clients[i].bCameraError)
                 {
-                    fMainWindowForm?.SetStatusBarOnTimer("Could not restart a kinect. Please connect and try again:", 5000);
-                    restartSuccess = false;
-                    clients[i].UpdateSocketState(" Restart failed! ");
+                    fMainWindowForm?.SetStatusBarOnTimer("Could not close a kinect. Please reconnect the client and try again:", 10000);
+                    clients[i].UpdateSocketState(" Close failed! ");
+                    cameraError = true;
                 }
 
                 else
-                {
                     clients[i].UpdateSocketState("");
+            }            
+
+            if (cameraError)
+                return false;
+
+            return true;
+        }
+
+        public bool InitializeClient(KinectSocket client)
+        {
+            return InitializeClient(new List<KinectSocket>() { client });
+        }
+
+        public bool InitializeClient(List<KinectSocket> clients)
+        {
+            bool cameraError = false;
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < clients.Count; i++)
+                {
+                    clients[i].InitializeCameraAndConfirm();
+                    clients[i].UpdateSocketState(" Initializing Camera... ");
                 }
             }
 
-            if (!restartSuccess)
+            bool camerasInitialized = false;
+            while (!camerasInitialized)
+            {
+                camerasInitialized = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < clients.Count; i++)
+                    {
+                        if (!clients[i].bCameraInitialized)
+                            camerasInitialized = false;
+                    }
+                }
+            }
+
+            for (int i = 0; i < clients.Count; i++)
+            {
+                if (clients[i].bCameraError)
+                {
+                    fMainWindowForm?.SetStatusBarOnTimer("Could not initialize a kinect. Please reconnect the client and try again:", 10000);
+                    clients[i].UpdateSocketState(" Initialization failed! ");
+                    cameraError = true;
+                }
+
+                else
+                    clients[i].UpdateSocketState("");
+            }
+
+            if (cameraError)
                 return false;
 
             return true;
@@ -431,7 +447,13 @@ namespace KinectServer
 
         public bool RestartAllClients()
         {
-            return RestartClients(lClientSockets);
+            if (CloseClient(lClientSockets))
+            {
+                return InitializeClient(lClientSockets);
+            }
+
+            else
+                return false;
         }
 
         /// <summary>
@@ -453,18 +475,26 @@ namespace KinectServer
                     main.Add(lClientSockets[i]);
             }
 
-            if (!RestartClients(subordinates))
+            //First we need to close all cameras, and ensure no camera is running anymore
+            if (!CloseClient(lClientSockets))
             {
-                fMainWindowForm?.SetStatusBarOnTimer("Could not restart one ore more subordinates. Please try again:", 5000);
+                fMainWindowForm?.SetStatusBarOnTimer("Could not close one or more clients. Please try again:", 10000);
                 return false;
             }
 
-            if (!RestartClients(main))
+            //Then we initialize the subordinates. The subordinates don't start yet, but wait for the master to start
+            if (!InitializeClient(subordinates))
             {
-                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main. Please try again:", 5000);
+                fMainWindowForm?.SetStatusBarOnTimer("Could not restart one or more subordinate cameras. Please try again:", 10000);
                 return false;
             }
 
+            //Lastly we initialize the main camera. This will also synchroniously start all other subordinates
+            if (!InitializeClient(main))
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main camera. Please try again:", 10000);
+                return false;
+            }
 
             lock (oClientSocketLock)
             {
@@ -1156,7 +1186,7 @@ namespace KinectServer
 
                 if (bTempHwSyncEnabled)
                 {
-                    if (RestartWithTemporalSyncPattern())
+                    if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
                     {
                         lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
                     }
@@ -1164,14 +1194,11 @@ namespace KinectServer
 
                 else if (requiresRestart)
                 {
-                    if (RestartClients(new List<KinectSocket>() { lClientSockets[lClientSockets.Count - 1] }))
+                    if (CloseClient(lClientSockets[lClientSockets.Count - 1]) && InitializeClient(lClientSockets[lClientSockets.Count - 1]))
                     {
                         lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
                     }
                 }
-
-
-
             }
         }
 
@@ -1271,9 +1298,14 @@ namespace KinectServer
                                 lClientSockets[i].RecieveConfiguration();
                             }
 
-                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_RESTART)
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CAMERA_CLOSED)
                             {
-                                lClientSockets[i].ReceiveRestartConfirmation();
+                                lClientSockets[i].ReceiveCameraClosedConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CAMERA_INIT)
+                            {
+                                lClientSockets[i].ReceiveCameraInitializedConfirmation();
                             }
 
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
