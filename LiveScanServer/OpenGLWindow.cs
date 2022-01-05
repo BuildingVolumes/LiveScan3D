@@ -31,6 +31,20 @@ enum ECameraMode
     CAMERA_NONE, CAMERA_TRACK, CAMERA_DOLLY, CAMERA_ORBIT
 }
 
+public class ViewportSettings
+{
+    public float pointSize;
+    public int brightness;
+    public bool markerVisibility;
+
+    public ViewportSettings()
+    {
+        pointSize = 0;
+        brightness = 0;
+        markerVisibility = true;
+    }
+}
+
 namespace KinectServer
 {
     public class OpenGLWindow : GameWindow
@@ -41,6 +55,9 @@ namespace KinectServer
         VertexC4ubV3f[] VBO;
         float PointSize = 0.0f;
         ECameraMode CameraMode = ECameraMode.CAMERA_NONE;
+
+        public enum EColorMode { RGB, BGR}; 
+        EColorMode ColorMode = EColorMode.BGR; //RGB for Kinect 1+2, BGR for Azure Kinect
 
         static float KEYBOARD_MOVE_SPEED = 0.01f;
 
@@ -67,6 +84,8 @@ namespace KinectServer
         public List<AffineTransform> cameraPoses = new List<AffineTransform>();
         public List<Body> bodies = new List<Body>();
         public KinectSettings settings = new KinectSettings();
+
+        public ViewportSettings viewportSettings = new ViewportSettings();
 
         DateTime tFPSUpdateTimer = DateTime.Now;
         int nTickCounter = 0;
@@ -322,6 +341,12 @@ namespace KinectServer
                 nTickCounter = 0;
             }
 
+            lock (viewportSettings)
+            {
+                GL.PointSize(viewportSettings.pointSize);
+                brightnessModifier = (byte)viewportSettings.brightness;
+                bDrawMarkings = viewportSettings.markerVisibility;
+            }
 
             lock (vertices)
             {
@@ -347,10 +372,23 @@ namespace KinectServer
 
                     for (int i = 0; i < PointCount; i++)
                     {
-                        VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
-                        VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
-                        VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
-                        VBO[i].A = 255;
+                        if(ColorMode == EColorMode.RGB)
+                        {
+                            VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
+                            VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
+                            VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
+                            VBO[i].A = 255;
+                        }
+
+                        else if(ColorMode == EColorMode.BGR)
+                        {
+                            VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
+                            VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
+                            VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
+                            VBO[i].A = 255;
+                        }
+
+                       
                         VBO[i].Position.X = vertices[i * 3];
                         VBO[i].Position.Y = vertices[i * 3 + 1];
                         VBO[i].Position.Z = vertices[i * 3 + 2];
@@ -669,6 +707,11 @@ namespace KinectServer
             VBO[startIdx + 1].Position.X = x1;
             VBO[startIdx + 1].Position.Y = y1;
             VBO[startIdx + 1].Position.Z = z1;
+        }
+
+        public void SwitchColorMode(EColorMode colorMode)
+        {
+            this.ColorMode = colorMode;
         }
     }
 }

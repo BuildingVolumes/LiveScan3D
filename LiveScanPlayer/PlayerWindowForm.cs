@@ -21,6 +21,8 @@ namespace LiveScanPlayer
         List<float> lAllVertices = new List<float>();
         List<byte> lAllColors = new List<byte>();
 
+        ViewportSettings viewportSettings = new ViewportSettings();
+
         TransferServer oTransferServer = new TransferServer();
 
         AutoResetEvent eUpdateWorkerFinished = new AutoResetEvent(false);
@@ -28,9 +30,9 @@ namespace LiveScanPlayer
         public PlayerWindowForm()
         {
             InitializeComponent();
-           
-            oTransferServer.lVertices = lAllVertices;
-            oTransferServer.lColors = lAllColors;
+
+            //oTransferServer.lVertices = lAllVertices;
+            //oTransferServer.lColors = lAllColors;
 
             lFrameFilesListView.Columns.Add("Current frame", 75);
             lFrameFilesListView.Columns.Add("Filename", 300);
@@ -39,7 +41,7 @@ namespace LiveScanPlayer
         private void PlayerWindowForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             bPlayerRunning = false;
-            oTransferServer.StopServer();
+            //oTransferServer.StopServer();
         }
 
         private void btSelect_Click(object sender, EventArgs e)
@@ -51,10 +53,10 @@ namespace LiveScanPlayer
             lock (lFrameFiles)
             {
                 for (int i = 0; i < dialog.FileNames.Length; i++)
-                {                
+                {
                     lFrameFiles.Add(new FrameFileReaderBin(dialog.FileNames[i]));
 
-                    var item = new ListViewItem(new [] { "0", dialog.FileNames[i]});
+                    var item = new ListViewItem(new[] { "0", dialog.FileNames[i] });
                     lFrameFilesListView.Items.Add(item);
                 }
             }
@@ -71,11 +73,11 @@ namespace LiveScanPlayer
 
             lock (lFrameFiles)
             {
-                    lFrameFiles.Add(new FrameFileReaderPly(dialog.FileNames));
-                    
-                    
-                    var item = new ListViewItem(new[] { "0", Path.GetDirectoryName(dialog.FileNames[0]) });
-                    lFrameFilesListView.Items.Add(item);              
+                lFrameFiles.Add(new FrameFileReaderPly(dialog.FileNames));
+
+
+                var item = new ListViewItem(new[] { "0", Path.GetDirectoryName(dialog.FileNames[0]) });
+                lFrameFilesListView.Items.Add(item);
             }
         }
 
@@ -84,14 +86,14 @@ namespace LiveScanPlayer
             bPlayerRunning = !bPlayerRunning;
 
             if (bPlayerRunning)
-            {            
-                oTransferServer.StartServer();
+            {
+                //oTransferServer.StartServer();
                 updateWorker.RunWorkerAsync();
                 btStart.Text = "Stop player";
             }
             else
             {
-                oTransferServer.StopServer();
+                //oTransferServer.StopServer();
                 btStart.Text = "Start player";
                 eUpdateWorkerFinished.WaitOne();
             }
@@ -115,7 +117,7 @@ namespace LiveScanPlayer
             lock (lFrameFiles)
             {
                 for (int i = 0; i < lFrameFiles.Count; i++)
-                {                    
+                {
                     lFrameFiles[i].Rewind();
                     lFrameFilesListView.Items[i].Text = "0";
                 }
@@ -125,7 +127,9 @@ namespace LiveScanPlayer
         private void btShow_Click(object sender, EventArgs e)
         {
             if (!OpenGLWorker.IsBusy)
+            {
                 OpenGLWorker.RunWorkerAsync();
+            }
         }
 
         private void updateWorker_DoWork(object sender, DoWorkEventArgs e)
@@ -149,7 +153,7 @@ namespace LiveScanPlayer
                         List<byte> colors = new List<byte>();
                         lFrameFiles[i].ReadFrame(vertices, colors);
 
-                        tempAllVertices.AddRange(vertices);                        
+                        tempAllVertices.AddRange(vertices);
                         tempAllColors.AddRange(colors);
 
                         Console.WriteLine("Frame: " + curFrameIdx + " FileID: " + i + " Timestamp: " + timeStamp);
@@ -169,7 +173,7 @@ namespace LiveScanPlayer
 
                 if (chSaveFrames.Checked)
                     SaveCurrentFrameToFile(outDir, curFrameIdx);
-                
+
 
                 curFrameIdx++;
             }
@@ -183,6 +187,7 @@ namespace LiveScanPlayer
 
             openGLWindow.vertices = lAllVertices;
             openGLWindow.colors = lAllColors;
+            openGLWindow.viewportSettings = this.viewportSettings;
 
             openGLWindow.Run();
         }
@@ -234,6 +239,30 @@ namespace LiveScanPlayer
             }
             string outputFilename = outDir + frameIdx.ToString().PadLeft(5, '0') + ".ply";
             Utils.saveToPly(outputFilename, lVertices, lColors, true);
+        }
+
+        private void PlayerWindowForm_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void tbPointsize_Scroll(object sender, EventArgs e)
+        {
+            viewportSettings.pointSize = tbPointsize.Value;
+        }
+
+        private void tbBrightness_Scroll(object sender, EventArgs e)
+        {
+            int brightness = tbBrightness.Value * 10;
+            brightness = Math.Min(255, brightness);
+            brightness = Math.Max(0, brightness);
+
+            viewportSettings.brightness = tbBrightness.Value;
+        }
+
+        private void chShowGizmos_CheckedChanged(object sender, EventArgs e)
+        {
+            viewportSettings.markerVisibility = chShowGizmos.Checked;
         }
     }
 }
