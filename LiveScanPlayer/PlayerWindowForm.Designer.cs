@@ -53,7 +53,7 @@
             // 
             // btSelect
             // 
-            this.btSelect.Location = new System.Drawing.Point(12, 41);
+            this.btSelect.Location = new System.Drawing.Point(12, 12);
             this.btSelect.Name = "btSelect";
             this.btSelect.Size = new System.Drawing.Size(89, 23);
             this.btSelect.TabIndex = 0;
@@ -63,11 +63,11 @@
             // 
             // btStart
             // 
-            this.btStart.Location = new System.Drawing.Point(12, 12);
+            this.btStart.Location = new System.Drawing.Point(12, 99);
             this.btStart.Name = "btStart";
             this.btStart.Size = new System.Drawing.Size(89, 23);
             this.btStart.TabIndex = 1;
-            this.btStart.Text = "Start player";
+            this.btStart.Text = "Play";
             this.btStart.UseVisualStyleBackColor = true;
             this.btStart.Click += new System.EventHandler(this.btStart_Click);
             // 
@@ -101,7 +101,7 @@
             // 
             // btRemove
             // 
-            this.btRemove.Location = new System.Drawing.Point(12, 99);
+            this.btRemove.Location = new System.Drawing.Point(12, 70);
             this.btRemove.Name = "btRemove";
             this.btRemove.Size = new System.Drawing.Size(89, 23);
             this.btRemove.TabIndex = 6;
@@ -135,7 +135,7 @@
             // 
             // btnSelectPly
             // 
-            this.btnSelectPly.Location = new System.Drawing.Point(12, 70);
+            this.btnSelectPly.Location = new System.Drawing.Point(12, 41);
             this.btnSelectPly.Name = "btnSelectPly";
             this.btnSelectPly.Size = new System.Drawing.Size(89, 23);
             this.btnSelectPly.TabIndex = 9;
@@ -226,8 +226,8 @@
             this.Controls.Add(this.btnSelectPly);
             this.Controls.Add(this.lFrameFilesListView);
             this.Controls.Add(this.btRemove);
-            this.Controls.Add(this.btRewind);
             this.Controls.Add(this.btShow);
+            this.Controls.Add(this.btRewind);
             this.Controls.Add(this.btStart);
             this.Controls.Add(this.btSelect);
             this.Name = "PlayerWindowForm";

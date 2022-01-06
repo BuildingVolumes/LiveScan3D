@@ -89,12 +89,12 @@ namespace LiveScanPlayer
             {
                 //oTransferServer.StartServer();
                 updateWorker.RunWorkerAsync();
-                btStart.Text = "Stop player";
+                btStart.Text = "Pause";
             }
             else
             {
                 //oTransferServer.StopServer();
-                btStart.Text = "Start player";
+                btStart.Text = "Play";
                 eUpdateWorkerFinished.WaitOne();
             }
         }
@@ -156,7 +156,7 @@ namespace LiveScanPlayer
                         tempAllVertices.AddRange(vertices);
                         tempAllColors.AddRange(colors);
 
-                        Console.WriteLine("Frame: " + curFrameIdx + " FileID: " + i + " Timestamp: " + timeStamp);
+                        Console.WriteLine("Frame: " + curFrameIdx + " FileID: " + i);
                     }
                 }
 
