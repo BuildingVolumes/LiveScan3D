@@ -33,15 +33,21 @@ enum ECameraMode
 
 public class ViewportSettings
 {
+    public enum EColorMode { RGB, BGR };
+
     public float pointSize;
     public int brightness;
     public bool markerVisibility;
+    public int targetFPS;
+    public EColorMode colorMode = EColorMode.BGR;
+
 
     public ViewportSettings()
     {
         pointSize = 0;
         brightness = 0;
         markerVisibility = true;
+        targetFPS = 30;
     }
 }
 
@@ -55,9 +61,6 @@ namespace KinectServer
         VertexC4ubV3f[] VBO;
         float PointSize = 0.0f;
         ECameraMode CameraMode = ECameraMode.CAMERA_NONE;
-
-        public enum EColorMode { RGB, BGR}; 
-        EColorMode ColorMode = EColorMode.BGR; //RGB for Kinect 1+2, BGR for Azure Kinect
 
         static float KEYBOARD_MOVE_SPEED = 0.01f;
 
@@ -88,7 +91,9 @@ namespace KinectServer
         public ViewportSettings viewportSettings = new ViewportSettings();
 
         DateTime tFPSUpdateTimer = DateTime.Now;
+        DateTime tLastFrameTimer = DateTime.Now;
         int nTickCounter = 0;
+        int nLastFrameTimeMS = 0;
 
         bool bDrawMarkings = true;
 
@@ -126,6 +131,11 @@ namespace KinectServer
         public void CloudUpdateTick()
         {
             nTickCounter++;
+        }
+
+        public int GetLastFrameTimeMS()
+        {
+            return nLastFrameTimeMS;
         }
 
         public void ToggleFullscreen()
@@ -335,11 +345,14 @@ namespace KinectServer
             if ((DateTime.Now - tFPSUpdateTimer).Seconds >= 1)
             {
                 double FPS = nTickCounter / (DateTime.Now - tFPSUpdateTimer).TotalSeconds;
-                this.Title = "FPS: " + string.Format("{0:F}", FPS);
+                this.Title = "FPS: " + string.Format("{0:F}", nTickCounter);
 
                 tFPSUpdateTimer = DateTime.Now;
                 nTickCounter = 0;
             }
+
+            nLastFrameTimeMS = (int)(DateTime.Now - tLastFrameTimer).TotalMilliseconds;
+            tLastFrameTimer = DateTime.Now;
 
             lock (viewportSettings)
             {
@@ -372,7 +385,7 @@ namespace KinectServer
 
                     for (int i = 0; i < PointCount; i++)
                     {
-                        if(ColorMode == EColorMode.RGB)
+                        if(viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
                         {
                             VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
@@ -380,7 +393,7 @@ namespace KinectServer
                             VBO[i].A = 255;
                         }
 
-                        else if(ColorMode == EColorMode.BGR)
+                        else if(viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
                         {
                             VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
@@ -707,11 +720,6 @@ namespace KinectServer
             VBO[startIdx + 1].Position.X = x1;
             VBO[startIdx + 1].Position.Y = y1;
             VBO[startIdx + 1].Position.Z = z1;
-        }
-
-        public void SwitchColorMode(EColorMode colorMode)
-        {
-            this.ColorMode = colorMode;
         }
     }
 }

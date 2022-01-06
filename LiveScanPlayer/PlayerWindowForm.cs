@@ -10,11 +10,14 @@ using System.Windows.Forms;
 using System.Threading;
 using System.IO;
 using KinectServer;
+using System.Diagnostics;
 
 namespace LiveScanPlayer
 {
     public partial class PlayerWindowForm : Form
     {
+        OpenGLWindow openGLWindow = null;
+
         BindingList<IFrameFileReader> lFrameFiles = new BindingList<IFrameFileReader>();
         bool bPlayerRunning = false;
 
@@ -33,7 +36,7 @@ namespace LiveScanPlayer
 
             //oTransferServer.lVertices = lAllVertices;
             //oTransferServer.lColors = lAllColors;
-
+            viewportSettings.targetFPS = (int)nUDFramerate.Value;
             lFrameFilesListView.Columns.Add("Current frame", 75);
             lFrameFilesListView.Columns.Add("Filename", 300);
         }
@@ -58,6 +61,9 @@ namespace LiveScanPlayer
 
                     var item = new ListViewItem(new[] { "0", dialog.FileNames[i] });
                     lFrameFilesListView.Items.Add(item);
+
+                    //.bin files use BGR color mode
+                    viewportSettings.colorMode = ViewportSettings.EColorMode.BGR;
                 }
             }
         }
@@ -75,9 +81,11 @@ namespace LiveScanPlayer
             {
                 lFrameFiles.Add(new FrameFileReaderPly(dialog.FileNames));
 
-
                 var item = new ListViewItem(new[] { "0", Path.GetDirectoryName(dialog.FileNames[0]) });
                 lFrameFilesListView.Items.Add(item);
+
+                //Pointclouds use RGB color mode
+                viewportSettings.colorMode = ViewportSettings.EColorMode.RGB;
             }
         }
 
@@ -138,9 +146,27 @@ namespace LiveScanPlayer
             string outDir = "outPlayer\\";
             DirectoryInfo di = Directory.CreateDirectory(outDir);
 
+            Stopwatch stopwatch = new Stopwatch();
+
             while (bPlayerRunning)
             {
-                Thread.Sleep(50);
+                //We measure how long the main thread and the OpenGL Thread need to render the frame and
+                //if they are faster than the target FPS, let the thread sleep for the remaining time,
+                //so that we don't play too fast
+                stopwatch.Stop();
+
+                int openGLMS = 0;
+                if (openGLWindow != null)
+                    openGLMS = openGLWindow.GetLastFrameTimeMS();
+
+                int totalMS = (int)stopwatch.ElapsedMilliseconds + openGLMS;
+                int targetMS = 1000 / viewportSettings.targetFPS;
+                if(totalMS < targetMS)
+                {
+                    Thread.Sleep(targetMS - totalMS);
+                }
+
+                stopwatch.Restart();
 
                 List<float> tempAllVertices = new List<float>();
                 List<byte> tempAllColors = new List<byte>();
@@ -176,6 +202,9 @@ namespace LiveScanPlayer
 
 
                 curFrameIdx++;
+
+                if(openGLWindow != null)
+                    openGLWindow.CloudUpdateTick();
             }
 
             eUpdateWorkerFinished.Set();
@@ -183,13 +212,17 @@ namespace LiveScanPlayer
 
         private void OpenGLWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            OpenGLWindow openGLWindow = new OpenGLWindow();
+            if(openGLWindow == null)
+            {
+                openGLWindow = new OpenGLWindow();
 
-            openGLWindow.vertices = lAllVertices;
-            openGLWindow.colors = lAllColors;
-            openGLWindow.viewportSettings = this.viewportSettings;
+                openGLWindow.vertices = lAllVertices;
+                openGLWindow.colors = lAllColors;
+                openGLWindow.viewportSettings = this.viewportSettings;
 
-            openGLWindow.Run();
+                openGLWindow.Run();
+            }
+
         }
 
         private void lFrameFilesListView_DoubleClick(object sender, EventArgs e)
@@ -263,6 +296,11 @@ namespace LiveScanPlayer
         private void chShowGizmos_CheckedChanged(object sender, EventArgs e)
         {
             viewportSettings.markerVisibility = chShowGizmos.Checked;
+        }
+
+        private void nUDFramerate_ValueChanged(object sender, EventArgs e)
+        {
+            viewportSettings.targetFPS = (int)nUDFramerate.Value;
         }
     }
 }

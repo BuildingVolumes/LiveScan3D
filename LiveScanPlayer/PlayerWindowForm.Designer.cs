@@ -40,6 +40,8 @@
             this.btnSelectPly = new System.Windows.Forms.Button();
             this.tbPointsize = new System.Windows.Forms.TrackBar();
             this.gbRecordingWindowControls = new System.Windows.Forms.GroupBox();
+            this.nUDFramerate = new System.Windows.Forms.NumericUpDown();
+            this.lPlaybackFramerate = new System.Windows.Forms.Label();
             this.chShowGizmos = new System.Windows.Forms.CheckBox();
             this.tbBrightness = new System.Windows.Forms.TrackBar();
             this.lBrightness = new System.Windows.Forms.Label();
@@ -47,6 +49,7 @@
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             ((System.ComponentModel.ISupportInitialize)(this.tbPointsize)).BeginInit();
             this.gbRecordingWindowControls.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nUDFramerate)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.tbBrightness)).BeginInit();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
@@ -153,6 +156,8 @@
             // 
             // gbRecordingWindowControls
             // 
+            this.gbRecordingWindowControls.Controls.Add(this.nUDFramerate);
+            this.gbRecordingWindowControls.Controls.Add(this.lPlaybackFramerate);
             this.gbRecordingWindowControls.Controls.Add(this.chShowGizmos);
             this.gbRecordingWindowControls.Controls.Add(this.tbBrightness);
             this.gbRecordingWindowControls.Controls.Add(this.lBrightness);
@@ -165,16 +170,49 @@
             this.gbRecordingWindowControls.TabStop = false;
             this.gbRecordingWindowControls.Text = "View controls";
             // 
+            // nUDFramerate
+            // 
+            this.nUDFramerate.Location = new System.Drawing.Point(181, 87);
+            this.nUDFramerate.Maximum = new decimal(new int[] {
+            60,
+            0,
+            0,
+            0});
+            this.nUDFramerate.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.nUDFramerate.Name = "nUDFramerate";
+            this.nUDFramerate.Size = new System.Drawing.Size(35, 20);
+            this.nUDFramerate.TabIndex = 16;
+            this.nUDFramerate.Value = new decimal(new int[] {
+            30,
+            0,
+            0,
+            0});
+            this.nUDFramerate.ValueChanged += new System.EventHandler(this.nUDFramerate_ValueChanged);
+            // 
+            // lPlaybackFramerate
+            // 
+            this.lPlaybackFramerate.AutoSize = true;
+            this.lPlaybackFramerate.Location = new System.Drawing.Point(222, 91);
+            this.lPlaybackFramerate.Name = "lPlaybackFramerate";
+            this.lPlaybackFramerate.Size = new System.Drawing.Size(101, 13);
+            this.lPlaybackFramerate.TabIndex = 15;
+            this.lPlaybackFramerate.Text = "Playback Framerate";
+            // 
             // chShowGizmos
             // 
             this.chShowGizmos.AutoSize = true;
             this.chShowGizmos.Checked = true;
             this.chShowGizmos.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chShowGizmos.Location = new System.Drawing.Point(12, 91);
+            this.chShowGizmos.Location = new System.Drawing.Point(12, 90);
             this.chShowGizmos.Name = "chShowGizmos";
             this.chShowGizmos.Size = new System.Drawing.Size(88, 17);
             this.chShowGizmos.TabIndex = 14;
             this.chShowGizmos.Text = "Show gizmos";
+            this.chShowGizmos.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.chShowGizmos.UseVisualStyleBackColor = true;
             this.chShowGizmos.CheckedChanged += new System.EventHandler(this.chShowGizmos_CheckedChanged);
             // 
@@ -237,6 +275,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.tbPointsize)).EndInit();
             this.gbRecordingWindowControls.ResumeLayout(false);
             this.gbRecordingWindowControls.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nUDFramerate)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.tbBrightness)).EndInit();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
@@ -263,6 +302,8 @@
         private System.Windows.Forms.Label lPointSize;
         private System.Windows.Forms.CheckBox chShowGizmos;
         private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.NumericUpDown nUDFramerate;
+        private System.Windows.Forms.Label lPlaybackFramerate;
     }
 }
 
