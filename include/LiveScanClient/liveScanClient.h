@@ -59,8 +59,6 @@ private:
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
-	//bool m_bRestartCamera;
-	//bool m_bRestartingCamera;
 	bool m_bCloseCamera;
 	bool m_bConfirmCameraClosed;
 	bool m_bInitializeCamera;
@@ -134,7 +132,6 @@ private:
 	bool Reinit();
 	bool CloseCamera();
 	bool InitializeCamera();
-	void SendReinitConfirmation(bool success);
 	void SendPostSyncConfirmation(bool success);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
 	bool PostSyncPointclouds();

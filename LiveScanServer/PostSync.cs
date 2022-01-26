@@ -65,7 +65,7 @@ namespace KinectServer
     }
 
     /// <summary>
-    /// Contains a collection of a frame matched to a device
+    /// Contains a frame matched to a device
     /// </summary>
     public class ClientFrame
     {
@@ -129,55 +129,14 @@ namespace KinectServer
             return GenerateGlobalSyncIndex(allDeviceSyncData);
         }
 
-        public static List<ClientSyncData> GetTestData()
-        {
-            List<ClientSyncData> testdata = new List<ClientSyncData>();
-
-            ClientSyncData client1 = new ClientSyncData();
-            ClientSyncData client2 = new ClientSyncData();
-
-            client1.frames.Add(new SyncFrame(0, 33333u, 0));
-            client1.frames.Add(new SyncFrame(1, 66666u, 0));
-            client1.frames.Add(new SyncFrame(2, 100000u, 0));
-            client1.frames.Add(new SyncFrame(3, 133333u, 0));
-            //client1.frames.Add(new SyncFrame(4, 166666u, 0));
-            //client1.frames.Add(new SyncFrame(5, 200000u, 0));
-            //client1.frames.Add(new SyncFrame(6, 233333u, 0));
-            //client1.frames.Add(new SyncFrame(7, 300000u, 0));
-            //client1.frames.Add(new SyncFrame(8, 333333u, 0));
-            client1.frames.Add(new SyncFrame(4, 366666u, 0));
-            client1.frames.Add(new SyncFrame(5, 400000u, 0));
-            client1.frames.Add(new SyncFrame(6, 433333u, 0));
-
-            //client2.frames.Add(new SyncFrame(0, 33333, 0));
-            //client2.frames.Add(new SyncFrame(1, 66666, 0));
-            client2.frames.Add(new SyncFrame(0, 100000u, 1));
-            client2.frames.Add(new SyncFrame(1, 133333u, 1));
-            client2.frames.Add(new SyncFrame(2, 166666u, 1));
-            client2.frames.Add(new SyncFrame(3, 200000u, 1));
-            client2.frames.Add(new SyncFrame(4, 233333u, 1));
-            client2.frames.Add(new SyncFrame(5, 266666u, 1));
-            client2.frames.Add(new SyncFrame(6, 300000u, 1));
-            client2.frames.Add(new SyncFrame(7, 333333u, 1));
-            client2.frames.Add(new SyncFrame(8, 366666u, 1));
-            client2.frames.Add(new SyncFrame(9, 400000u, 1));
-            //client2.frames.Add(new SyncFrame(10, 433333u, 1));
-
-            testdata.Add(client1);
-            testdata.Add(client2);
-
-            return testdata;
-
-        }
-
-
 
         /// <summary>
         /// Check if the timestamp lists are somewhat temporally coherent, meaning if the first frames are within maxToleranceFrames to each other.
         /// This allows us to see if the temporal synchronisation was set up correctly and if the firmwares are matching
         /// </summary>
-        /// <param name="frameTiming"></param>
+        /// <param name="frameTiming">The timing between the frames in us. E.g. 30 FPS = 33333us </param>
         /// <param name="allSyncData"></param>
+        /// <param name="maxToleranceFrames">The maximum amount of frames the clients can be apart</param>
         /// <returns></returns>
         static bool CheckForRoughTemporalCoherency(uint frameTiming, List<ClientSyncData> allSyncData, uint maxToleranceFrames)
         {
@@ -243,12 +202,11 @@ namespace KinectServer
                 }
             }
 
+
+            //Sort all grouped frames by their timestamp
             allGroupedFrames.Sort((x, y) => x.minTimestamp.CompareTo(y.minTimestamp));
 
-            if (System.Diagnostics.Debugger.IsAttached)
-                LogGroupedFrameData(allGroupedFrames);
-
-            //Create a new List that contains all the correctly synced frames for each device 
+            //Create a new List for each device, which tells it how to sync it's own frames 
             List<ClientSyncData> postSyncedData = new List<ClientSyncData>();
 
             for (int i = 0; i < syncCollections.Count; i++)
@@ -258,7 +216,7 @@ namespace KinectServer
 
             for (int i = 0; i < allGroupedFrames.Count; i++) //Go through all grouped/synced frames
             {
-                for (int k = 0; k < syncCollections.Count; k++) //Go through each client
+                for (int k = 0; k < syncCollections.Count; k++) //Go through each client/device
                 {
                     bool deviceFoundInCurrentFrame = false;
 
@@ -275,7 +233,7 @@ namespace KinectServer
                         }
                     }
 
-                    //If we cant find the client in this frame, we insert a frame anyways with the data set to -1, which tells the client to insert an empty frame
+                    //If we cant find the client in this frame, we insert a frame with the data set to -1, which tells the client to insert an empty frame
                     //This prevents dropped frames from messing up the frametiming
                     if (!deviceFoundInCurrentFrame)
                     {
@@ -283,9 +241,6 @@ namespace KinectServer
                     }
                 }
             }
-
-            if (System.Diagnostics.Debugger.IsAttached)
-                LogSyncData(postSyncedData);
 
             return postSyncedData;
         }
@@ -316,6 +271,11 @@ namespace KinectServer
             return -1;
         }
 
+        /// <summary>
+        /// Just for debugging, makes the result of the sorting algorithm above easier to understand
+        /// Writes a file, which explains for each frame of a client how the frames before and after sync are numbered
+        /// </summary>
+        /// <param name="syncData"></param>
         static void LogSyncData(List<ClientSyncData> syncData)
         {
             string text = "";
@@ -335,6 +295,10 @@ namespace KinectServer
             File.WriteAllText("PostSyncDataForClientsLog.txt", text);
         }
 
+        /// <summary>
+        /// Shows the result of the grouping algorithm. This shows which frames belong together
+        /// </summary>
+        /// <param name="groupedFrames"></param>
         static void LogGroupedFrameData(List<GroupedFrame> groupedFrames)
         {
             string text = "";
@@ -353,10 +317,6 @@ namespace KinectServer
 
             File.WriteAllText("PostSyncGroupedFramesLog.txt", text);
         }
-    }
-
-    
-
-    
+    }     
 }
 

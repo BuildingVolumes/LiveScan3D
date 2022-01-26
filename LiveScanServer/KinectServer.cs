@@ -1048,6 +1048,10 @@ namespace KinectServer
             return true;
         }
 
+        /// <summary>
+        /// Tells the client to prepare themselves for recording. Waits
+        /// until all clients are ready
+        /// </summary>
         public void SendAndConfirmPreRecordProcess()
         {
             lock (oClientSocketLock)
@@ -1075,6 +1079,10 @@ namespace KinectServer
             }
         }
 
+        /// <summary>
+        /// Lets the client process data right after recording.
+        /// Waits until all clients are finished
+        /// </summary>
         public void SendAndConfirmPostRecordProcess()
         {
             lock (oClientSocketLock)
@@ -1123,8 +1131,6 @@ namespace KinectServer
                 }
             }
         }
-
-
 
         private void AcceptCallback(IAsyncResult ar)
         {
@@ -1210,7 +1216,6 @@ namespace KinectServer
                 lClientSockets.Remove(client);
                 SocketListChanged();
             }
-
         }
 
         private void ListeningWorker()

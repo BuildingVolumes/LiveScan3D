@@ -34,8 +34,6 @@ namespace KinectServer
 
 
         public bool bCalibrated = false;
-        //public bool bReinitialized = false;
-        //public bool bReinizializationError = false;
 
         public bool bCameraClosed = false;
         public bool bCameraInitialized = false;
@@ -269,17 +267,6 @@ namespace KinectServer
             SendByte();
         }
 
-        /// <summary>
-        /// Send a signal to Reinitialize the device with its current settings and confirm it to the server.
-        /// </summary>
-        //public void ReinitializeAndConfirm()
-        //{
-        //    bReinitialized = false;
-        //    bReinizializationError = false;
-        //    byteToSend[0] = (byte)OutgoingMessageType.MSG_REINITIALIZE_WITH_CURRENT_SETTINGS;
-        //    SendByte();
-        //}
-
         public void CloseCameraAndConfirm()
         {
             bCameraClosed = false;
@@ -295,7 +282,6 @@ namespace KinectServer
             byteToSend[0] = (byte)OutgoingMessageType.MSG_INIT_CAMERA;
             SendByte();
         }
-
         public void ReceiveCalibrationData()
         {
             bCalibrated = true;
@@ -328,7 +314,6 @@ namespace KinectServer
             bCameraClosed = true;
 
             byte[] error = Receive(1);
-
 
             if (error[0] == 0)
                 bCameraError = false;
