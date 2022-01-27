@@ -50,9 +50,12 @@ private:
 	int m_nFilterNeighbors;
 	float m_fFilterThreshold;
 
-	bool m_bCaptureFrame;
-	bool m_bRecordingStart;
-	bool m_bRecordingStop;
+	bool m_bCaptureFrames;
+	bool m_bCaptureSingleFrame;
+	bool m_bStartPreRecordingProcess;
+	bool m_bConfirmPreRecordingProcess;
+	bool m_bStartPostRecordingProcess;
+	bool m_bConfirmPostRecordingProcess;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
@@ -61,6 +64,8 @@ private:
 	bool m_bUpdateSettings;
 	bool m_bRequestConfiguration;
 	bool m_bSendConfiguration;
+	bool m_bSendTimeStampList;
+	bool m_bPostSyncedListReceived;
 
 	bool m_bShowDepth;
 	bool m_bFrameCompression;
@@ -81,8 +86,10 @@ private:
 	std::vector<RGB> m_vLastFrameRGB;
 	std::vector<Body> m_vLastFrameBody;
 
-	std::vector<int> m_vFrameNumbers;
-	std::vector<uint64_t> m_vTimestamps;
+	std::vector<int> m_vFrameCount;
+	std::vector<uint64_t> m_vFrameTimestamps;
+	std::vector<int> m_vFrameID;
+	std::vector<int> m_vPostSyncedFrameID;
 
 	HWND m_hWnd;
     INT64 m_nLastCounter;
@@ -100,8 +107,16 @@ private:
     // Direct2D
     ImageRenderer* m_pDrawColor;
     ID2D1Factory* m_pD2DFactory;
+
+
+	//Image Resources
+	std::vector<uchar>* emptyJPEGBuffer;
+	cv::Mat* emptyDepthMat;
+	k4a_image_t emptyDepthFrame;
 	RGB* m_pDepthRGBX;
 	RGB* m_pBlankGreyImage;
+
+
 	void CreateBlankGrayImage(const int width, const int height);
 
 	void UpdateFrame();
@@ -111,9 +126,12 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	bool ReinitAndConfirm();
+	bool Reinit();
 	void SendReinitConfirmation(bool success);
+	void SendPostSyncConfirmation(bool success);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
+	bool PostSyncPointclouds();
+	bool PostSyncRawFrames();
 
 	void SocketThreadFunction();
 	void StoreFrame(Point3f *vertices, RGB *colorInDepth, vector<Body> &bodies, BYTE* bodyIndex);

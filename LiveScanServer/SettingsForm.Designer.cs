@@ -40,8 +40,11 @@
             this.chAutoExposureEnabled = new System.Windows.Forms.CheckBox();
             this.trManualExposure = new System.Windows.Forms.TrackBar();
             this.grTempSync = new System.Windows.Forms.GroupBox();
-            this.rTempSyncDisabled = new System.Windows.Forms.RadioButton();
-            this.rTempSyncEnabled = new System.Windows.Forms.RadioButton();
+            this.grNetworkSync = new System.Windows.Forms.GroupBox();
+            this.chNetworkSync = new System.Windows.Forms.CheckBox();
+            this.lbNetworkSync = new System.Windows.Forms.Label();
+            this.grHardwareSync = new System.Windows.Forms.GroupBox();
+            this.chHardwareSync = new System.Windows.Forms.CheckBox();
             this.lbTempSync = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.exportGroup = new System.Windows.Forms.GroupBox();
@@ -99,6 +102,8 @@
             this.grExposure.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
             this.grTempSync.SuspendLayout();
+            this.grNetworkSync.SuspendLayout();
+            this.grHardwareSync.SuspendLayout();
             this.exportGroup.SuspendLayout();
             this.grBody.SuspendLayout();
             this.grMarkers.SuspendLayout();
@@ -157,14 +162,14 @@
             this.grClient.Controls.Add(this.grFiltering);
             this.grClient.Location = new System.Drawing.Point(12, 12);
             this.grClient.Name = "grClient";
-            this.grClient.Size = new System.Drawing.Size(632, 440);
+            this.grClient.Size = new System.Drawing.Size(632, 539);
             this.grClient.TabIndex = 43;
             this.grClient.TabStop = false;
             this.grClient.Text = "KinectClient settings";
             // 
             // btApplyAllSettings
             // 
-            this.btApplyAllSettings.Location = new System.Drawing.Point(480, 408);
+            this.btApplyAllSettings.Location = new System.Drawing.Point(482, 506);
             this.btApplyAllSettings.Name = "btApplyAllSettings";
             this.btApplyAllSettings.Size = new System.Drawing.Size(144, 23);
             this.btApplyAllSettings.TabIndex = 51;
@@ -174,7 +179,8 @@
             // 
             // lApplyWarning
             // 
-            this.lApplyWarning.Location = new System.Drawing.Point(205, 413);
+            this.lApplyWarning.ForeColor = System.Drawing.Color.OrangeRed;
+            this.lApplyWarning.Location = new System.Drawing.Point(212, 511);
             this.lApplyWarning.Name = "lApplyWarning";
             this.lApplyWarning.Size = new System.Drawing.Size(269, 13);
             this.lApplyWarning.TabIndex = 52;
@@ -230,50 +236,77 @@
             // 
             // grTempSync
             // 
-            this.grTempSync.Controls.Add(this.rTempSyncDisabled);
-            this.grTempSync.Controls.Add(this.rTempSyncEnabled);
-            this.grTempSync.Controls.Add(this.lbTempSync);
+            this.grTempSync.Controls.Add(this.grNetworkSync);
+            this.grTempSync.Controls.Add(this.grHardwareSync);
             this.grTempSync.Controls.Add(this.label1);
             this.grTempSync.Location = new System.Drawing.Point(271, 211);
             this.grTempSync.Name = "grTempSync";
-            this.grTempSync.Size = new System.Drawing.Size(355, 97);
+            this.grTempSync.Size = new System.Drawing.Size(355, 194);
             this.grTempSync.TabIndex = 48;
             this.grTempSync.TabStop = false;
-            this.grTempSync.Text = "Temporal Sync";
+            this.grTempSync.Text = "Temporal sync";
             // 
-            // rTempSyncDisabled
+            // grNetworkSync
             // 
-            this.rTempSyncDisabled.AutoSize = true;
-            this.rTempSyncDisabled.Location = new System.Drawing.Point(77, 19);
-            this.rTempSyncDisabled.Name = "rTempSyncDisabled";
-            this.rTempSyncDisabled.Size = new System.Drawing.Size(66, 17);
-            this.rTempSyncDisabled.TabIndex = 4;
-            this.rTempSyncDisabled.TabStop = true;
-            this.rTempSyncDisabled.Text = "Disabled";
-            this.rTempSyncDisabled.UseVisualStyleBackColor = true;
-            this.rTempSyncDisabled.CheckedChanged += new System.EventHandler(this.rTempSyncDisabled_CheckedChanged);
+            this.grNetworkSync.Controls.Add(this.chNetworkSync);
+            this.grNetworkSync.Controls.Add(this.lbNetworkSync);
+            this.grNetworkSync.Location = new System.Drawing.Point(10, 99);
+            this.grNetworkSync.Name = "grNetworkSync";
+            this.grNetworkSync.Size = new System.Drawing.Size(331, 86);
+            this.grNetworkSync.TabIndex = 9;
+            this.grNetworkSync.TabStop = false;
+            this.grNetworkSync.Text = "Network Sync";
             // 
-            // rTempSyncEnabled
+            // chNetworkSync
             // 
-            this.rTempSyncEnabled.AutoSize = true;
-            this.rTempSyncEnabled.Location = new System.Drawing.Point(6, 19);
-            this.rTempSyncEnabled.Name = "rTempSyncEnabled";
-            this.rTempSyncEnabled.Size = new System.Drawing.Size(64, 17);
-            this.rTempSyncEnabled.TabIndex = 3;
-            this.rTempSyncEnabled.TabStop = true;
-            this.rTempSyncEnabled.Text = "Enabled";
-            this.rTempSyncEnabled.UseVisualStyleBackColor = false;
-            this.rTempSyncEnabled.CheckedChanged += new System.EventHandler(this.rTempSyncEnabled_CheckedChanged);
+            this.chNetworkSync.AutoSize = true;
+            this.chNetworkSync.Location = new System.Drawing.Point(11, 19);
+            this.chNetworkSync.Name = "chNetworkSync";
+            this.chNetworkSync.Size = new System.Drawing.Size(65, 17);
+            this.chNetworkSync.TabIndex = 5;
+            this.chNetworkSync.Text = "Enabled";
+            this.chNetworkSync.UseVisualStyleBackColor = true;
+            this.chNetworkSync.CheckedChanged += new System.EventHandler(this.chNetworkSync_CheckedChanged);
+            // 
+            // lbNetworkSync
+            // 
+            this.lbNetworkSync.Location = new System.Drawing.Point(9, 39);
+            this.lbNetworkSync.Name = "lbNetworkSync";
+            this.lbNetworkSync.Size = new System.Drawing.Size(316, 41);
+            this.lbNetworkSync.TabIndex = 6;
+            this.lbNetworkSync.Text = "No special hardware configuration needed. Might give more consistent frame timing" +
+    "s between the devices, but reduces the framerate a lot.";
+            // 
+            // grHardwareSync
+            // 
+            this.grHardwareSync.Controls.Add(this.chHardwareSync);
+            this.grHardwareSync.Controls.Add(this.lbTempSync);
+            this.grHardwareSync.Location = new System.Drawing.Point(10, 19);
+            this.grHardwareSync.Name = "grHardwareSync";
+            this.grHardwareSync.Size = new System.Drawing.Size(337, 74);
+            this.grHardwareSync.TabIndex = 8;
+            this.grHardwareSync.TabStop = false;
+            this.grHardwareSync.Text = "Hardware sync";
+            // 
+            // chHardwareSync
+            // 
+            this.chHardwareSync.AutoSize = true;
+            this.chHardwareSync.Location = new System.Drawing.Point(11, 19);
+            this.chHardwareSync.Name = "chHardwareSync";
+            this.chHardwareSync.Size = new System.Drawing.Size(65, 17);
+            this.chHardwareSync.TabIndex = 3;
+            this.chHardwareSync.Text = "Enabled";
+            this.chHardwareSync.UseVisualStyleBackColor = true;
+            this.chHardwareSync.CheckedChanged += new System.EventHandler(this.chHardwareSync_CheckedChanged);
             // 
             // lbTempSync
             // 
-            this.lbTempSync.Location = new System.Drawing.Point(3, 45);
+            this.lbTempSync.Location = new System.Drawing.Point(8, 39);
             this.lbTempSync.Name = "lbTempSync";
-            this.lbTempSync.Size = new System.Drawing.Size(342, 47);
+            this.lbTempSync.Size = new System.Drawing.Size(323, 29);
             this.lbTempSync.TabIndex = 2;
             this.lbTempSync.Text = "Before activating, make sure that all Kinects are connected to the server and pro" +
-    "perly connected via the sync cables. When Temporal Sync is activated, the exposu" +
-    "re needs to be set manually!";
+    "perly connected via the sync cables.";
             // 
             // label1
             // 
@@ -292,7 +325,7 @@
             this.exportGroup.Controls.Add(this.rExportPointcloud);
             this.exportGroup.Controls.Add(this.lExtrinsics);
             this.exportGroup.Controls.Add(this.cbExtrinsicsFormat);
-            this.exportGroup.Location = new System.Drawing.Point(271, 314);
+            this.exportGroup.Location = new System.Drawing.Point(272, 411);
             this.exportGroup.Name = "exportGroup";
             this.exportGroup.Size = new System.Drawing.Size(355, 88);
             this.exportGroup.TabIndex = 50;
@@ -729,7 +762,7 @@
             this.grServer.Controls.Add(this.txtICPIters);
             this.grServer.Controls.Add(this.chMerge);
             this.grServer.Controls.Add(this.lbICPIters);
-            this.grServer.Location = new System.Drawing.Point(12, 478);
+            this.grServer.Location = new System.Drawing.Point(12, 557);
             this.grServer.Name = "grServer";
             this.grServer.Size = new System.Drawing.Size(323, 114);
             this.grServer.TabIndex = 44;
@@ -823,7 +856,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(656, 599);
+            this.ClientSize = new System.Drawing.Size(656, 683);
             this.Controls.Add(this.grServer);
             this.Controls.Add(this.grClient);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -837,7 +870,10 @@
             this.grExposure.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).EndInit();
             this.grTempSync.ResumeLayout(false);
-            this.grTempSync.PerformLayout();
+            this.grNetworkSync.ResumeLayout(false);
+            this.grNetworkSync.PerformLayout();
+            this.grHardwareSync.ResumeLayout(false);
+            this.grHardwareSync.PerformLayout();
             this.exportGroup.ResumeLayout(false);
             this.exportGroup.PerformLayout();
             this.grBody.ResumeLayout(false);
@@ -919,9 +955,12 @@
         private System.Windows.Forms.Label lExtrinsics;
         private System.Windows.Forms.RadioButton rExportRawFrames;
         private System.Windows.Forms.RadioButton rExportPointcloud;
-        private System.Windows.Forms.RadioButton rTempSyncDisabled;
-        private System.Windows.Forms.RadioButton rTempSyncEnabled;
         private System.Windows.Forms.Button btApplyAllSettings;
         private System.Windows.Forms.Label lApplyWarning;
+        private System.Windows.Forms.Label lbNetworkSync;
+        private System.Windows.Forms.CheckBox chNetworkSync;
+        private System.Windows.Forms.GroupBox grHardwareSync;
+        private System.Windows.Forms.GroupBox grNetworkSync;
+        private System.Windows.Forms.CheckBox chHardwareSync;
     }
 }

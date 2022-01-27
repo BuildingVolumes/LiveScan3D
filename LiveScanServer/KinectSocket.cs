@@ -30,6 +30,7 @@ namespace KinectServer
         public bool bStoredFrameReceived = false;
         public bool bNoMoreStoredFrames = true;
         public bool bConfigurationReceived = false;
+        public bool bTimeStampsRecieved = false;
 
 
         public bool bCalibrated = false;
@@ -38,6 +39,12 @@ namespace KinectServer
 
         public bool bDirCreationConfirmed = false;
         public bool bDirCreationError = false;
+
+        public bool bPostSyncConfirmed = false;
+        public bool bPostSyncError = false;
+
+        public bool bPreRecordProcessConfirmed = false;
+        public bool bPostRecordProcessConfirmed = false;
 
         public KinectConfiguration configuration;
 
@@ -51,7 +58,11 @@ namespace KinectServer
 
         public List<byte> lFrameRGB = new List<byte>();
         public List<Single> lFrameVerts = new List<Single>();
-        public List<Body> lBodies = new List<Body>(); 
+        public List<Body> lBodies = new List<Body>();
+
+        public List<ulong> lTimeStamps = new List<ulong>();
+        public List<int> lFrameNumbers = new List<int>();
+        public ClientSyncData postSyncedFrames = new ClientSyncData();
 
         public event SocketChangedHandler eChanged;
 
@@ -66,7 +77,7 @@ namespace KinectServer
         {
             Console.WriteLine("Capture Frame Client: " + configuration.SerialNumber + "  : " + DateTime.Now.Millisecond);
             bFrameCaptured = false;
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_CAPTURE_FRAME;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_CAPTURE_SINGLE_FRAME;
             SendByte();
         }
         public void Calibrate()
@@ -77,19 +88,6 @@ namespace KinectServer
             SendByte();
 
             UpdateSocketState("");
-        }
-
-        public void SendSettings(KinectSettings settings)
-        {
-            List<byte> lData = settings.ToByteList();
-
-            //why is this doing this in a backwards order?
-            byte[] bTemp = BitConverter.GetBytes(lData.Count);
-            lData.InsertRange(0, bTemp);
-            lData.Insert(0, (byte)OutgoingMessageType.MSG_RECEIVE_SETTINGS);
-
-            if (SocketConnected())
-                oSocket.Send(lData.ToArray());
         }
 
         public void RequestStoredFrame()
@@ -114,6 +112,33 @@ namespace KinectServer
             bLatestFrameReceived = false;
         }
 
+        public void RequestTimestamps()
+        {
+            lTimeStamps.Clear();
+            lFrameNumbers.Clear();
+            postSyncedFrames.frames.Clear();
+
+            bTimeStampsRecieved = false;
+            bPostSyncConfirmed = false;
+            bPostSyncError = false;
+
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_REQUEST_TIMESTAMP_LIST;
+            SendByte();
+
+        }
+
+        public void SendSettings(KinectSettings settings)
+        {
+            List<byte> lData = settings.ToByteList();
+
+            //why is this doing this in a backwards order?
+            byte[] bTemp = BitConverter.GetBytes(lData.Count);
+            lData.InsertRange(0, bTemp);
+            lData.Insert(0, (byte)OutgoingMessageType.MSG_RECEIVE_SETTINGS);
+
+            if (SocketConnected())
+                oSocket.Send(lData.ToArray());
+        }
 
         public void SendConfiguration(KinectConfiguration newConfig)
         {
@@ -155,7 +180,7 @@ namespace KinectServer
         {
             //Convert the string to an ASCII-Encoded byte array
             char[] chars = dirName.ToCharArray();
-            List<Byte> byteList = new List<Byte>();
+            List<byte> byteList = new List<byte>();
 
             for (int i = 0; i < chars.Length; i++)
             {
@@ -175,24 +200,64 @@ namespace KinectServer
             oSocket.Send(byteList.ToArray());
         }
 
-        /// <summary>
-        /// This doesn't actually start or stop a recording on a client, it just let's it know that we are now in record mode
-        /// </summary>
-        public void SendRecordingStart()
+        public void SendPostSyncList()
         {
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_RECORDING_START;
+            List<byte> byteList = new List<byte>();
+
+            byteList.Add((byte)OutgoingMessageType.MSG_RECEIVE_POSTSYNC_LIST);
+
+            byteList.AddRange(BitConverter.GetBytes(postSyncedFrames.frames.Count));
+            
+            for (int i = 0; i < postSyncedFrames.frames.Count; i++)
+            {
+                byteList.AddRange(BitConverter.GetBytes(postSyncedFrames.frames[i].frameID));
+            }
+
+            for (int i = 0; i < postSyncedFrames.frames.Count; i++)
+            {
+                byteList.AddRange(BitConverter.GetBytes(postSyncedFrames.frames[i].syncedFrameID));
+            }
+
+            oSocket.Send(byteList.ToArray());
+        }
+
+        /// <summary>
+        /// Allows the client to prepare itself for the recording
+        /// </summary>
+        public void SendPreRecordProcessStart()
+        {
+            bPreRecordProcessConfirmed = false;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_PRE_RECORD_PROCESS_START;
             SendByte();
         }
 
         /// <summary>
-        /// Let's the client know that record mode is now off
+        /// Allows the client to process it's data after recording
         /// </summary>
-        public void SendRecordingStop()
+        public void SendPostRecordProcessStart()
         {
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_RECORDING_STOP;
+            bPostRecordProcessConfirmed = false;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_POST_RECORD_PROCESS_START;
             SendByte();
         }
 
+        /// <summary>
+        /// Sends the command to start capturing frames as fast as possible
+        /// </summary>
+        public void SendCaptureFramesStart()
+        {
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_START_CAPTURING_FRAMES;
+            SendByte();
+        }
+
+        /// <summary>
+        /// Sends the command to stop capturing frames.
+        /// </summary>
+        public void SendCaptureFramesStop()
+        {
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_STOP_CAPTURING_FRAMES;
+            SendByte();
+        }
 
         public void ClearStoredFrames()
         {
@@ -242,7 +307,7 @@ namespace KinectServer
         /// Gets a confirmation from the client that the restart has either been successfull, or a failure
         /// </summary>
         /// <returns></returns>
-        public void RecieveRestartConfirmation()
+        public void ReceiveRestartConfirmation()
         {
             bReinitialized = true;
 
@@ -381,7 +446,7 @@ namespace KinectServer
             }
         }
 
-        public void RecieveDirConfirmation()
+        public void ReceiveDirConfirmation()
         {
             bDirCreationConfirmed = true;
 
@@ -389,6 +454,53 @@ namespace KinectServer
 
             if (buffer[0] == 0)
                 bDirCreationError = true;
+        }
+
+        public void ReceiveTimestampList()
+        {
+            byte[] buffer = Receive(sizeof(int));
+            int timestampSize = BitConverter.ToInt32(buffer, 0);
+            byte[]timestampByteList = Receive(timestampSize * sizeof(ulong));
+            
+            buffer = Receive(sizeof(int));
+            int frameNumberSize = BitConverter.ToInt32(buffer, 0);
+            byte[] frameNumberByteList = Receive(frameNumberSize * sizeof(int));
+
+            lTimeStamps.Clear();
+            lFrameNumbers.Clear();
+
+            for (int i = 0; i < timestampSize; i++)
+            {
+                lTimeStamps.Add(BitConverter.ToUInt64(timestampByteList, i * sizeof(ulong)));
+            }
+
+            for (int i = 0; i < frameNumberSize; i ++)
+            {
+                lFrameNumbers.Add(BitConverter.ToInt32(frameNumberByteList, i * sizeof(int)));
+            }
+
+            bTimeStampsRecieved = true;
+        }
+
+        public void ReceivePostSyncConfirmation()
+        {
+            bPostSyncConfirmed = true;
+
+            byte[] success = Receive(1);
+
+            if (success[0] == 0)
+                bPostSyncError = true;
+
+        }
+
+        public void ReceivePreRecordProcessConfirmation()
+        {
+            bPreRecordProcessConfirmed = true;
+        }
+
+        public void ReceivePostRecordProcessConfirmation()
+        {
+            bPostRecordProcessConfirmed = true;
         }
 
         public byte[] Receive(int nBytes)

@@ -233,6 +233,7 @@ bool AzureKinectCapture::AquireRawFrame() {
 	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
 	{
 		k4a_capture_release(capture);
+		std::cout << "Dropped Raw Frame" << std::endl;
 		return false;
 	}
 
@@ -252,8 +253,6 @@ bool AzureKinectCapture::AquireRawFrame() {
 
 	k4a_capture_release(capture);
 
-	std::cout << "Successfully captured raw Frame" << std::endl;
-
 	return true;
 
 }
@@ -271,6 +270,7 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
 	{
 		k4a_capture_release(capture);
+		std::cout << "Dropped Pointcloud Frame" << std::endl;
 		return false;
 	}
 
@@ -339,8 +339,6 @@ bool AzureKinectCapture::AquirePointcloudFrame()
 
 
 	k4a_capture_release(capture);
-
-	std::cout << "Successfully captured Pointcloud Frame" << std::endl;
 
 	return true;
 }

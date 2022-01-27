@@ -27,6 +27,20 @@ void FrameFileWriterReader::closeFileIfOpened()
 	m_bFileOpenedForWriting = false;
 }
 
+void FrameFileWriterReader::closeAndDeleteFile()
+{
+	if (m_pFileHandle == nullptr)
+		return;
+
+	fclose(m_pFileHandle);
+	remove(m_sBinFilePath.c_str());
+
+	m_pFileHandle = nullptr;
+	m_sBinFilePath = "";
+	m_bFileOpenedForReading = false;
+	m_bFileOpenedForWriting = false;
+}
+
 void FrameFileWriterReader::resetTimer()
 {
 	recording_start_time = std::chrono::steady_clock::now();
@@ -38,27 +52,44 @@ int FrameFileWriterReader::getRecordingTimeMilliseconds()
 	return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds >(end - recording_start_time).count());
 }
 
-void FrameFileWriterReader::openCurrentFileForReading()
+void FrameFileWriterReader::openCurrentBinFileForReading()
 {
 	closeFileIfOpened();
 
-	m_pFileHandle = fopen(m_sFilename.c_str(), "rb");
+	m_pFileHandle = fopen(m_sBinFilePath.c_str(), "rb");
 
 	m_bFileOpenedForReading = true;
 	m_bFileOpenedForWriting = false;
+	m_nCurrentReadFrameID = 0;
 }
 
-void FrameFileWriterReader::openNewFileForWriting(int deviceID)
+void FrameFileWriterReader::openNewBinFileForReading(std::string path) {
+	closeFileIfOpened();
+
+	m_pFileHandle = fopen(path.c_str(), "rb");
+
+	m_bFileOpenedForReading = true;
+	m_bFileOpenedForWriting = false;
+	m_nCurrentReadFrameID = 0;
+}
+
+void FrameFileWriterReader::openNewBinFileForWriting(int deviceID, std::string prefix)
 {
 	closeFileIfOpened();
 
 	char filename[1024];
 	time_t t = time(0);
-	struct tm * now = localtime(&t);
+	struct tm* now = localtime(&t);
 	sprintf(filename, "recording_%01d_%04d_%02d_%02d_%02d_%02d.bin", deviceID, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
-	m_sFilename = m_sFrameRecordingsDir;
-	m_sFilename +=	filename; 
-	m_pFileHandle = fopen(m_sFilename.c_str(), "wb");
+
+	m_sBinFilePath = m_sFrameRecordingsDir;
+
+	if (prefix.size() > 0) {
+		m_sBinFilePath += prefix + "_";
+	}
+
+	m_sBinFilePath += filename;
+	m_pFileHandle = fopen(m_sBinFilePath.c_str(), "wb");
 
 	m_bFileOpenedForReading = false;
 	m_bFileOpenedForWriting = true;
@@ -66,12 +97,12 @@ void FrameFileWriterReader::openNewFileForWriting(int deviceID)
 	resetTimer();
 }
 
-bool FrameFileWriterReader::readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors)
+bool FrameFileWriterReader::readNextBinaryFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors, int &outTimestamp)
 {
 	std::cout << "Reading Pointcloud Frame" << std::endl;
 
 	if (!m_bFileOpenedForReading)
-		openCurrentFileForReading();
+		openCurrentBinFileForReading();
 
 	outPoints.clear();
 	outColors.clear();
@@ -93,17 +124,19 @@ bool FrameFileWriterReader::readFrame(std::vector<Point3s> &outPoints, std::vect
 	fread((void*)outPoints.data(), sizeof(outPoints[0]), nPoints, f);
 	fread((void*)outColors.data(), sizeof(outColors[0]), nPoints, f);
 	fgetc(f);		// '\n'
+
+	m_nCurrentReadFrameID++; //Keep track of the latest read frame ID 
+	outTimestamp = timestamp;
 	return true;
 
 }
 
-
-void FrameFileWriterReader::writeFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID)
+bool FrameFileWriterReader::writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID)
 {
 	std::cout << "Writing pointcloud frame" << std::endl;
 
 	if (!m_bFileOpenedForWriting)
-		openNewFileForWriting(deviceID);
+		openNewBinFileForWriting(deviceID, "");
 
 	FILE *f = m_pFileHandle;
 
@@ -114,12 +147,66 @@ void FrameFileWriterReader::writeFrame(std::vector<Point3s> points, std::vector<
 
 	//std::cout << "Writing Frame, Timestamp: " << timestamp << std::endl;
 
+	int successCount = 0;
+
 	if (nPoints > 0)
 	{
-		fwrite((void*)points.data(), sizeof(points[0]), nPoints, f);
-		fwrite((void*)colors.data(), sizeof(colors[0]), nPoints, f);
+		successCount = fwrite((void*)points.data(), sizeof(points[0]), nPoints, f);
+		successCount += fwrite((void*)colors.data(), sizeof(colors[0]), nPoints, f);
 	}
+
 	fprintf(f, "\n");
+
+	if (successCount < nPoints * 2)
+		return false;
+	else
+		return true;
+}
+
+void FrameFileWriterReader::seekBinaryReaderToFrame(int frameID) {
+
+	if (frameID > m_nCurrentReadFrameID) {
+
+		while (frameID > m_nCurrentReadFrameID) {
+			skipOneFrameBinaryReader();
+		}
+		return;
+	}
+
+	else if (frameID == m_nCurrentReadFrameID)
+		return;
+
+	//If the desired frame ID is below the current frame ID, we need to search from the start of the file again,
+	//because we can't read the file backwards (yet)
+	else if (frameID < m_nCurrentReadFrameID) {
+
+		m_nCurrentReadFrameID = 0;
+		FILE* f = m_pFileHandle; 
+		fseek(f, 0, SEEK_SET); //Reset the file stream reader to the beginning of the file
+
+		while (frameID > m_nCurrentReadFrameID) {
+			skipOneFrameBinaryReader();
+		}
+		return;
+	}
+}
+
+void FrameFileWriterReader::skipOneFrameBinaryReader() {
+
+	FILE* f = m_pFileHandle;
+	long start = ftell(f);
+	int nPoints, timestamp;
+	char tmp[1024];
+	int nread = fscanf_s(f, "%s %d %s %d", tmp, 1024, &nPoints, tmp, 1024, &timestamp); //Get the size of nPoints so that we can skip them
+	long offsetVerts = nPoints * sizeof(Point3s);
+	long offsetColors = nPoints * sizeof(RGB);
+
+	fgetc(f);		//  '\n'
+	fseek(f, offsetVerts, SEEK_CUR); //Skip vertices
+	fseek(f, offsetColors, SEEK_CUR); //Skip colors
+	fgetc(f);		// '\n'
+	long end = ftell(f);
+	m_nCurrentReadFrameID++;
 }
 
 
@@ -160,16 +247,24 @@ bool FrameFileWriterReader::CreateRecordDirectory(std::string newDirToCreate, co
 	return true;
 }
 
-void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex)
+void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex, std::string optionalPrefix)
 {
 	std::cout << "Writing Color JPEG File with index: " << frameIndex << std::endl;
 
-	std::string colorfilePath = "Color_";
-	colorfilePath += std::to_string(frameIndex);
-	colorfilePath += ".jpg";
+	
+	std::string colorFileName;
+	if (optionalPrefix.size() > 0) {
+		colorFileName += optionalPrefix + "_";
+	}
+	colorFileName += "Color_";
+	colorFileName += std::to_string(frameIndex);
+	colorFileName += ".jpg";
 
 	std::string filePath = m_sFrameRecordingsDir;
-	filePath += colorfilePath;
+
+	
+
+	filePath += colorFileName;
 
 	assert(buffer != NULL);
 
@@ -196,16 +291,21 @@ void FrameFileWriterReader::WriteCalibrationJSON(int deviceIndex, const std::vec
 	file.close();
 }
 
-void FrameFileWriterReader::WriteDepthTiffFile(const k4a_image_t &im, int frameIndex)
+void FrameFileWriterReader::WriteDepthTiffFile(const k4a_image_t &im, int frameIndex, std::string optionalPrefix)
 {
 	std::cout << "Writing Depth Tiff File with index: " << frameIndex << std::endl;
 
-	std::string depthFilePath = "Depth_";
-	depthFilePath += std::to_string(frameIndex);
-	depthFilePath += ".tiff";
+	std::string depthFileName;
+	if (optionalPrefix.size() > 0) {
+		depthFileName += optionalPrefix + "_";
+	} 
+	
+	depthFileName += "Depth_";
+	depthFileName += std::to_string(frameIndex);
+	depthFileName += ".tiff";
 
 	std::string filePath = m_sFrameRecordingsDir;
-	filePath += depthFilePath;
+	filePath += depthFileName;
 
 	cv::Mat depthMat = cv::Mat(k4a_image_get_height_pixels(im), k4a_image_get_width_pixels(im), CV_16U, k4a_image_get_buffer(im), static_cast<size_t>(k4a_image_get_stride_bytes(im)));
 
@@ -245,6 +345,34 @@ void FrameFileWriterReader::WriteTimestampLog(std::vector<int> frames, std::vect
 }
 
 /// <summary>
+/// Renames a raw frame pair (Color & Depth File). Changes the index in the filename and optionally adds a prefix 
+/// </summary>
+/// <param name="oldFrameIndex"></param>
+/// <param name="newFrameIndex"></param>
+/// <param name="newPrefix"></param>
+/// <returns></returns>
+bool FrameFileWriterReader::RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string newPrefix)
+{
+	fs::path oldFilePathColor = m_sFrameRecordingsDir + std::string("Color_") + std::to_string(oldFrameIndex) + ".jpg";
+	fs::path oldFilePathDepth = m_sFrameRecordingsDir + std::string("Depth_") + std::to_string(oldFrameIndex) + ".tiff";
+
+	fs::path newFilePathColor = m_sFrameRecordingsDir + newPrefix + std::string("Color_") + std::to_string(newFrameIndex) + ".jpg";
+	fs::path newFilePathDepth = m_sFrameRecordingsDir + newPrefix + std::string("Depth_") + std::to_string(newFrameIndex) + ".tiff";
+
+	try {
+		fs::rename(oldFilePathColor, newFilePathColor);
+		fs::rename(oldFilePathDepth, newFilePathDepth);
+	}
+
+	catch (const fs::filesystem_error& ex) {
+		std::cout << "Error trying to rename: " << ex.path1() << ex.path2() << ex.what() << std::endl;
+		return false;
+	}
+
+	return true;
+}
+
+/// <summary>
 /// Creates a directory. Should be given an absolute path
 /// </summary>
 /// <param name="path"></param>
@@ -277,6 +405,18 @@ bool FrameFileWriterReader::DirExists(std::string path)
 	fs::path pathToCheck = path;
 
 	return fs::exists(pathToCheck);
+}
+
+std::string FrameFileWriterReader::GetRecordingDirPath() {
+	return m_sFrameRecordingsDir;
+}
+
+std::string FrameFileWriterReader::GetBinFilePath() {
+	return m_sBinFilePath;
+}
+
+void FrameFileWriterReader::SetRecordingDirPath(std::string path) {
+	m_sFrameRecordingsDir = path;
 }
 
 FrameFileWriterReader::~FrameFileWriterReader()

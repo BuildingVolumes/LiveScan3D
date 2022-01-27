@@ -45,6 +45,7 @@
             this.refineWorker = new System.ComponentModel.BackgroundWorker();
             this.lbSeqName = new System.Windows.Forms.Label();
             this.btKinectSettingsOpenButton = new System.Windows.Forms.Button();
+            this.syncWorker = new System.ComponentModel.BackgroundWorker();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -196,6 +197,12 @@
             this.btKinectSettingsOpenButton.UseVisualStyleBackColor = true;
             this.btKinectSettingsOpenButton.Click += new System.EventHandler(this.btKinectSettingsOpenButton_Click);
             // 
+            // syncWorker
+            // 
+            this.syncWorker.WorkerSupportsCancellation = true;
+            this.syncWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.syncWorker_DoWork);
+            this.syncWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.syncWorker_RunWorkerCompleted);
+            // 
             // MainWindowForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -242,6 +249,7 @@
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.Label lbSeqName;
         private System.Windows.Forms.Button btKinectSettingsOpenButton;
+        private System.ComponentModel.BackgroundWorker syncWorker;
     }
 }
 

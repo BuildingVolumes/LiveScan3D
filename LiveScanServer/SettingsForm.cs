@@ -65,8 +65,10 @@ namespace KinectServer
             txtICPIters.Text = oSettings.nNumICPIterations.ToString();
             txtRefinIters.Text = oSettings.nNumRefineIters.ToString();
 
-            rTempSyncDisabled.Checked = true;
-            rTempSyncEnabled.Checked = false;
+            if (oServer != null)
+                chHardwareSync.Checked = oServer.bTempHwSyncEnabled;
+            else
+                chHardwareSync.Checked = false;
 
             chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
             trManualExposure.Value = oSettings.nExposureStep;
@@ -104,29 +106,23 @@ namespace KinectServer
 
                 //Check if we need to restart the cameras
 
-                if(rTempSyncEnabled.Checked != oServer.bTempSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
+                if(chHardwareSync.Checked != oServer.bTempHwSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
                 {
-                    if (rTempSyncEnabled.Checked)
+                    if (chHardwareSync.Checked)
                     {
                         if (oServer.EnableTemporalSync())
                             oServer.bPointCloudMode = rExportPointcloud.Checked;
-
                         else
-                            rTempSyncDisabled.Checked = true;
+                            chHardwareSync.Checked = false;
                     }
 
-                    else if (!rTempSyncEnabled.Checked && oServer.bTempSyncEnabled)
+                    else if (!chHardwareSync.Checked && oServer.bTempHwSyncEnabled)
                     {
                         if (oServer.DisableTemporalSync())
                         {
                             oServer.bPointCloudMode = rExportPointcloud.Checked;
-                            rTempSyncDisabled.Checked = true;
                             chAutoExposureEnabled.Enabled = true;
-                        }
-
-                        else
-                            rTempSyncEnabled.Checked = true;
-                        
+                        }                        
                     }
 
                     else
@@ -200,6 +196,17 @@ namespace KinectServer
             trManualExposure.Enabled = true;
             trManualExposure.Value = -5;
             chAutoExposureEnabled.CheckState = CheckState.Unchecked;
+        }
+
+        public void DisableHardwareSyncButton()
+        {
+            if (chHardwareSync.Checked)
+            {
+                chHardwareSync.Checked = false;
+                chNetworkSync.Enabled = true;
+                UpdateClients();
+            }
+
         }
 
         private void txtMinX_TextChanged(object sender, EventArgs e)
@@ -519,13 +526,31 @@ namespace KinectServer
                 UpdateClients();
         }
 
-        private void rTempSyncEnabled_CheckedChanged(object sender, EventArgs e)
+        private void chNetworkSync_CheckedChanged(object sender, EventArgs e)
         {
+            oSettings.bNetworkSync = chNetworkSync.Checked;
+
+            if (chNetworkSync.Checked)
+                chHardwareSync.Enabled = false;
+
+            else
+                chHardwareSync.Enabled = true;
+
             SettingsChanged();
         }
 
-        private void rTempSyncDisabled_CheckedChanged(object sender, EventArgs e)
+        private void chHardwareSync_CheckedChanged(object sender, EventArgs e)
         {
+            if (chHardwareSync.Checked)
+            {
+                chNetworkSync.Enabled = false;
+            }
+
+            else
+            {
+                chNetworkSync.Enabled = true;
+            }
+
             SettingsChanged();
         }
     }

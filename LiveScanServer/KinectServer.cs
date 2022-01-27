@@ -39,7 +39,7 @@ namespace KinectServer
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
         public event SocketListChangedHandler eSocketListChanged;
 
-        public bool bTempSyncEnabled = false;
+        public bool bTempHwSyncEnabled = false;
         public bool bPointCloudMode = true;
 
         object oClientSocketLock = new object();
@@ -326,7 +326,7 @@ namespace KinectServer
             {
                 if (needsRestart)
                 {
-                    if (bTempSyncEnabled)
+                    if (bTempHwSyncEnabled)
                     {
                         RestartWithTemporalSyncPattern();
                     }
@@ -499,7 +499,7 @@ namespace KinectServer
 
                 if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
                 {
-                    bTempSyncEnabled = true;
+                    bTempHwSyncEnabled = true;
                     return true;
                 }
 
@@ -508,14 +508,17 @@ namespace KinectServer
             }
 
             else
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("At least two client are needed for temporal hardware sync", 5000);
                 return false;
+            }
         }
 
         public bool DisableTemporalSync()
         {
             if (SetTempSyncState(false) && RestartAllClients())
             {
-                bTempSyncEnabled = false;
+                bTempHwSyncEnabled = false;
                 return true;
             }
 
@@ -605,6 +608,46 @@ namespace KinectServer
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// This methods checks if all connected clients are in a valid Hardware-Sync configuration
+        /// </summary>
+        /// <returns></returns>
+        public bool CheckTempHwSyncValid()
+        {
+            int mainCount = 0;
+            int subCount = 0;
+            int standaloneCount = 0;
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    switch (lClientSockets[i].configuration.eSoftwareSyncState)
+                    {
+                        case KinectConfiguration.SyncState.Main:
+                            mainCount++;
+                            break;
+                        case KinectConfiguration.SyncState.Subordinate:
+                            subCount++;
+                            break;
+                        case KinectConfiguration.SyncState.Standalone:
+                        case KinectConfiguration.SyncState.Unknown:
+                            standaloneCount++;
+                            break;
+
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            if (mainCount == 1 && standaloneCount == 0 && subCount > 0)
+                return true;
+
+            else
+                return false;
 
         }
 
@@ -621,6 +664,7 @@ namespace KinectServer
 
             if (takeIndex == -1)
             {
+                fMainWindowForm.SetStatusBarOnTimer("Error reading takes.json. Please check or delete file", 5000);
                 return null;
             }
 
@@ -857,6 +901,45 @@ namespace KinectServer
             }
         }
 
+        public bool GetTimestampLists()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].RequestTimestamps();
+                }
+            }
+
+            bool allGathered = false;
+
+            while (!allGathered)
+            {
+                allGathered = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bTimeStampsRecieved)
+                        {
+                            allGathered = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (allGathered)
+                return true;
+
+            else
+            {
+                return false;
+            }
+
+        }
+
         public void ClearStoredFrames()
         {
             lock (oClientSocketLock)
@@ -869,27 +952,151 @@ namespace KinectServer
         }
 
 
+        public bool CreatePostSyncList()
+        {
+            List<ClientSyncData> allDeviceSyncData = new List<ClientSyncData>();
 
-        public void SendRecordingStartSignal()
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    allDeviceSyncData.Add(new ClientSyncData(lClientSockets[i].lFrameNumbers, lClientSockets[i].lTimeStamps, i));
+                }
+            }
+
+            List<ClientSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData);
+
+            if(postSyncDeviceData == null)
+            {
+                return false;
+            }
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].postSyncedFrames = postSyncDeviceData[i];
+                }
+            }
+
+            return true;
+        }
+
+       
+        /// <summary>
+        /// Sends the postsync-List to the clients and waits until all clients have confirmed that they renumbered their files correctly
+        /// </summary>
+        /// <returns></returns>
+        public bool ReorderSyncFramesOnClient()
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    lClientSockets[i].SendRecordingStart();
+                    lClientSockets[i].SendPostSyncList();
+                }
+            }
+
+            bool postSyncConfirmed = false;
+
+            while (!postSyncConfirmed)
+            {
+                postSyncConfirmed = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPostSyncConfirmed)
+                            postSyncConfirmed = false;
+                    }
+                }                
+            }
+            
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    if (lClientSockets[i].bPostSyncError)
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        public void SendAndConfirmPreRecordProcess()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendPreRecordProcessStart();
+                }
+            }
+
+            bool preProcessConfirmed = false;
+
+            while (!preProcessConfirmed)
+            {
+                preProcessConfirmed = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPreRecordProcessConfirmed)
+                            preProcessConfirmed = false;
+                    }
                 }
             }
         }
 
-
-
-        public void SendRecordingStopSignal()
+        public void SendAndConfirmPostRecordProcess()
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    lClientSockets[i].SendRecordingStop();
+                    lClientSockets[i].SendPostRecordProcessStart();
+                }
+            }
+
+            bool postProcessConfirmation = false;
+
+            while (!postProcessConfirmation)
+            {
+                postProcessConfirmation = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPostRecordProcessConfirmed)
+                            postProcessConfirmation = false;
+                    }
+                }
+            }
+        }
+
+        public void SendCaptureFramesStart()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendCaptureFramesStart();
+                }
+            }
+        }
+
+        public void SendCaptureFramesStop()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendCaptureFramesStop();
                 }
             }
         }
@@ -972,7 +1179,7 @@ namespace KinectServer
                 if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.BGRA && oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
                     requiresRestart = true;
 
-                if (bTempSyncEnabled)
+                if (bTempHwSyncEnabled)
                 {
                     if (RestartWithTemporalSyncPattern())
                     {
@@ -1091,14 +1298,32 @@ namespace KinectServer
 
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_RESTART)
                             {
-                                lClientSockets[i].RecieveRestartConfirmation();
+                                lClientSockets[i].ReceiveRestartConfirmation();
                             }
-
-
 
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
                             {
-                                lClientSockets[i].RecieveDirConfirmation();
+                                lClientSockets[i].ReceiveDirConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_SEND_TIMESTAMP_LIST)
+                            {
+                                lClientSockets[i].ReceiveTimestampList();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_POSTSYNCED)
+                            {
+                                lClientSockets[i].ReceivePostSyncConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_PRE_RECORD_PROCESS)
+                            {
+                                lClientSockets[i].ReceivePreRecordProcessConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_POST_RECORD_PROCESS)
+                            {
+                                lClientSockets[i].ReceivePostRecordProcessConfirmation();
                             }
 
                             buffer = lClientSockets[i].Receive(1);

@@ -52,6 +52,8 @@ namespace KinectServer
 
         public string takePath;
 
+        public bool bNetworkSync = false;
+
         public KinectSettings()
         {
             aMinBounds[0] = -5f;
@@ -148,6 +150,9 @@ namespace KinectServer
                 {
                     jsonContent = File.ReadAllText(jsonPath);
                     takeDict = JsonConvert.DeserializeObject<Dictionary<string, int>>(jsonContent);
+
+                    if (takeDict == null)
+                        return -1; //Error reading file
                 }
 
                 catch (Exception e)

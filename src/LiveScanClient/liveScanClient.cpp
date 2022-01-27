@@ -81,9 +81,10 @@ LiveScanClient::LiveScanClient() :
 	m_bCalibrate(false),
 	m_bFilter(false),
 	m_bStreamOnlyBodies(false),
-	m_bCaptureFrame(false),
-	m_bRecordingStart(false),
-	m_bRecordingStop(false),
+	m_bCaptureFrames(false),
+	m_bCaptureSingleFrame(false),
+	m_bStartPreRecordingProcess(false),
+	m_bStartPostRecordingProcess(false),
 	m_bConnected(false),
 	m_bConfirmCaptured(false),
 	m_bConfirmCalibrated(false),
@@ -97,10 +98,13 @@ LiveScanClient::LiveScanClient() :
 	m_bRestartingCamera(false),
 	m_bRequestConfiguration(false),
 	m_bSendConfiguration(false),
+	m_bSendTimeStampList(false),
+	m_bPostSyncedListReceived(false),
 	m_bAutoExposureEnabled(true),
 	m_nExposureStep(-5),
 	m_nExtrinsicsStyle(0), // 0 = no export of extrinsics
 	m_nFrameIndex(0)
+
 {
 	pCapture = new AzureKinectCapture();
 
@@ -139,12 +143,6 @@ LiveScanClient::~LiveScanClient()
 		m_pDepthRGBX = NULL;
 	}
 
-	if (m_pBlankGreyImage)
-	{
-		delete[] m_pBlankGreyImage;
-		m_pBlankGreyImage = NULL;
-	}
-
 	if (m_pCameraSpaceCoordinates)
 	{
 		delete[] m_pCameraSpaceCoordinates;
@@ -170,6 +168,23 @@ LiveScanClient::~LiveScanClient()
 	}
 	// clean up Direct2D
 	SafeRelease(m_pD2DFactory);
+
+	//clean up picture resources
+	k4a_image_release(emptyDepthFrame);
+
+	delete emptyJPEGBuffer;
+	emptyJPEGBuffer = NULL;
+
+	emptyDepthMat->release();
+	emptyDepthMat = NULL;
+
+	if (m_pBlankGreyImage)
+	{
+		delete[] m_pBlankGreyImage;
+		m_pBlankGreyImage = NULL;
+	}
+
+	
 }
 
 int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
@@ -243,7 +258,7 @@ void LiveScanClient::UpdateFrame()
 	}
 
 	//Updates hardware settings to the configuration file
-	if (m_bRequestConfiguration) 
+	if (m_bRequestConfiguration)
 	{
 		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 		m_bRequestConfiguration = false;
@@ -257,28 +272,49 @@ void LiveScanClient::UpdateFrame()
 		m_bUpdateSettings = false;
 	}
 
-	if (m_bRestartCamera) 
+	if (m_bRestartCamera)
 	{
-		if(ReinitAndConfirm())
-			m_bRestartCamera = false;
+		bool success = Reinit();
+		SendReinitConfirmation(success);
+
+		m_bRestartCamera = false;
 
 		if (!pCapture->bAquiresPointcloud)
 			SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 2000, true);
 	}
 
-	if (m_bRecordingStart) 
+	if (m_bStartPreRecordingProcess)
 	{
 		m_nFrameIndex = 0;
-		m_vTimestamps.clear();
-		m_vFrameNumbers.clear();
+		m_vFrameTimestamps.clear();
+		m_vFrameCount.clear();
 
-		m_bRecordingStart = false;
+		m_bStartPreRecordingProcess = false;
+		m_bConfirmPreRecordingProcess = true;
 	}
 
-	if(m_bRecordingStop)
+	if (m_bStartPostRecordingProcess)
 	{
-		m_framesFileWriterReader.WriteTimestampLog(m_vFrameNumbers, m_vTimestamps, configuration.nGlobalDeviceIndex);
-		m_bRecordingStop = false;
+		m_framesFileWriterReader.WriteTimestampLog(m_vFrameCount, m_vFrameTimestamps, configuration.nGlobalDeviceIndex);
+
+		m_bStartPostRecordingProcess = false;
+		m_bConfirmPostRecordingProcess = true;
+	}
+
+	if (m_bPostSyncedListReceived)
+	{
+		m_bPostSyncedListReceived = false;
+		bool success = true;
+
+		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG)
+			success = PostSyncRawFrames();
+
+		
+		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
+			success = PostSyncPointclouds();
+
+		
+		SendPostSyncConfirmation(success);		
 	}
 
 	//Recording raw frames
@@ -289,18 +325,21 @@ void LiveScanClient::UpdateFrame()
 		if (!bNewFrameAcquired)
 			return;
 
-		if (m_bCaptureFrame)
+		if (m_bCaptureFrames || m_bCaptureSingleFrame)
 		{
-			m_vFrameNumbers.push_back(m_nFrameIndex);
-			m_vTimestamps.push_back(pCapture->GetTimeStamp());
+			m_vFrameCount.push_back(m_nFrameIndex);
+			m_vFrameTimestamps.push_back(pCapture->GetTimeStamp());
 			std::cout << "Capturing Raw Frame" << std::endl;
 
-			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex);
-			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex);
+			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex, "");
+			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex, "");
 			m_nFrameIndex++;
 
-			m_bConfirmCaptured = true;
-			m_bCaptureFrame = false;
+			if (m_bCaptureSingleFrame)
+			{
+				m_bConfirmCaptured = true;
+				m_bCaptureSingleFrame = false;
+			}
 		}
 	}
 
@@ -312,26 +351,30 @@ void LiveScanClient::UpdateFrame()
 		if (!bNewFrameAcquired)
 			return;
 
+		uint64_t timeStamp = pCapture->GetTimeStamp();
+
 		pCapture->MapColorFrameToCameraSpace(m_pCameraSpaceCoordinates);
 
 		{
 			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
 			StoreFrame(m_pCameraSpaceCoordinates, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
 
-			if (m_bCaptureFrame)
+			if (m_bCaptureFrames || m_bCaptureSingleFrame)
 			{
-				std::cout << "Capturing Pointcloud Frame" << std::endl;
+				std::cout << "Capturing Pointcloud Frame" << std::endl;				
 
-				uint64_t timeStamp = pCapture->GetTimeStamp();
-
-				m_vFrameNumbers.push_back(m_nFrameIndex);
-				m_vTimestamps.push_back(timeStamp);
+				m_vFrameCount.push_back(m_nFrameIndex);
+				m_vFrameTimestamps.push_back(timeStamp);
 
 				m_nFrameIndex++;
 
-				m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
-				m_bConfirmCaptured = true;
-				m_bCaptureFrame = false;
+				m_framesFileWriterReader.writeNextBinaryFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
+
+				if (m_bCaptureSingleFrame)
+				{
+					m_bConfirmCaptured = true;
+					m_bCaptureSingleFrame = false;
+				}
 			}
 		}
 
@@ -403,7 +446,7 @@ void LiveScanClient::Connect() {
 	else
 	{
 		try
-		{	
+		{
 			std::cout << "Trying to connect to server" << std::endl;
 			char address[20];
 			GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
@@ -472,7 +515,17 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 		}
 
+		//Create empty images for filling in dropped frames
 		CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
+
+		cv::Mat emptyColorMat(1, 1, CV_8UC3);
+		emptyJPEGBuffer = new vector<uchar>();
+		emptyColorMat = cv::Scalar(0, 0, 255);
+		cv::imencode(".jpg", emptyColorMat, *emptyJPEGBuffer);
+
+		emptyDepthMat = new cv::Mat(1, 1, CV_16U);
+		*emptyDepthMat = cv::Scalar(0);
+		k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_DEPTH16, 1, 1, 0, emptyDepthMat->data, emptyDepthMat->total() * emptyDepthMat->elemSize(), NULL, NULL, &emptyDepthFrame);
 
 		ReadIPFromFile();
 	}
@@ -508,7 +561,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
 		break;
 	}
-	// If the titlebar X is clicked, destroy app
+				// If the titlebar X is clicked, destroy app
 	case WM_CLOSE:
 		pCapture->Close();
 		WriteIPToFile();
@@ -637,25 +690,38 @@ void LiveScanClient::HandleSocket()
 
 	for (unsigned int i = 0; i < received.length(); i++)
 	{
-		std::cout << "Received Server message: " << char(received[i]) << std::endl;
+		std::cout << "Received Server message:	";
 
-		//capture a frame
-		if (received[i] == MSG_CAPTURE_FRAME)
+		//Capture a single frame. Used for network-synced recording
+		if (received[i] == MSG_CAPTURE_SINGLE_FRAME)
 		{
 			std::cout << "Capture single frame Received" << std::endl;
-			m_bCaptureFrame = true;
+			m_bCaptureSingleFrame = true;
 		}
 
-		if (received[i] == MSG_RECORDING_START)
+		//Capture frames as fast as possible. Used for hardware-synced, or not-synced recording
+		if (received[i] == MSG_START_CAPTURING_FRAMES)
 		{
-			std::cout << "Capture frame start received" << std::endl;
-			m_bRecordingStart = true;
+			std::cout << "Capture frames start received" << std::endl;
+			m_bCaptureFrames = true;
 		}
 
-		if (received[i] == MSG_RECORDING_STOP) 
+		if (received[i] == MSG_STOP_CAPTURING_FRAMES)
 		{
-			std::cout << "Capture frame stop received" << std::endl;
-			m_bRecordingStop = true;
+			std::cout << "Capture frames stop received" << std::endl;
+			m_bCaptureFrames = false;
+		}
+
+		if (received[i] == MSG_PRE_RECORD_PROCESS_START)
+		{
+			std::cout << "Received pre recording process start" << std::endl;
+			m_bStartPreRecordingProcess = true;
+		}
+
+		if (received[i] == MSG_POST_RECORD_PROCESS_START)
+		{
+			std::cout << "Received post recording process start" << std::endl;
+			m_bStartPostRecordingProcess = true;
 		}
 
 		//calibrate
@@ -678,7 +744,7 @@ void LiveScanClient::HandleSocket()
 			std::cout << "Recieved new configuration" << std::endl;
 
 			i++;
-			std:string message;
+		std:string message;
 			//TODO: this can be done with substrings, im sure.
 			for (int x = 0; x < KinectConfiguration::byteLength; x++)
 			{
@@ -696,7 +762,6 @@ void LiveScanClient::HandleSocket()
 		else if (received[i] == MSG_RECEIVE_SETTINGS)
 		{
 			std::cout << "Recieved new settings" << std::endl;
-
 
 			vector<float> bounds(6);
 			i++;
@@ -787,7 +852,7 @@ void LiveScanClient::HandleSocket()
 		}
 
 		//send configuration
-		else if (received[i] == MSG_REQUEST_CONFIGURATION) 
+		else if (received[i] == MSG_REQUEST_CONFIGURATION)
 		{
 			std::cout << "Server requests configuration" << std::endl;
 			m_bRequestConfiguration = true;
@@ -802,7 +867,8 @@ void LiveScanClient::HandleSocket()
 
 			vector<Point3s> points;
 			vector<RGB> colors;
-			bool res = m_framesFileWriterReader.readFrame(points, colors);
+			int timestamp;
+			bool res = m_framesFileWriterReader.readNextBinaryFrame(points, colors, timestamp);
 			if (res == false)
 			{
 				int size = -1;
@@ -854,7 +920,6 @@ void LiveScanClient::HandleSocket()
 		{
 			std::cout << "Creating new take directory" << std::endl;
 
-
 			i++;
 			int stringLength = *(int*)(received.c_str() + i); //Get the length of the following string
 			i += sizeof(int);
@@ -882,10 +947,39 @@ void LiveScanClient::HandleSocket()
 			}
 
 			//Write the calibration intrinsics into the newly created dir if we record raw frames
-			if(configuration.config.color_format != K4A_IMAGE_FORMAT_COLOR_BGRA32)
+			if (configuration.config.color_format != K4A_IMAGE_FORMAT_COLOR_BGRA32)
 				m_framesFileWriterReader.WriteCalibrationJSON(configuration.nGlobalDeviceIndex, pCapture->calibrationBuffer, pCapture->nCalibrationSize);
 
 		}
+
+		else if (received[i] == MSG_REQUEST_TIMESTAMP_LIST)
+		{
+			std::cout << "Server requests timestamp list" << std::endl;
+			m_bSendTimeStampList = true;
+		}
+
+		else if (received[i] == MSG_RECEIVE_POSTSYNC_LIST)
+		{
+			std::cout << "Receiving Postsync List" << std::endl;
+
+			i++;
+			int size = *(int*)(received.c_str() + i);
+			i += sizeof(int);
+
+			m_vFrameID.clear();
+			m_vPostSyncedFrameID.clear();
+			m_vFrameID.resize(size);
+			m_vPostSyncedFrameID.resize(size);
+
+			memcpy(m_vFrameID.data(), &received[i], size * sizeof(int));
+			i += size * sizeof(int);
+
+			memcpy(m_vPostSyncedFrameID.data(), &received[i], size * sizeof(int));
+			i += size * sizeof(int);
+
+			m_bPostSyncedListReceived = true;
+		}
+
 	}
 
 	if (m_bConfirmCaptured)
@@ -921,7 +1015,25 @@ void LiveScanClient::HandleSocket()
 		m_bConfirmCalibrated = false;
 	}
 
-	if (m_bSendConfiguration) 
+	if (m_bConfirmPreRecordingProcess) {
+
+		std::cout << "Sending Pre Record Process confirmation" << std::endl;
+
+		byteToSend = MSG_CONFIRM_PRE_RECORD_PROCESS;
+		m_pClientSocket->SendBytes(&byteToSend, 1);
+		m_bConfirmPreRecordingProcess = false;
+	}
+
+	if (m_bConfirmPostRecordingProcess) {
+
+		std::cout << "Sending Post Record Process confirmation" << std::endl;
+
+		byteToSend = MSG_CONFIRM_POST_RECORD_PROCESS;
+		m_pClientSocket->SendBytes(&byteToSend, 1);
+		m_bConfirmPostRecordingProcess = false;
+	}
+
+	if (m_bSendConfiguration)
 	{
 		std::cout << "Sending configuration" << std::endl;
 
@@ -932,12 +1044,48 @@ void LiveScanClient::HandleSocket()
 		m_pClientSocket->SendBytes(buffer, size);
 		m_bSendConfiguration = false;
 	}
+
+	if (m_bSendTimeStampList)
+	{
+		std::cout << "Sending Timestamp list" << std::endl;
+
+		//Structure of timestamp byte list:
+		// Message Char + Timestamps Array Size + Timestamps Array as uint64 + FrameNumbers Array Size + FrameNumbers as Int32
+
+		int byteSizeTimestamps = m_vFrameTimestamps.size() * sizeof(uint64);
+		int byteSizeFrameNumbers = m_vFrameCount.size() * sizeof(int);
+		int size = (1 + sizeof(int) + byteSizeTimestamps + sizeof(int) + byteSizeFrameNumbers);
+		char* buffer = new char[size];
+		buffer[0] = MSG_SEND_TIMESTAMP_LIST;
+		int i = 1;
+
+		int timestampSize = m_vFrameTimestamps.size();
+		memcpy(buffer + i, &timestampSize, sizeof(int));
+		i += sizeof(int);
+
+		char* timestampsPtr = (char*)m_vFrameTimestamps.data();
+		memcpy(buffer + i, timestampsPtr, byteSizeTimestamps);
+		i += byteSizeTimestamps;
+
+		int frameNumberSize = m_vFrameCount.size();
+		memcpy(buffer + i, &frameNumberSize, sizeof(int));
+		i += sizeof(int);
+
+		char* frameNumberPointer = (char*)m_vFrameCount.data();
+		memcpy(buffer + i, frameNumberPointer, byteSizeFrameNumbers);
+		i += byteSizeFrameNumbers;
+
+		m_pClientSocket->SendBytes(buffer, size);
+		m_bSendTimeStampList = false;
+
+		delete[] buffer;
+	}
 }
 
 /// <summary>
 /// Reinitialize. Must be called after changing depthMode or afer changing temporal sync mode.
 /// </summary>
-bool LiveScanClient::ReinitAndConfirm()
+bool LiveScanClient::Reinit()
 {
 	std::cout << "Reinitializing camera" << std::endl;
 
@@ -970,7 +1118,6 @@ bool LiveScanClient::ReinitAndConfirm()
 	}
 
 	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
-	SendReinitConfirmation(true);
 	m_bRestartingCamera = false;
 	return true;
 }
@@ -983,11 +1130,29 @@ void LiveScanClient::SendReinitConfirmation(bool success)
 	char* buffer = new char[size];
 	buffer[0] = MSG_CONFIRM_RESTART;
 
+	//TODO: Switch this, 1 = success
 	if (success)
 		buffer[1] = 0;
 
 	else
 		buffer[1] = 1;
+
+	m_pClientSocket->SendBytes(buffer, size);
+}
+
+void LiveScanClient::SendPostSyncConfirmation(bool success)
+{
+	std::cout << "Sending Post Sync confirmation. Post Sync successfull: " << success << std::endl;
+
+	int size = 2;
+	char* buffer = new char[size];
+	buffer[0] = MSG_CONFIRM_POSTSYNCED;
+
+	if (success)
+		buffer[1] = 1;
+
+	else
+		buffer[1] = 0;
 
 	m_pClientSocket->SendBytes(buffer, size);
 }
@@ -1086,7 +1251,7 @@ void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector
 
 void LiveScanClient::StoreFrame(Point3f* vertices, RGB* colorInDepth, vector<Body>& bodies, BYTE* bodyIndex)
 {
-	std::cout << "Storing Pointcloud Frame" << std::endl;
+	//std::cout << "Storing Pointcloud Frame" << std::endl;
 
 	unsigned int nVertices = pCapture->nColorFrameHeight * pCapture->nColorFrameWidth;
 
@@ -1270,5 +1435,73 @@ void LiveScanClient::CreateBlankGrayImage(const int width, const int height)
 	}
 
 	m_pBlankGreyImage = greyFrame;
+}
 
+bool LiveScanClient::PostSyncPointclouds() {
+
+	bool success = true;
+
+	vector<Point3s> points;
+	vector<RGB> colors;
+	vector<Point3s> emptyPoints;
+	vector<RGB> emptyColors;
+	int timestamp = 0;
+
+	//We open a new .bin file in which we copy and paste all the frames from the recorded .bin file,
+	//but in the right order
+	FrameFileWriterReader syncedFileWriter;
+	syncedFileWriter.SetRecordingDirPath(m_framesFileWriterReader.GetRecordingDirPath());
+	syncedFileWriter.openNewBinFileForWriting(configuration.nGlobalDeviceIndex, "synced");
+	m_framesFileWriterReader.openCurrentBinFileForReading();
+
+	for (size_t i = 0; i < m_vFrameID.size(); i++)
+	{
+		//-1 indicates that this device doesn't have a valid frame for this capture. To keep a good frame timing, we fill in an empty frame
+		if (m_vFrameID[i] == -1) {
+
+			if (!syncedFileWriter.writeNextBinaryFrame(emptyPoints, emptyColors, 0, configuration.nGlobalDeviceIndex)) {
+				success = false;
+			}
+		}
+
+		else {
+			m_framesFileWriterReader.seekBinaryReaderToFrame(m_vFrameID[i]);
+			m_framesFileWriterReader.readNextBinaryFrame(points, colors, timestamp);
+			if (!syncedFileWriter.writeNextBinaryFrame(points, colors, timestamp, configuration.nGlobalDeviceIndex)) {
+				std::cout << "Could not write Pointcloud Frame during post sync. Frame ID: " << m_vFrameID[i] << std::endl;
+				success = false;
+			}
+		}
+	}
+
+	//Close our synced .bin file...
+	std::string syncedFilePath = syncedFileWriter.GetBinFilePath();
+	syncedFileWriter.closeFileIfOpened();
+	m_framesFileWriterReader.closeAndDeleteFile(); //...delete the old .bin file...
+	m_framesFileWriterReader.openNewBinFileForReading(syncedFilePath); //... and open it into the default framefilewriter, so that when the server requests stored frames, the client knows where to look
+	
+	return success;	
+}
+
+bool LiveScanClient::PostSyncRawFrames() {
+
+	bool success = true;
+
+	for (size_t i = 0; i < m_vFrameID.size(); i++)
+	{
+		//-1 indicates that this device doesn't have a valid frame for this capture. To keep a good frame timing, we fill in an empty frame
+		if (m_vFrameID[i] == -1) {
+			m_framesFileWriterReader.WriteColorJPGFile(emptyJPEGBuffer->data(), emptyJPEGBuffer->size(), m_vPostSyncedFrameID[i], "synced");
+			m_framesFileWriterReader.WriteDepthTiffFile(emptyDepthFrame, m_vPostSyncedFrameID[i], "synced");
+		}
+
+		else {
+			if (!m_framesFileWriterReader.RenameRawFramePair(m_vFrameID[i], m_vPostSyncedFrameID[i], std::string("synced_"))) {
+				std::cout << "Could not rename Frame with ID: " << m_vFrameID[i] << std::endl;
+				success = false;
+			}
+		}		
+	}
+
+	return success;
 }

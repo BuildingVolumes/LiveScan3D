@@ -71,6 +71,7 @@
     <Compile Include="KinectSettings.cs" />
     <Compile Include="KinectSocket.cs" />
     <Compile Include="OpenGLWindow.cs" />
+    <Compile Include="PostSync.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ServerUtils.cs" />
