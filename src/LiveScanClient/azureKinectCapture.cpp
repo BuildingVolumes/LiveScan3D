@@ -535,7 +535,7 @@ bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buf
 
 uint64_t AzureKinectCapture::GetTimeStamp()
 {
-	std::cout << "Getting timestamp. Timestamp is: " << currentTimeStamp << std::endl;
+	//std::cout << "Getting timestamp at: " << currentTimeStamp << std::endl;
 	return currentTimeStamp;
 }
 

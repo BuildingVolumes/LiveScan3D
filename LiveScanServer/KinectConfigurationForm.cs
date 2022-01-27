@@ -82,8 +82,7 @@ namespace KinectServer
 
         private void UpdateButton_Click(object sender, EventArgs e)
         {
-            oServer.SendConfigurationToSocket(kinectSocket, displayedConfiguration);
-            //kinectSocket.SendConfiguration(displayedConfiguration);
+            oServer.SetAndConfirmConfig(kinectSocket, displayedConfiguration);
         }
 
         private void ListBox1_SelectedIndexChanged(object sender, EventArgs e)

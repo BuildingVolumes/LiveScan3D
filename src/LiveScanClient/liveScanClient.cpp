@@ -55,6 +55,7 @@ int APIENTRY wWinMain(
 		if (argCount >= 6) g_connectToServerImmediately = _wtoi(szArgList[5]);
 	}
 
+//TODO: Write a logging class
 #ifdef _DEBUG
 	AllocConsole();
 	freopen("CONOUT$", "w", stdout);
@@ -95,7 +96,7 @@ LiveScanClient::LiveScanClient() :
 	m_pClientSocket(NULL),
 	m_nFilterNeighbors(10),
 	m_fFilterThreshold(0.01f),
-	m_bRestartingCamera(false),
+	//m_bRestartingCamera(false),
 	m_bRequestConfiguration(false),
 	m_bSendConfiguration(false),
 	m_bSendTimeStampList(false),
@@ -251,13 +252,7 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
 
 void LiveScanClient::UpdateFrame()
 {
-	//I don't think we need the RestartingCamera lock here
-	if (!pCapture->bInitialized || m_bRestartingCamera)
-	{
-		return;
-	}
-
-	//Updates hardware settings to the configuration file
+	//Writes the hardware sync status to the configuration file
 	if (m_bRequestConfiguration)
 	{
 		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
@@ -272,16 +267,36 @@ void LiveScanClient::UpdateFrame()
 		m_bUpdateSettings = false;
 	}
 
-	if (m_bRestartCamera)
+	if (m_bCloseCamera) 
 	{
-		bool success = Reinit();
-		SendReinitConfirmation(success);
+		m_bCameraError != CloseCamera();
+		m_bCloseCamera = false;
+		m_bConfirmCameraClosed = true;
+	}
 
-		m_bRestartCamera = false;
+	if (m_bInitializeCamera)
+	{
+		m_bCameraError != InitializeCamera();
+		m_bInitializeCamera = false;
+		m_bConfirmCameraInitialized = true;
 
-		if (!pCapture->bAquiresPointcloud)
+		if (!pCapture->bAquiresPointcloud && !m_bCameraError)
 			SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 2000, true);
 	}
+
+	if (!m_bShowDepth)
+		ShowColor();
+	else
+		ShowDepth();
+
+	ShowFPS();
+
+	if (!pCapture->bInitialized)
+	{
+		return;
+	}
+
+	// +++ Below are functions that need the camera to be initialized +++	
 
 	if (m_bStartPreRecordingProcess)
 	{
@@ -401,12 +416,6 @@ void LiveScanClient::UpdateFrame()
 		}
 	}
 
-	if (!m_bShowDepth)
-		ShowColor();
-	else
-		ShowDepth();
-
-	ShowFPS();
 }
 
 LRESULT CALLBACK LiveScanClient::MessageRouter(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -489,7 +498,6 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		if (res)
 		{
 			std::cout << "Device could be opened successfully" << std::endl;
-
 			configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 			calibration.LoadCalibration(pCapture->serialNumber);
 			m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
@@ -518,11 +526,13 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		//Create empty images for filling in dropped frames
 		CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 
+		//Create an empy .jpeg image, which is used to fill in dropped frames during sync
 		cv::Mat emptyColorMat(1, 1, CV_8UC3);
 		emptyJPEGBuffer = new vector<uchar>();
 		emptyColorMat = cv::Scalar(0, 0, 255);
 		cv::imencode(".jpg", emptyColorMat, *emptyJPEGBuffer);
 
+		//Same for depth image
 		emptyDepthMat = new cv::Mat(1, 1, CV_16U);
 		*emptyDepthMat = cv::Scalar(0);
 		k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_DEPTH16, 1, 1, 0, emptyDepthMat->data, emptyDepthMat->total() * emptyDepthMat->elemSize(), NULL, NULL, &emptyDepthFrame);
@@ -591,6 +601,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 				SetDlgItemTextA(m_hWnd, IDC_BUTTON_SWITCH, "Show depth");
 			}
 		}
+
 		break;
 	}
 
@@ -676,6 +687,8 @@ void LiveScanClient::SocketThreadFunction()
 }
 
 //This is running on a seperate thread!
+//TODO: Put the whole sending/receiving in a seperate file/class, it's taking up a lot of space!
+
 void LiveScanClient::HandleSocket()
 {
 	char byteToSend;
@@ -731,13 +744,17 @@ void LiveScanClient::HandleSocket()
 			m_bCalibrate = true;
 		}
 
-		//Restart The Device without changing any settings - must be done after turning on/off temporal sync, and when changing depth mode.
-		else if (received[i] == MSG_REINITIALIZE_WITH_CURRENT_SETTINGS)
+		else if (received[i] == MSG_CLOSE_CAMERA)
 		{
-			std::cout << "Reinitializing device with current settings" << std::endl;
-			m_bRestartCamera = true;
+			std::cout << "Closing camera command received" << std::endl;
+			m_bCloseCamera = true;
 		}
 
+		else if (received[i] == MSG_INIT_CAMERA)
+		{
+			std::cout << "Initialize camera command received" << std::endl;
+			m_bInitializeCamera = true;
+		}
 
 		else if (received[i] == MSG_SET_CONFIGURATION)
 		{
@@ -1080,31 +1097,64 @@ void LiveScanClient::HandleSocket()
 
 		delete[] buffer;
 	}
+
+	if (m_bConfirmCameraClosed) 
+	{
+		std::cout << "Sending camera closed confirmation. Reinitialization successfull: " << to_string(m_bCameraError) << std::endl;
+		int size = 2;
+		char* buffer = new char[size];
+		buffer[0] = MSG_CONFIRM_CAMERA_CLOSED;
+
+		if (m_bCameraError)
+			buffer[1] = 1; // = Error
+		else
+			buffer[1] = 0; // = Success
+
+		m_pClientSocket->SendBytes(buffer, size);
+		m_bConfirmCameraClosed = false;
+	}
+
+	if (m_bConfirmCameraInitialized) 
+	{
+		std::cout << "Sending camera initialized confirmation. Reinitialization successfull: " << to_string(m_bCameraError) << std::endl;
+
+		int size = 2;
+		char* buffer = new char[size];
+		buffer[0] = MSG_CONFIRM_CAMERA_INIT;
+
+		if (m_bCameraError)
+			buffer[1] = 1;
+		else
+			buffer[1] = 0;
+
+		m_pClientSocket->SendBytes(buffer, size);
+		m_bConfirmCameraInitialized = false;
+	}
 }
 
-/// <summary>
-/// Reinitialize. Must be called after changing depthMode or afer changing temporal sync mode.
-/// </summary>
-bool LiveScanClient::Reinit()
+bool LiveScanClient::CloseCamera()
 {
-	std::cout << "Reinitializing camera" << std::endl;
-
-	m_bRestartingCamera = true;
+	std::cout << "Closing camera" << std::endl;
 
 	bool res = false;
 	res = pCapture->Close();
 	if (!res) {
-		SetStatusMessage(L"device failed to close! Please restart Application!", 10000, true);
-		SendReinitConfirmation(false);
-		m_bRestartingCamera = false;
+		SetStatusMessage(L"Device failed to close! Please restart Application!", 10000, true);
 		return false;
 	}
 
+	return true;
+}
+
+bool LiveScanClient::InitializeCamera()
+{
+	std::cout << "Initializing camera" << std::endl;
+
+	bool res = false;
+
 	res = pCapture->Initialize(configuration);
 	if (!res) {
-		SetStatusMessage(L"device failed to reinitialize! Please restart Application!", 10000, true);
-		SendReinitConfirmation(false);
-		m_bRestartingCamera = false;
+		SetStatusMessage(L"Device failed to initialize! Please restart Application!", 10000, true);
 		return false;
 	}
 
@@ -1118,26 +1168,7 @@ bool LiveScanClient::Reinit()
 	}
 
 	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
-	m_bRestartingCamera = false;
 	return true;
-}
-
-void LiveScanClient::SendReinitConfirmation(bool success)
-{
-	std::cout << "Sending reinitialization confirmation. Reinitialization successfull: " << success << std::endl;
-
-	int size = 2;
-	char* buffer = new char[size];
-	buffer[0] = MSG_CONFIRM_RESTART;
-
-	//TODO: Switch this, 1 = success
-	if (success)
-		buffer[1] = 0;
-
-	else
-		buffer[1] = 1;
-
-	m_pClientSocket->SendBytes(buffer, size);
 }
 
 void LiveScanClient::SendPostSyncConfirmation(bool success)

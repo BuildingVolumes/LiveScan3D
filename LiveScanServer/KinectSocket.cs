@@ -34,8 +34,10 @@ namespace KinectServer
 
 
         public bool bCalibrated = false;
-        public bool bReinitialized = false;
-        public bool bReinizializationError = false;
+
+        public bool bCameraClosed = false;
+        public bool bCameraInitialized = false;
+        public bool bCameraError = false;
 
         public bool bDirCreationConfirmed = false;
         public bool bDirCreationError = false;
@@ -265,17 +267,21 @@ namespace KinectServer
             SendByte();
         }
 
-        /// <summary>
-        /// Send a signal to Reinitialize the device with its current settings and confirm it to the server.
-        /// </summary>
-        public void ReinitializeAndConfirm()
+        public void CloseCameraAndConfirm()
         {
-            bReinitialized = false;
-            bReinizializationError = false;
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_REINITIALIZE_WITH_CURRENT_SETTINGS;
+            bCameraClosed = false;
+            bCameraError = false;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_CLOSE_CAMERA;
             SendByte();
         }
 
+        public void InitializeCameraAndConfirm()
+        {
+            bCameraInitialized = false;
+            bCameraError = false;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_INIT_CAMERA;
+            SendByte();
+        }
         public void ReceiveCalibrationData()
         {
             bCalibrated = true;
@@ -303,22 +309,30 @@ namespace KinectServer
             UpdateSocketState("");
         }
 
-        /// <summary>
-        /// Gets a confirmation from the client that the restart has either been successfull, or a failure
-        /// </summary>
-        /// <returns></returns>
-        public void ReceiveRestartConfirmation()
+        public void ReceiveCameraClosedConfirmation()
         {
-            bReinitialized = true;
+            bCameraClosed = true;
 
-            byte[] success = Receive(1);
+            byte[] error = Receive(1);
 
-
-            if (success[0] == 0)
-                bReinizializationError = false;
+            if (error[0] == 0)
+                bCameraError = false;
 
             else
-                bReinizializationError = true;
+                bCameraError = true;
+        }
+
+        public void ReceiveCameraInitializedConfirmation()
+        {
+            bCameraInitialized = true;
+
+            byte[] error = Receive(1);
+
+            if (error[0] == 0)
+                bCameraError = false;
+
+            else
+                bCameraError = true;
         }
 
         public void RecieveConfiguration()

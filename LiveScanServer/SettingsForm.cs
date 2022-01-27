@@ -98,7 +98,7 @@ namespace KinectServer
 
         void UpdateClients()
         {
-            if (bFormLoaded)
+            if (bFormLoaded && !UpdateClientsBackgroundWorker.IsBusy)
             {
                 Cursor.Current = Cursors.WaitCursor;
 
@@ -106,7 +106,9 @@ namespace KinectServer
 
                 //Check if we need to restart the cameras
 
-                if(chHardwareSync.Checked != oServer.bTempHwSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
+                //TODO: Currently, the UI doesn't update as it stalls the thread. How can I get this to work without stalling it?
+
+                if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
                 {
                     if (chHardwareSync.Checked)
                     {
@@ -122,7 +124,7 @@ namespace KinectServer
                         {
                             oServer.bPointCloudMode = rExportPointcloud.Checked;
                             chAutoExposureEnabled.Enabled = true;
-                        }                        
+                        }
                     }
 
                     else
@@ -130,15 +132,14 @@ namespace KinectServer
                         if (oServer.RestartAllClients())
                             oServer.bPointCloudMode = rExportPointcloud.Checked;
                     }
-
                 }
-
-                btApplyAllSettings.Enabled = false;
-                lApplyWarning.Text = "";
 
                 oServer.fMainWindowForm.SetButtonsForExport();
 
                 Cursor.Current = Cursors.Default;
+
+                btApplyAllSettings.Enabled = false;
+                lApplyWarning.Text = "";
             }
         }
 

@@ -59,8 +59,11 @@ private:
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
-	bool m_bRestartCamera;
-	bool m_bRestartingCamera;
+	bool m_bCloseCamera;
+	bool m_bConfirmCameraClosed;
+	bool m_bInitializeCamera;
+	bool m_bConfirmCameraInitialized;
+	bool m_bCameraError;
 	bool m_bUpdateSettings;
 	bool m_bRequestConfiguration;
 	bool m_bSendConfiguration;
@@ -127,7 +130,8 @@ private:
 
 	void HandleSocket();
 	bool Reinit();
-	void SendReinitConfirmation(bool success);
+	bool CloseCamera();
+	bool InitializeCamera();
 	void SendPostSyncConfirmation(bool success);
 	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
 	bool PostSyncPointclouds();

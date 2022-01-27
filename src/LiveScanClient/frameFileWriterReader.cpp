@@ -6,10 +6,7 @@
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING //Otherwise VS yells
 #include <experimental/filesystem>
 
-
-
 namespace fs = std::experimental::filesystem;
-
 
 FrameFileWriterReader::FrameFileWriterReader()
 {
@@ -57,12 +54,15 @@ void FrameFileWriterReader::openCurrentBinFileForReading()
 	closeFileIfOpened();
 
 	m_pFileHandle = fopen(m_sBinFilePath.c_str(), "rb");
-
 	m_bFileOpenedForReading = true;
 	m_bFileOpenedForWriting = false;
 	m_nCurrentReadFrameID = 0;
 }
 
+/// <summary>
+/// Opens a .bin recording file from anywhere on disk
+/// </summary>
+/// <param name="path">The absolute or relative path to the bin file, including the file and file-ending </param>
 void FrameFileWriterReader::openNewBinFileForReading(std::string path) {
 	closeFileIfOpened();
 
@@ -73,6 +73,11 @@ void FrameFileWriterReader::openNewBinFileForReading(std::string path) {
 	m_nCurrentReadFrameID = 0;
 }
 
+/// <summary>
+/// Opens a new .bin file for writing in the current recording directoy. Use setRecordingDirPath() to set the recording directory
+/// </summary>
+/// <param name="deviceID">The device ID, as given by the server</param>
+/// <param name="prefix">Optional prefix for the file name</param>
 void FrameFileWriterReader::openNewBinFileForWriting(int deviceID, std::string prefix)
 {
 	closeFileIfOpened();
@@ -97,6 +102,13 @@ void FrameFileWriterReader::openNewBinFileForWriting(int deviceID, std::string p
 	resetTimer();
 }
 
+/// <summary>
+/// Reads the next frame from the opened .bin file. If you need to read a certain frame, first seek to it with seekBinaryReaderToFrame() and the use this function.
+/// </summary>
+/// <param name="outPoints"> Point buffer to be filled </param>
+/// <param name="outColors"> RGB buffer to be filled </param>
+/// <param name="outTimestamp"> The timestamp at which the frame was taken. Returns -1 when timestamp could not be retrieved </param>
+/// <returns></returns>
 bool FrameFileWriterReader::readNextBinaryFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors, int &outTimestamp)
 {
 	std::cout << "Reading Pointcloud Frame" << std::endl;
@@ -104,8 +116,11 @@ bool FrameFileWriterReader::readNextBinaryFrame(std::vector<Point3s> &outPoints,
 	if (!m_bFileOpenedForReading)
 		openCurrentBinFileForReading();
 
+	//Clear the given buffers so that we don't return data that was set in them before
 	outPoints.clear();
 	outColors.clear();
+	outTimestamp = -1;
+
 	FILE *f = m_pFileHandle;
 	int nPoints, timestamp; 
 	char tmp[1024]; 
@@ -114,26 +129,34 @@ bool FrameFileWriterReader::readNextBinaryFrame(std::vector<Point3s> &outPoints,
 	if (nread < 4)
 		return false;
 
-	if (nPoints == 0)
-		return true;
+	if (nPoints > 0) 
+	{
+		fgetc(f);		//  '\n'
+		outPoints.resize(nPoints);
+		outColors.resize(nPoints);
 
-	fgetc(f);		//  '\n'
-	outPoints.resize(nPoints);
-	outColors.resize(nPoints);
-
-	fread((void*)outPoints.data(), sizeof(outPoints[0]), nPoints, f);
-	fread((void*)outColors.data(), sizeof(outColors[0]), nPoints, f);
-	fgetc(f);		// '\n'
-
-	m_nCurrentReadFrameID++; //Keep track of the latest read frame ID 
+		fread((void*)outPoints.data(), sizeof(outPoints[0]), nPoints, f);
+		fread((void*)outColors.data(), sizeof(outColors[0]), nPoints, f);
+		fgetc(f);		// '\n'
+	}
+	
 	outTimestamp = timestamp;
+	m_nCurrentReadFrameID++; //Keep track of the latest read frame ID 
 	return true;
 
 }
 
+/// <summary>
+/// Append a frame to the openend .bin file
+/// </summary>
+/// <param name="points"></param>
+/// <param name="colors"></param>
+/// <param name="timestamp"></param>
+/// <param name="deviceID"></param>
+/// <returns></returns>
 bool FrameFileWriterReader::writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID)
 {
-	std::cout << "Writing pointcloud frame" << std::endl;
+	std::cout << "Writing pointcloud frame: Points = " << points.size() << " Timestamp = " << timestamp << std::endl;
 
 	if (!m_bFileOpenedForWriting)
 		openNewBinFileForWriting(deviceID, "");
@@ -163,6 +186,10 @@ bool FrameFileWriterReader::writeNextBinaryFrame(std::vector<Point3s> points, st
 		return true;
 }
 
+/// <summary>
+/// Seek to a certain frame in the opened .bin file. 
+/// </summary>
+/// <param name="frameID"></param>
 void FrameFileWriterReader::seekBinaryReaderToFrame(int frameID) {
 
 	if (frameID > m_nCurrentReadFrameID) {
@@ -187,7 +214,6 @@ void FrameFileWriterReader::seekBinaryReaderToFrame(int frameID) {
 		while (frameID > m_nCurrentReadFrameID) {
 			skipOneFrameBinaryReader();
 		}
-		return;
 	}
 }
 
@@ -260,9 +286,7 @@ void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, i
 	colorFileName += std::to_string(frameIndex);
 	colorFileName += ".jpg";
 
-	std::string filePath = m_sFrameRecordingsDir;
-
-	
+	std::string filePath = m_sFrameRecordingsDir;	
 
 	filePath += colorFileName;
 
@@ -345,7 +369,7 @@ void FrameFileWriterReader::WriteTimestampLog(std::vector<int> frames, std::vect
 }
 
 /// <summary>
-/// Renames a raw frame pair (Color & Depth File). Changes the index in the filename and optionally adds a prefix 
+/// Renames a raw frame pair (Color JPEG & Depth TIFF File). Changes the index in the filename and optionally adds a prefix 
 /// </summary>
 /// <param name="oldFrameIndex"></param>
 /// <param name="newFrameIndex"></param>
@@ -407,14 +431,17 @@ bool FrameFileWriterReader::DirExists(std::string path)
 	return fs::exists(pathToCheck);
 }
 
+//Returns a relative path of the current recording directory
 std::string FrameFileWriterReader::GetRecordingDirPath() {
 	return m_sFrameRecordingsDir;
 }
 
+//Returns a relative path of the current .bin file
 std::string FrameFileWriterReader::GetBinFilePath() {
 	return m_sBinFilePath;
 }
 
+//Set the recording directory in which .bin files are stored/read from
 void FrameFileWriterReader::SetRecordingDirPath(std::string path) {
 	m_sFrameRecordingsDir = path;
 }

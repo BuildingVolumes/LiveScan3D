@@ -93,12 +93,6 @@ namespace KinectServer
             InitializeComponent();
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
             SetButtonsForExport();
-
-            //TODO: REMOVE TEST DATA
-            //PostSync postSync = new PostSync();
-            //List<ClientSyncData> testdata = PostSync.GetTestData();
-            //PostSync.GenerateSyncList(testdata);
-
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -163,7 +157,7 @@ namespace KinectServer
             }
         }
 
-        //Performs recording which is synchronized frame capture.
+        //Performs recording which is synchronized or unsychronized frame capture.
         //The frames are downloaded from the clients and saved once recording is finished.
         private void recordingWorker_DoWork(object sender, DoWorkEventArgs e)
         {
@@ -174,6 +168,7 @@ namespace KinectServer
 
             oServer.SendAndConfirmPreRecordProcess();
 
+            //If we don't use a server-controlled sync method, we just let the clients capture as fast as possible
             if (!networkSyncEnabled || oServer.bTempHwSyncEnabled)
             {
                 oServer.SendCaptureFramesStart();
@@ -190,6 +185,7 @@ namespace KinectServer
 
             }
 
+            //A server controlled sync method, the server gives the command to capture a single frame and waits until all devices have captured it
             else if (networkSyncEnabled)
             {
                 int nCaptured = 0;
@@ -226,17 +222,13 @@ namespace KinectServer
 
         private void syncWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            //TODO: What if sync was not successfull?
-            bool synced = true;
-
-            Console.ReadLine();
+            bool synced = false;
 
             if (oServer.bTempHwSyncEnabled)
             {
                 if (!oServer.GetTimestampLists())
                 {
                     SetStatusBarOnTimer("Could not get Timestamp List. Saved recording is unsychronized!", 5000);
-                    synced = false;
                 }
 
                 else
@@ -244,7 +236,6 @@ namespace KinectServer
                     if (!oServer.CreatePostSyncList())
                     {
                         SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!", 5000);
-                        synced = false;
                     }
 
                     else
@@ -252,22 +243,29 @@ namespace KinectServer
                         if (!oServer.ReorderSyncFramesOnClient())
                         {
                             SetStatusBarOnTimer("Could not reorganize files for sync on at least one device!", 5000);
-                            synced = false;
                         }
 
                         else
                         {
                             SetStatusBarOnTimer("Sync sucessfull", 5000);
+                            synced = true;
                         }
                     }
 
                 }
             }
+
+            e.Result = synced;
         }
 
         private void syncWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            StartSaving();
+            bool syncSuccess = (bool)e.Result;
+
+            if (syncSuccess)
+                StartSaving();
+            else
+                CaptureComplete();
         }
 
         //Opens the live view window
@@ -386,6 +384,11 @@ namespace KinectServer
             oServer.ClearStoredFrames();
             bSaving = false;
 
+            CaptureComplete();
+        }
+
+        private void CaptureComplete()
+        {
             //If the live view window was open, we need to restart the UpdateWorker.
             if (bLiveViewRunning)
                 RestartUpdateWorker();
@@ -394,6 +397,7 @@ namespace KinectServer
             btRecord.Text = "Start recording";
             btRefineCalib.Enabled = true;
             btCalibrate.Enabled = true;
+
         }
 
         //Continually requests frames that will be displayed in the live view window.
@@ -674,7 +678,8 @@ namespace KinectServer
 
         public void SetStatusBarOnTimer(string message, int milliseconds)
         {
-            statusLabel.Text = message;
+            //Thread save change of UI Element
+            Invoke(new Action(() => { statusLabel.Text = message; }));            
 
             oStatusBarTimer.Stop();
             oStatusBarTimer = new System.Timers.Timer();
@@ -683,7 +688,7 @@ namespace KinectServer
             oStatusBarTimer.Elapsed += delegate (object sender, System.Timers.ElapsedEventArgs e)
             {
                 oStatusBarTimer.Stop();
-                statusLabel.Text = "";
+                Invoke(new Action(() => { statusLabel.Text = ""; }));
             };
             oStatusBarTimer.Start();
         }
