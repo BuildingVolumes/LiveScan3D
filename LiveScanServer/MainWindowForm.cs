@@ -44,7 +44,7 @@ namespace KinectServer
         KinectServer oServer;
         TransferServer oTransferServer;
 
-        //Those three variables are shared with the OpenGLWindow class and are used to exchange data with it.
+        //Those three four are shared with the OpenGLWindow class and are used to exchange data with it.
         //Vertices from all of the sensors
         List<float> lAllVertices = new List<float>();
         //Color data from all of the sensors
@@ -53,6 +53,8 @@ namespace KinectServer
         List<AffineTransform> lAllCameraPoses = new List<AffineTransform>();
         //Body data from all of the sensors
         List<Body> lAllBodies = new List<Body>();
+        //Viewport settings
+        ViewportSettings viewportSettings = new ViewportSettings();
 
         bool bServerRunning = false;
         bool bRecording = false;
@@ -282,6 +284,8 @@ namespace KinectServer
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
                 oOpenGLWindow.bodies = lAllBodies;
                 oOpenGLWindow.settings = oSettings;
+                oOpenGLWindow.viewportSettings = viewportSettings;
+                oOpenGLWindow.viewportSettings.colorMode = ViewportSettings.EColorMode.RGB;
             }
             oOpenGLWindow.Run();
         }
