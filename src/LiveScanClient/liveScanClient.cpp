@@ -25,8 +25,8 @@
 std::mutex m_mSocketThreadMutex;
 
 // HOGUE
-int g_winWidth = 800;
-int g_winHeight = 800;
+int g_winWidth = 969;
+int g_winHeight = 540;
 int g_winX = 0;
 int g_winY = 0;
 int g_connectToServerImmediately = 0;
@@ -73,8 +73,7 @@ LiveScanClient::LiveScanClient() :
 	m_nNextStatusTime(0LL),
 	m_pD2DFactory(NULL),
 	m_pDrawColor(NULL),
-	m_pDepthRGBX(NULL),
-	m_pBlankGreyImage(NULL),
+	m_pRainbowColorDepth(NULL),
 	m_pCameraSpaceCoordinates(NULL),
 	m_pColorInColorSpace(NULL),
 	m_pDepthInColorSpace(NULL),
@@ -88,6 +87,7 @@ LiveScanClient::LiveScanClient() :
 	m_bConfirmCaptured(false),
 	m_bConfirmCalibrated(false),
 	m_bShowDepth(false),
+	m_bShowPreviewDuringRecording(false),
 	m_bSocketThread(true),
 	m_bFrameCompression(true),
 	m_iCompressionLevel(2),
@@ -133,16 +133,10 @@ LiveScanClient::~LiveScanClient()
 		pCapture = NULL;
 	}
 
-	if (m_pDepthRGBX)
+	if (m_pRainbowColorDepth)
 	{
-		delete[] m_pDepthRGBX;
-		m_pDepthRGBX = NULL;
-	}
-
-	if (m_pBlankGreyImage)
-	{
-		delete[] m_pBlankGreyImage;
-		m_pBlankGreyImage = NULL;
+		delete[] m_pRainbowColorDepth;
+		m_pRainbowColorDepth = NULL;
 	}
 
 	if (m_pCameraSpaceCoordinates)
@@ -168,6 +162,7 @@ LiveScanClient::~LiveScanClient()
 		delete m_pClientSocket;
 		m_pClientSocket = NULL;
 	}
+
 	// clean up Direct2D
 	SafeRelease(m_pD2DFactory);
 }
@@ -243,7 +238,7 @@ void LiveScanClient::UpdateFrame()
 	}
 
 	//Updates hardware settings to the configuration file
-	if (m_bRequestConfiguration) 
+	if (m_bRequestConfiguration)
 	{
 		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 		m_bRequestConfiguration = false;
@@ -257,16 +252,16 @@ void LiveScanClient::UpdateFrame()
 		m_bUpdateSettings = false;
 	}
 
-	if (m_bRestartCamera) 
+	if (m_bRestartCamera)
 	{
-		if(ReinitAndConfirm())
+		if (ReinitAndConfirm())
 			m_bRestartCamera = false;
 
 		if (!pCapture->bAquiresPointcloud)
 			SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 2000, true);
 	}
 
-	if (m_bRecordingStart) 
+	if (m_bRecordingStart)
 	{
 		m_nFrameIndex = 0;
 		m_vTimestamps.clear();
@@ -275,93 +270,55 @@ void LiveScanClient::UpdateFrame()
 		m_bRecordingStart = false;
 	}
 
-	if(m_bRecordingStop)
+	if (m_bRecordingStop)
 	{
 		m_framesFileWriterReader.WriteTimestampLog(m_vFrameNumbers, m_vTimestamps, configuration.nGlobalDeviceIndex);
 		m_bRecordingStop = false;
 	}
 
-	//Recording raw frames
-	if (!pCapture->bAquiresPointcloud)
-	{
-		bool bNewFrameAcquired = pCapture->AquireRawFrame();
+	//Capture logic
 
-		if (!bNewFrameAcquired)
-			return;
+	if (pCapture->AquireRawFrame())
+	{
+		//If we show a preview/live data, capture a pointcloud or run calibration we need to further process the data
+		if (pCapture->bAquiresPointcloud || m_bShowPreviewDuringRecording || m_bCalibrate)
+		{
+			pCapture->DecodeRawColor();
+			pCapture->DownscaleColorImgToDepthImgSize();
+			pCapture->MapDepthToColor();
+		}
 
 		if (m_bCaptureFrame)
 		{
-			m_vFrameNumbers.push_back(m_nFrameIndex);
-			m_vTimestamps.push_back(pCapture->GetTimeStamp());
-			std::cout << "Capturing Raw Frame" << std::endl;
-
-			m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImage), k4a_image_get_size(pCapture->colorImage), m_nFrameIndex);
-			m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage, m_nFrameIndex);
-			m_nFrameIndex++;
-
-			m_bConfirmCaptured = true;
-			m_bCaptureFrame = false;
-		}
-	}
-
-	//Recording Pointclouds
-	if (pCapture->bAquiresPointcloud)
-	{
-		bool bNewFrameAcquired = pCapture->AquirePointcloudFrame();
-
-		if (!bNewFrameAcquired)
-			return;
-
-		pCapture->MapColorFrameToCameraSpace(m_pCameraSpaceCoordinates);
-
-		{
-			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-			StoreFrame(m_pCameraSpaceCoordinates, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
-
-			if (m_bCaptureFrame)
+			if (!pCapture->bAquiresPointcloud)
 			{
-				std::cout << "Capturing Pointcloud Frame" << std::endl;
+				CaptureRaw();
+			}
 
-				uint64_t timeStamp = pCapture->GetTimeStamp();
+			else if (pCapture->bAquiresPointcloud)
+			{
+				CapturePointcloud();
+			}
 
-				m_vFrameNumbers.push_back(m_nFrameIndex);
-				m_vTimestamps.push_back(timeStamp);
+			else if (m_bCalibrate) {
+				Calibrate();
+			}
 
-				m_nFrameIndex++;
-
-				m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
-				m_bConfirmCaptured = true;
-				m_bCaptureFrame = false;
+			if (!m_bShowPreviewDuringRecording) {
+				ShowPreviewDisabled();
 			}
 		}
 
-		if (m_bCalibrate)
+		if (!m_bCaptureFrame || m_bShowPreviewDuringRecording) 
 		{
-			std::cout << "Calibrating Client" << std::endl;
+			if (!m_bShowDepth)
+				ShowColor();
+			else
+				ShowDepth();
 
-			std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-			Point3f* pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
-			pCapture->MapColorFrameToCameraSpace(pCameraCoordinates);
-
-			bool res = calibration.Calibrate(pCapture->pColorRGBX, pCameraCoordinates, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
-
-			delete[] pCameraCoordinates;
-
-			if (res)
-			{
-				std::cout << "Calibration successfull" << std::endl;
-
-				calibration.SaveCalibration(pCapture->serialNumber);
-				m_bConfirmCalibrated = true;
-				m_bCalibrate = false;
-			}
+			m_bPreviewDisabled = false;
 		}
 	}
-
-	if (!m_bShowDepth)
-		ShowColor();
-	else
-		ShowDepth();
 
 	ShowFPS();
 }
@@ -403,7 +360,7 @@ void LiveScanClient::Connect() {
 	else
 	{
 		try
-		{	
+		{
 			std::cout << "Trying to connect to server" << std::endl;
 			char address[20];
 			GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
@@ -446,10 +403,9 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		if (res)
 		{
 			std::cout << "Device could be opened successfully" << std::endl;
-
 			configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 			calibration.LoadCalibration(pCapture->serialNumber);
-			m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
+			//m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 			m_pDepthInColorSpace = new UINT16[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 			m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 			m_pColorInColorSpace = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
@@ -460,19 +416,6 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 			std::cout << "ERROR: Device failed to open/initialize" << std::endl;
 			SetStatusMessage(L"Capture device failed to initialize!", 10000, true);
 		}
-
-		// Create and initialize a new Direct2D image renderer (take a look at ImageRenderer.h)
-		// We'll use this to draw the data we receive from the Kinect to the screen
-		HRESULT hr;
-		m_pDrawColor = new ImageRenderer();
-		hr = m_pDrawColor->Initialize(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), m_pD2DFactory, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight, pCapture->nColorFrameWidth * sizeof(RGB));
-		if (FAILED(hr))
-		{
-			std::cout << "ERROR: Failed to initialize the Direct2D draw device" << std::endl;
-			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
-		}
-
-		CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 
 		ReadIPFromFile();
 	}
@@ -508,7 +451,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
 		break;
 	}
-	// If the titlebar X is clicked, destroy app
+				// If the titlebar X is clicked, destroy app
 	case WM_CLOSE:
 		pCapture->Close();
 		WriteIPToFile();
@@ -544,56 +487,163 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 	return FALSE;
 }
 
-void LiveScanClient::ShowDepth()
+void LiveScanClient::CaptureRaw()
 {
-	if (pCapture->bAquiresPointcloud)
+	m_vFrameNumbers.push_back(m_nFrameIndex);
+	m_vTimestamps.push_back(pCapture->GetTimeStamp());
+	std::cout << "Capturing Raw Frame" << std::endl;
+
+	m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImageMJPG), k4a_image_get_size(pCapture->colorImageMJPG), m_nFrameIndex);
+	m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage16Int, m_nFrameIndex);
+	m_nFrameIndex++;
+
+	m_bConfirmCaptured = true;
+	m_bCaptureFrame = false;
+}
+
+void LiveScanClient::CapturePointcloud()
+{
+	pCapture->GeneratePointcloud();
+
+	std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+	StoreFrame(pCapture->pointCloudImage, pCapture->colorBGR, pCapture->vBodies, pCapture->pBodyIndex);
+
+	if (m_bCaptureFrame)
 	{
-		// Make sure we've received valid data
-		if (m_pDepthRGBX && m_pDepthInColorSpace)
-		{
-			pCapture->MapDepthFrameToColorSpace(m_pDepthInColorSpace);
+		std::cout << "Capturing Pointcloud Frame" << std::endl;
 
-			for (int i = 0; i < pCapture->nColorFrameWidth * pCapture->nColorFrameHeight; i++)
-			{
-				USHORT depth = m_pDepthInColorSpace[i];
-				BYTE intensity = static_cast<BYTE>(depth % 256);
+		uint64_t timeStamp = pCapture->GetTimeStamp();
 
-				m_pDepthRGBX[i].rgbRed = intensity;
-				m_pDepthRGBX[i].rgbGreen = intensity;
-				m_pDepthRGBX[i].rgbBlue = intensity;
-			}
+		m_vFrameNumbers.push_back(m_nFrameIndex);
+		m_vTimestamps.push_back(timeStamp);
 
-			// Draw the data with Direct2D
-			m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pDepthRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
-		}
+		m_nFrameIndex++;
+
+		m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
+		m_bConfirmCaptured = true;
+		m_bCaptureFrame = false;
 	}
+}
 
-	else
+void LiveScanClient::Calibrate() {
+
+	std::cout << "Calibrating Client" << std::endl;
+
+	std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+	Point3f* pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
+	pCapture->PointCloudImageToPoint3f(pCameraCoordinates);
+
+	bool res = calibration.Calibrate(pCapture->colorBGR, pCameraCoordinates, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
+
+	delete[] pCameraCoordinates;
+
+	if (res)
 	{
-		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pBlankGreyImage), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+		std::cout << "Calibration successfull" << std::endl;
+
+		calibration.SaveCalibration(pCapture->serialNumber);
+		m_bConfirmCalibrated = true;
+		m_bCalibrate = false;
 	}
 
 }
 
-void LiveScanClient::ShowColor()
-{
-	//Draw the preview, as we have the data already in a nice BGRA Format
-	if (pCapture->bAquiresPointcloud)
+/// <summary>
+/// Create and initialize a new Direct2D image renderer (take a look at ImageRenderer.h).
+/// We'll use this to draw the data we receive from the Kinect to the screen
+/// </summary>
+/// <returns></returns>
+void LiveScanClient::ManagePreviewWindowInitialization() {
+
+	bool initializationNeeded = false;
+
+	if (m_pDrawColor != NULL)
 	{
-		// Make sure we've received valid data
-		if (pCapture->pColorRGBX)
-		{
-			// Draw the data with Direct2D
-			m_pDrawColor->Draw(reinterpret_cast<BYTE*>(pCapture->pColorRGBX), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
-		}
+		//If our image height/width has changed, we need to reinitialize our D2D Renderer
+		if (pCapture->colorBGR->cols * pCapture->colorBGR->rows != m_pDrawColor->GetRenderHeight() * m_pDrawColor->GetRenderWidth())
+			initializationNeeded = true;
 	}
 
-	//If we are recording in another image format, we just display a blank grey screen.
-	//This saves performance, by not decoding the MJPG Frame into a RGB struct 
 	else
+		initializationNeeded = true;
+
+
+	if (initializationNeeded)
 	{
-		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pBlankGreyImage), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+		//if there already is a preview D2D Renderer, delete it
+		if (m_pDrawColor)
+		{
+			delete m_pDrawColor;
+			m_pDrawColor = NULL;
+		}
+
+		if (m_pRainbowColorDepth) {
+			delete[] m_pRainbowColorDepth;
+			m_pRainbowColorDepth = NULL;
+		}
+
+		HRESULT hr;
+		m_pDrawColor = new ImageRenderer();
+		hr = m_pDrawColor->Initialize(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), m_pD2DFactory, pCapture->colorBGR->cols, pCapture->colorBGR->rows, pCapture->colorBGR->step);
+		if (FAILED(hr))
+		{
+			std::cout << "ERROR: Failed to initialize the Direct2D draw device" << std::endl;
+			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
+		}
+
+		//Initialize Preview Resources
+		m_pRainbowColorDepth = new RGB[pCapture->colorBGR->cols * pCapture->colorBGR->rows];
+		m_cvPreviewDisabled = cv::imread("resources/preview_disabled.png");
+		cv::resize(m_cvPreviewDisabled, m_cvPreviewDisabled, cv::Size(pCapture->colorBGR->cols, pCapture->colorBGR->rows), cv::INTER_LINEAR);
 	}
+
+}
+
+void LiveScanClient::ShowDepth()
+{
+	// Make sure we've received valid data
+	if (pCapture->pointCloudImage != NULL)
+	{
+		ManagePreviewWindowInitialization();
+
+		int16_t* pointCloudImageData = (int16_t*)(void*)k4a_image_get_buffer(pCapture->pointCloudImage);
+
+		for (int i = 0; i < pCapture->nColorFrameWidth * pCapture->nColorFrameHeight; i++)
+		{
+			m_pRainbowColorDepth[i].rgbRed = turbo_srgb_bytes[pointCloudImageData[i + 0] / 1000 / 256][0];
+			m_pRainbowColorDepth[i].rgbGreen = turbo_srgb_bytes[pointCloudImageData[i + 1] / 1000 / 256][1];
+			m_pRainbowColorDepth[i].rgbBlue = turbo_srgb_bytes[pointCloudImageData[i + 2] / 1000 / 256][2];
+		}
+
+		// Draw the data with Direct2D
+		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_pRainbowColorDepth), pCapture->nColorFrameWidth * pCapture->nColorFrameHeight * sizeof(RGB), pCapture->vBodies);
+	}
+}
+
+void LiveScanClient::ShowColor()
+{
+	// Make sure we've received valid data
+	if (pCapture->colorBGR)
+	{
+		ManagePreviewWindowInitialization();
+
+		// Draw the data with Direct2D
+		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(pCapture->colorBGR->data), long(pCapture->colorBGR->total() * pCapture->colorBGR->elemSize()), pCapture->vBodies);
+	}
+}
+
+void LiveScanClient::ShowPreviewDisabled() 
+{
+	//Just a lock to avoid setting the preview picture every frame
+	if (!m_bPreviewDisabled) {
+
+		ManagePreviewWindowInitialization();
+
+		m_pDrawColor->Draw(reinterpret_cast<BYTE*>(m_cvPreviewDisabled.data), long(pCapture->colorBGR->total() * pCapture->colorBGR->elemSize()), pCapture->vBodies);
+
+		m_bPreviewDisabled = true;
+	}
+
 }
 
 
@@ -652,7 +702,7 @@ void LiveScanClient::HandleSocket()
 			m_bRecordingStart = true;
 		}
 
-		if (received[i] == MSG_RECORDING_STOP) 
+		if (received[i] == MSG_RECORDING_STOP)
 		{
 			std::cout << "Capture frame stop received" << std::endl;
 			m_bRecordingStop = true;
@@ -678,7 +728,7 @@ void LiveScanClient::HandleSocket()
 			std::cout << "Recieved new configuration" << std::endl;
 
 			i++;
-			std:string message;
+		std:string message;
 			//TODO: this can be done with substrings, im sure.
 			for (int x = 0; x < KinectConfiguration::byteLength; x++)
 			{
@@ -767,18 +817,21 @@ void LiveScanClient::HandleSocket()
 
 			if (exportFormat == 0)
 			{
-				std::cout << "Export format set to BGRA" << std::endl;
+				std::cout << "Export format set to Pointcloud" << std::endl;
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 			}
 
 			if (exportFormat == 1)
 			{
-				std::cout << "Export format set to MJPG" << std::endl;
+				std::cout << "Export format set to Raw Data" << std::endl;
 				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
 			}
 
 			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
 			i += sizeof(int);
+
+			m_bShowPreviewDuringRecording = (received[i] != 0);
+			i++;
 
 			m_bUpdateSettings = true;
 
@@ -787,7 +840,7 @@ void LiveScanClient::HandleSocket()
 		}
 
 		//send configuration
-		else if (received[i] == MSG_REQUEST_CONFIGURATION) 
+		else if (received[i] == MSG_REQUEST_CONFIGURATION)
 		{
 			std::cout << "Server requests configuration" << std::endl;
 			m_bRequestConfiguration = true;
@@ -882,7 +935,7 @@ void LiveScanClient::HandleSocket()
 			}
 
 			//Write the calibration intrinsics into the newly created dir if we record raw frames
-			if(configuration.config.color_format != K4A_IMAGE_FORMAT_COLOR_BGRA32)
+			if (configuration.config.color_format != K4A_IMAGE_FORMAT_COLOR_BGRA32)
 				m_framesFileWriterReader.WriteCalibrationJSON(configuration.nGlobalDeviceIndex, pCapture->calibrationBuffer, pCapture->nCalibrationSize);
 
 		}
@@ -921,7 +974,7 @@ void LiveScanClient::HandleSocket()
 		m_bConfirmCalibrated = false;
 	}
 
-	if (m_bSendConfiguration) 
+	if (m_bSendConfiguration)
 	{
 		std::cout << "Sending configuration" << std::endl;
 
@@ -963,13 +1016,11 @@ bool LiveScanClient::ReinitAndConfirm()
 	else
 	{
 		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
-		m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 		m_pDepthInColorSpace = new UINT16[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 		m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 		m_pColorInColorSpace = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 	}
 
-	CreateBlankGrayImage(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 	SendReinitConfirmation(true);
 	m_bRestartingCamera = false;
 	return true;
@@ -1084,11 +1135,13 @@ void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector
 	m_pClientSocket->SendBytes(buffer.data(), size);
 }
 
-void LiveScanClient::StoreFrame(Point3f* vertices, RGB* colorInDepth, vector<Body>& bodies, BYTE* bodyIndex)
+void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorInDepth, vector<Body>& bodies, BYTE* bodyIndex)
 {
 	std::cout << "Storing Pointcloud Frame" << std::endl;
 
 	unsigned int nVertices = pCapture->nColorFrameHeight * pCapture->nColorFrameWidth;
+
+	int16_t* pointCloudImageData = (int16_t*)(void*)k4a_image_get_buffer(pointcloudImage);
 
 	//To save some processing cost, we allocate a full frame size (nVertices) of a Point3f Vector beforehand
 	//instead of using push_back for each vertice. Even though we have to copy the vertices into a clean array
@@ -1104,10 +1157,14 @@ void LiveScanClient::StoreFrame(Point3f* vertices, RGB* colorInDepth, vector<Bod
 
 		//As the resizing function doesn't return a valid RGB-Reserved value which indicates that this pixel is invalid,
 		//we cut all vertices under a distance of 0.0001mm, as the invalid vertices always have a Z-Value of 0
-		if (vertices[vertexIndex].Z >= 0.0001 && colorInDepth[vertexIndex].rgbReserved == 255)
+		if (pointCloudImageData[3 * vertexIndex + 2] >= 0.0001) // TODO: Needed? && colorInDepth->data[vertexIndex] == 255)
 		{
-			Point3f temp = vertices[vertexIndex];
-			RGB tempColor = colorInDepth[vertexIndex];
+			Point3f temp;
+
+			temp.X = pointCloudImageData[3 * vertexIndex + 0] / 1000.0f;
+			temp.Y = pointCloudImageData[3 * vertexIndex + 1] / 1000.0f;
+			temp.Z = pointCloudImageData[3 * vertexIndex + 2] / 1000.0f;
+
 			if (calibration.bCalibrated)
 			{
 				temp.X += calibration.worldT[0];
@@ -1122,7 +1179,6 @@ void LiveScanClient::StoreFrame(Point3f* vertices, RGB* colorInDepth, vector<Bod
 					AllVertices[vertexIndex] = invalidPoint;
 					continue;
 				}
-
 			}
 
 			AllVertices[vertexIndex] = temp;
@@ -1137,56 +1193,62 @@ void LiveScanClient::StoreFrame(Point3f* vertices, RGB* colorInDepth, vector<Bod
 
 	vector<Body> tempBodies = bodies;
 
-	//for (unsigned int i = 0; i < tempBodies.size(); i++)
-	//{
-	//	for (unsigned int j = 0; j < tempBodies[i].vJoints.size(); j++)
-	//	{
-	//		if (calibration.bCalibrated)
-	//		{
-	//			tempBodies[i].vJoints[j].Position.X += calibration.worldT[0];
-	//			tempBodies[i].vJoints[j].Position.Y += calibration.worldT[1];
-	//			tempBodies[i].vJoints[j].Position.Z += calibration.worldT[2];
+	/*
+	for (unsigned int i = 0; i < tempBodies.size(); i++)
+	{
+		for (unsigned int j = 0; j < tempBodies[i].vJoints.size(); j++)
+		{
+			if (calibration.bCalibrated)
+			{
+				tempBodies[i].vJoints[j].Position.X += calibration.worldT[0];
+				tempBodies[i].vJoints[j].Position.Y += calibration.worldT[1];
+				tempBodies[i].vJoints[j].Position.Z += calibration.worldT[2];
 
-	//			Point3f tempPoint(tempBodies[i].vJoints[j].Position.X, tempBodies[i].vJoints[j].Position.Y, tempBodies[i].vJoints[j].Position.Z);
+				Point3f tempPoint(tempBodies[i].vJoints[j].Position.X, tempBodies[i].vJoints[j].Position.Y, tempBodies[i].vJoints[j].Position.Z);
 
-	//			tempPoint = RotatePoint(tempPoint, calibration.worldR);
+				tempPoint = RotatePoint(tempPoint, calibration.worldR);
 
-	//			tempBodies[i].vJoints[j].Position.X = tempPoint.X;
-	//			tempBodies[i].vJoints[j].Position.Y = tempPoint.Y;
-	//			tempBodies[i].vJoints[j].Position.Z = tempPoint.Z;
-	//		}
-	//	}
-	//}
+				tempBodies[i].vJoints[j].Position.X = tempPoint.X;
+				tempBodies[i].vJoints[j].Position.Y = tempPoint.Y;
+				tempBodies[i].vJoints[j].Position.Z = tempPoint.Z;
+			}
+		}
+	}
+	*/
 
-	vector<Point3f> goodVertices(goodVerticesCount);
-	vector<RGB> goodColorPoints(goodVerticesCount);
-	int goodVerticesShortCounter = 0;
+	vector<Point3f> validVertices(goodVerticesCount);
+	vector<RGB> validColorPoints(goodVerticesCount);
+	int validVerticesShortCounter = 0;
 
 	//Copy all valid vertices into a clean vector 
 	for (unsigned int i = 0; i < AllVertices.size(); i++)
 	{
 		if (!AllVertices[i].Invalid)
 		{
-			goodVertices[goodVerticesShortCounter] = AllVertices[i];
-			goodColorPoints[goodVerticesShortCounter] = colorInDepth[i];
-			goodVerticesShortCounter++;
+			RGB color;
+			color.rgbBlue = colorInDepth->data[i * 3];
+			color.rgbBlue = colorInDepth->data[(i * 3) + 1];
+			color.rgbBlue = colorInDepth->data[(i * 3) + 2];
+
+			validVertices[validVerticesShortCounter] = AllVertices[i];
+			validColorPoints[validVerticesShortCounter] = color;
+			validVerticesShortCounter++;
 		}
 	}
 
 	if (m_bFilter)
-		filter(goodVertices, goodColorPoints, m_nFilterNeighbors, m_fFilterThreshold);
+		filter(validVertices, validColorPoints, m_nFilterNeighbors, m_fFilterThreshold);
 
+	vector<Point3s> goodVerticesShort(validVertices.size());
 
-	vector<Point3s> goodVerticesShort(goodVertices.size());
-
-	for (size_t i = 0; i < goodVertices.size(); i++)
+	for (size_t i = 0; i < validVertices.size(); i++)
 	{
-		goodVerticesShort[i] = goodVertices[i];
+		goodVerticesShort[i] = validVertices[i];
 	}
 
 	m_vLastFrameBody = tempBodies;
 	m_vLastFrameVertices = goodVerticesShort;
-	m_vLastFrameRGB = goodColorPoints;
+	m_vLastFrameRGB = validColorPoints;
 }
 
 void LiveScanClient::ShowFPS()
@@ -1244,31 +1306,4 @@ void LiveScanClient::WriteIPToFile()
 	GetDlgItemTextA(m_hWnd, IDC_IP, lastUsedIPAddress, 20);
 	file << lastUsedIPAddress;
 	file.close();
-}
-
-void LiveScanClient::CreateBlankGrayImage(const int width, const int height)
-{
-	std::cout << "Creating a blank gray image for the preview" << std::endl;
-
-	if (m_pBlankGreyImage) //Cleanup the previous image
-	{
-		delete[] m_pBlankGreyImage;
-		m_pBlankGreyImage = NULL;
-	}
-
-	int imageSize = width * height;
-	RGB greyPixel;
-	greyPixel.rgbBlue = 50;
-	greyPixel.rgbGreen = 50;
-	greyPixel.rgbRed = 50;
-
-	RGB* greyFrame = new RGB[imageSize];
-
-	for (int i = 0; i < imageSize; i++)
-	{
-		greyFrame[i] = greyPixel;
-	}
-
-	m_pBlankGreyImage = greyFrame;
-
 }

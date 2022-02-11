@@ -95,7 +95,7 @@
             this.statusStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.statusLabel});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 187);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 173);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Size = new System.Drawing.Size(513, 22);
             this.statusStrip1.SizingGrip = false;
@@ -200,7 +200,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(513, 209);
+            this.ClientSize = new System.Drawing.Size(513, 195);
             this.Controls.Add(this.btKinectSettingsOpenButton);
             this.Controls.Add(this.lbSeqName);
             this.Controls.Add(this.btSettings);

@@ -75,6 +75,8 @@ namespace KinectServer
 
             rExportPointcloud.Checked = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud ? true : false;
             rExportRawFrames.Checked = !rExportPointcloud.Checked;
+
+            cbEnablePreview.Checked = oSettings.bPreviewEnabled;
             
 
             if (oSettings.bSaveAsBinaryPLY)
@@ -104,7 +106,7 @@ namespace KinectServer
 
                 //Check if we need to restart the cameras
 
-                if(rTempSyncEnabled.Checked != oServer.bTempSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
+                if(rTempSyncEnabled.Checked != oServer.bTempSyncEnabled)
                 {
                     if (rTempSyncEnabled.Checked)
                     {
@@ -115,7 +117,7 @@ namespace KinectServer
                             rTempSyncDisabled.Checked = true;
                     }
 
-                    else if (!rTempSyncEnabled.Checked && oServer.bTempSyncEnabled)
+                    else
                     {
                         if (oServer.DisableTemporalSync())
                         {
@@ -125,16 +127,8 @@ namespace KinectServer
                         }
 
                         else
-                            rTempSyncEnabled.Checked = true;
-                        
+                            rTempSyncEnabled.Checked = true;                        
                     }
-
-                    else
-                    {
-                        if (oServer.RestartAllClients())
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
-                    }
-
                 }
 
                 btApplyAllSettings.Enabled = false;
@@ -526,6 +520,12 @@ namespace KinectServer
 
         private void rTempSyncDisabled_CheckedChanged(object sender, EventArgs e)
         {
+            SettingsChanged();
+        }
+
+        private void cbEnablePreview_CheckedChanged(object sender, EventArgs e)
+        {
+            oSettings.bPreviewEnabled = cbEnablePreview.Checked;
             SettingsChanged();
         }
     }

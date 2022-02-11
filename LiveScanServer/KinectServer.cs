@@ -963,14 +963,6 @@ namespace KinectServer
 
                 lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
 
-                //Check if a restart is needed to apply the settings to the kinect device
-                bool requiresRestart = false;
-
-                if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.MJPEG && oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-                    requiresRestart = true;
-
-                if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.BGRA && oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
-                    requiresRestart = true;
 
                 if (bTempSyncEnabled)
                 {
@@ -979,17 +971,6 @@ namespace KinectServer
                         lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
                     }
                 }
-
-                else if (requiresRestart)
-                {
-                    if (RestartClients(new List<KinectSocket>() { lClientSockets[lClientSockets.Count - 1] }))
-                    {
-                        lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
-                    }
-                }
-
-
-
             }
         }
 

@@ -95,6 +95,8 @@
             this.rAsciiPly = new System.Windows.Forms.RadioButton();
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
+            this.gpPerformance = new System.Windows.Forms.GroupBox();
+            this.cbEnablePreview = new System.Windows.Forms.CheckBox();
             this.grClient.SuspendLayout();
             this.grExposure.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
@@ -105,6 +107,7 @@
             this.grBounding.SuspendLayout();
             this.grFiltering.SuspendLayout();
             this.grServer.SuspendLayout();
+            this.gpPerformance.SuspendLayout();
             this.SuspendLayout();
             // 
             // lbMerge
@@ -146,12 +149,12 @@
             // 
             // grClient
             // 
+            this.grClient.Controls.Add(this.gpPerformance);
             this.grClient.Controls.Add(this.btApplyAllSettings);
             this.grClient.Controls.Add(this.lApplyWarning);
             this.grClient.Controls.Add(this.grExposure);
             this.grClient.Controls.Add(this.grTempSync);
             this.grClient.Controls.Add(this.exportGroup);
-            this.grClient.Controls.Add(this.grBody);
             this.grClient.Controls.Add(this.grMarkers);
             this.grClient.Controls.Add(this.grBounding);
             this.grClient.Controls.Add(this.grFiltering);
@@ -186,9 +189,9 @@
             this.grExposure.Controls.Add(this.lbManualExposure);
             this.grExposure.Controls.Add(this.chAutoExposureEnabled);
             this.grExposure.Controls.Add(this.trManualExposure);
-            this.grExposure.Location = new System.Drawing.Point(9, 283);
+            this.grExposure.Location = new System.Drawing.Point(9, 263);
             this.grExposure.Name = "grExposure";
-            this.grExposure.Size = new System.Drawing.Size(249, 119);
+            this.grExposure.Size = new System.Drawing.Size(249, 139);
             this.grExposure.TabIndex = 49;
             this.grExposure.TabStop = false;
             this.grExposure.Text = "Exposure Settings";
@@ -349,12 +352,13 @@
             // 
             this.grBody.Controls.Add(this.chSkeletons);
             this.grBody.Controls.Add(this.chBodyData);
-            this.grBody.Location = new System.Drawing.Point(9, 211);
+            this.grBody.Location = new System.Drawing.Point(379, 501);
             this.grBody.Name = "grBody";
             this.grBody.Size = new System.Drawing.Size(249, 66);
             this.grBody.TabIndex = 47;
             this.grBody.TabStop = false;
             this.grBody.Text = "Body data";
+            this.grBody.Visible = false;
             // 
             // chSkeletons
             // 
@@ -372,12 +376,13 @@
             // 
             this.chBodyData.AutoSize = true;
             this.chBodyData.Enabled = false;
-            this.chBodyData.Location = new System.Drawing.Point(11, 19);
+            this.chBodyData.Location = new System.Drawing.Point(11, 18);
             this.chBodyData.Name = "chBodyData";
             this.chBodyData.Size = new System.Drawing.Size(113, 17);
             this.chBodyData.TabIndex = 19;
             this.chBodyData.Text = "stream only bodies";
             this.chBodyData.UseVisualStyleBackColor = true;
+            this.chBodyData.Visible = false;
             this.chBodyData.CheckedChanged += new System.EventHandler(this.chBodyData_CheckedChanged);
             // 
             // grMarkers
@@ -819,6 +824,27 @@
             this.lbOuterIters.TabIndex = 26;
             this.lbOuterIters.Text = "Num of refinement iters:";
             // 
+            // gpPerformance
+            // 
+            this.gpPerformance.Controls.Add(this.cbEnablePreview);
+            this.gpPerformance.Location = new System.Drawing.Point(9, 211);
+            this.gpPerformance.Name = "gpPerformance";
+            this.gpPerformance.Size = new System.Drawing.Size(249, 46);
+            this.gpPerformance.TabIndex = 53;
+            this.gpPerformance.TabStop = false;
+            this.gpPerformance.Text = "Performance";
+            // 
+            // cbEnablePreview
+            // 
+            this.cbEnablePreview.AutoSize = true;
+            this.cbEnablePreview.Location = new System.Drawing.Point(6, 20);
+            this.cbEnablePreview.Name = "cbEnablePreview";
+            this.cbEnablePreview.Size = new System.Drawing.Size(171, 17);
+            this.cbEnablePreview.TabIndex = 0;
+            this.cbEnablePreview.Text = "Enable Preview during capture";
+            this.cbEnablePreview.UseVisualStyleBackColor = true;
+            this.cbEnablePreview.CheckedChanged += new System.EventHandler(this.cbEnablePreview_CheckedChanged);
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -826,6 +852,7 @@
             this.ClientSize = new System.Drawing.Size(656, 599);
             this.Controls.Add(this.grServer);
             this.Controls.Add(this.grClient);
+            this.Controls.Add(this.grBody);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.Name = "SettingsForm";
@@ -850,6 +877,8 @@
             this.grFiltering.PerformLayout();
             this.grServer.ResumeLayout(false);
             this.grServer.PerformLayout();
+            this.gpPerformance.ResumeLayout(false);
+            this.gpPerformance.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -923,5 +952,7 @@
         private System.Windows.Forms.RadioButton rTempSyncEnabled;
         private System.Windows.Forms.Button btApplyAllSettings;
         private System.Windows.Forms.Label lApplyWarning;
+        private System.Windows.Forms.GroupBox gpPerformance;
+        private System.Windows.Forms.CheckBox cbEnablePreview;
     }
 }

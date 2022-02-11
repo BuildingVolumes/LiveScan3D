@@ -18,6 +18,7 @@
 #include <k4a/k4atypes.h>
 #include <KinectConfiguration.h>
 #include "k4a/k4a.h"
+#include "opencv2/core.hpp"
 
 struct Joint
 {
@@ -45,17 +46,20 @@ public:
 
 	virtual bool Initialize(KinectConfiguration& configuration) = 0;
 	virtual bool AquireRawFrame() = 0;
-	virtual bool AquirePointcloudFrame() = 0;
+	//virtual bool AquirePointcloudFrame() = 0;
+	virtual void DecodeRawColor() = 0;
+	virtual void DownscaleColorImgToDepthImgSize() = 0;
 	virtual bool Close() = 0;
-	virtual void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints) = 0;
-	virtual void MapColorFrameToCameraSpace(Point3f *pCameraSpacePoints) = 0;
-	virtual void MapDepthFrameToColorSpace(UINT16 *pColorSpacePoints) = 0;
-	virtual void MapColorFrameToDepthSpace(RGB *pDepthSpacePoints) = 0;
+
+	virtual void MapDepthToColor() = 0;
+	virtual void GeneratePointcloud() = 0;
+	virtual void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints) = 0;
+
 	virtual int GetSyncJackState() = 0;
 	virtual uint64_t GetTimeStamp() = 0;
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep) = 0;
+	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) = 0;
 	virtual void SetConfiguration(KinectConfiguration& configuration) = 0;
-	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) = 0;	
 
 	bool bInitialized;
 	bool bAquiresPointcloud;
@@ -63,15 +67,16 @@ public:
 	int nColorFrameHeight, nColorFrameWidth;
 	int nDepthFrameHeight, nDepthFrameWidth;
 
-	k4a_image_t colorImage;
-	k4a_image_t depthImage;
+	k4a_image_t colorImageMJPG;
+	k4a_image_t depthImage16Int;
+	k4a_image_t transformedDepthImage;
+	k4a_image_t pointCloudImage;
+	cv::Mat* colorBGR;
 
 	std::vector<uint8_t> calibrationBuffer;
 	size_t nCalibrationSize;
 
-	UINT16 *pDepth;
-	BYTE *pBodyIndex;
-	RGB *pColorRGBX;
+	BYTE* pBodyIndex;
 	std::vector<Body> vBodies;
 	std::string serialNumber;
 };

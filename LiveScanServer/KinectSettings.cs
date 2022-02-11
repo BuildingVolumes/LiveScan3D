@@ -52,6 +52,8 @@ namespace KinectServer
 
         public string takePath;
 
+        public bool bPreviewEnabled = false;
+
         public KinectSettings()
         {
             aMinBounds[0] = -5f;
@@ -125,6 +127,8 @@ namespace KinectServer
             bTemp = BitConverter.GetBytes((int)eExtrinsicsFormat);
             lData.AddRange(bTemp);
 
+            bTemp = BitConverter.GetBytes(bPreviewEnabled);
+            lData.AddRange(bTemp);
 
             return lData;
         }

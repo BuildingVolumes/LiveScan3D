@@ -3,12 +3,12 @@
 
 #include <fstream>
 #include <assert.h>
-#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING //Otherwise VS yells
-#include <experimental/filesystem>
+//#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING //Otherwise VS yells
 
 
 
-namespace fs = std::experimental::filesystem;
+
+namespace fs = std::filesystem;
 
 
 FrameFileWriterReader::FrameFileWriterReader()
