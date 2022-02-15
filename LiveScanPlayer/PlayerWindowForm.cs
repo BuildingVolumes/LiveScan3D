@@ -268,8 +268,27 @@ namespace LiveScanPlayer
             lock (lAllVertices)
             {
                 lVertices.AddRange(lAllVertices);
+            }
+
+            if (viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
+            {
                 lColors.AddRange(lAllColors);
             }
+
+            //Convert BGR to RGB
+            if (viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
+            {
+                for (int i = 0; i < lAllColors.Count; i += 3)
+                {
+                    byte[] tempCol = new byte[3];
+                    tempCol[0] = lAllColors[i + 2];
+                    tempCol[1] = lAllColors[i + 1];
+                    tempCol[2] = lAllColors[i + 0];
+
+                    lColors.AddRange(tempCol);
+                }
+            }
+
             string outputFilename = outDir + frameIdx.ToString().PadLeft(5, '0') + ".ply";
             Utils.saveToPly(outputFilename, lVertices, lColors, true);
         }
