@@ -435,10 +435,6 @@ namespace KinectServer
 
                     lAllCameraPoses.AddRange(oServer.lCameraPoses);
                 }
-
-                //Notes the fact that a new frame was downloaded, this is used to estimate the FPS.
-                if (oOpenGLWindow != null)
-                    oOpenGLWindow.CloudUpdateTick();
             }
         }
 
