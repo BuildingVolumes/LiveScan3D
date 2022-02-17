@@ -33,43 +33,43 @@ vector<KNNeighborsResult> KNNeighbors(PointCloud &cloud, kdTree &tree, int k)
 	return result;
 }
 
-void filter(std::vector<Point3f> &vertices, std::vector<RGB> &colors, int k, float maxDist)
-{
-	if (k <= 0 || maxDist <= 0)
-		return;
-
-	PointCloud cloud;
-	cloud.pts = vertices;
-
-	kdTree tree(3, cloud);
-	tree.buildIndex();
-
-	vector<KNNeighborsResult> knn = KNNeighbors(cloud, tree, k);
-	
-	vector<int> indicesToRemove;
-
-	float distThreshold = pow(maxDist, 2);
-	for (unsigned int i = 0; i < cloud.pts.size(); i++)
-	{
-		if (knn[i].kDistance > distThreshold)
-			indicesToRemove.push_back(i);
-	}
-
-	int lastElemIdx = 0;
-	unsigned int idxToCheck = 0;
-	for (unsigned int i = 0; i < vertices.size(); i++)
-	{
-		if (idxToCheck < indicesToRemove.size() && i == indicesToRemove[idxToCheck])
-		{
-			idxToCheck++;
-			continue;
-		}
-		vertices[lastElemIdx] = vertices[i];
-		colors[lastElemIdx] = colors[i];
-
-		lastElemIdx++;
-	}
-
-	vertices.resize(lastElemIdx);
-	colors.resize(lastElemIdx);
-}
+//void filter(std::vector<Point3f> &vertices, std::vector<RGB> &colors, int k, float maxDist)
+//{
+//	if (k <= 0 || maxDist <= 0)
+//		return;
+//
+//	PointCloud cloud;
+//	cloud.pts = vertices;
+//
+//	kdTree tree(3, cloud);
+//	tree.buildIndex();
+//
+//	vector<KNNeighborsResult> knn = KNNeighbors(cloud, tree, k);
+//	
+//	vector<int> indicesToRemove;
+//
+//	float distThreshold = pow(maxDist, 2);
+//	for (unsigned int i = 0; i < cloud.pts.size(); i++)
+//	{
+//		if (knn[i].kDistance > distThreshold)
+//			indicesToRemove.push_back(i);
+//	}
+//
+//	int lastElemIdx = 0;
+//	unsigned int idxToCheck = 0;
+//	for (unsigned int i = 0; i < vertices.size(); i++)
+//	{
+//		if (idxToCheck < indicesToRemove.size() && i == indicesToRemove[idxToCheck])
+//		{
+//			idxToCheck++;
+//			continue;
+//		}
+//		vertices[lastElemIdx] = vertices[i];
+//		colors[lastElemIdx] = colors[i];
+//
+//		lastElemIdx++;
+//	}
+//
+//	vertices.resize(lastElemIdx);
+//	colors.resize(lastElemIdx);
+//}

@@ -33,6 +33,8 @@
             this.lbICPIters = new System.Windows.Forms.Label();
             this.txtICPIters = new System.Windows.Forms.TextBox();
             this.grClient = new System.Windows.Forms.GroupBox();
+            this.gpPerformance = new System.Windows.Forms.GroupBox();
+            this.cbEnablePreview = new System.Windows.Forms.CheckBox();
             this.btApplyAllSettings = new System.Windows.Forms.Button();
             this.lApplyWarning = new System.Windows.Forms.Label();
             this.grExposure = new System.Windows.Forms.GroupBox();
@@ -49,9 +51,6 @@
             this.rExportPointcloud = new System.Windows.Forms.RadioButton();
             this.lExtrinsics = new System.Windows.Forms.Label();
             this.cbExtrinsicsFormat = new System.Windows.Forms.ComboBox();
-            this.grBody = new System.Windows.Forms.GroupBox();
-            this.chSkeletons = new System.Windows.Forms.CheckBox();
-            this.chBodyData = new System.Windows.Forms.CheckBox();
             this.grMarkers = new System.Windows.Forms.GroupBox();
             this.lbX2 = new System.Windows.Forms.Label();
             this.btRemove = new System.Windows.Forms.Button();
@@ -81,12 +80,6 @@
             this.lbZ = new System.Windows.Forms.Label();
             this.lbY = new System.Windows.Forms.Label();
             this.lbX = new System.Windows.Forms.Label();
-            this.grFiltering = new System.Windows.Forms.GroupBox();
-            this.txtFilterNeighbors = new System.Windows.Forms.TextBox();
-            this.chFilter = new System.Windows.Forms.CheckBox();
-            this.lbFilterNeighbors = new System.Windows.Forms.Label();
-            this.lbFilterDistance = new System.Windows.Forms.Label();
-            this.txtFilterDistance = new System.Windows.Forms.TextBox();
             this.grServer = new System.Windows.Forms.GroupBox();
             this.cbCompressionLevel = new System.Windows.Forms.ComboBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -95,19 +88,15 @@
             this.rAsciiPly = new System.Windows.Forms.RadioButton();
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
-            this.gpPerformance = new System.Windows.Forms.GroupBox();
-            this.cbEnablePreview = new System.Windows.Forms.CheckBox();
             this.grClient.SuspendLayout();
+            this.gpPerformance.SuspendLayout();
             this.grExposure.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
             this.grTempSync.SuspendLayout();
             this.exportGroup.SuspendLayout();
-            this.grBody.SuspendLayout();
             this.grMarkers.SuspendLayout();
             this.grBounding.SuspendLayout();
-            this.grFiltering.SuspendLayout();
             this.grServer.SuspendLayout();
-            this.gpPerformance.SuspendLayout();
             this.SuspendLayout();
             // 
             // lbMerge
@@ -157,13 +146,33 @@
             this.grClient.Controls.Add(this.exportGroup);
             this.grClient.Controls.Add(this.grMarkers);
             this.grClient.Controls.Add(this.grBounding);
-            this.grClient.Controls.Add(this.grFiltering);
             this.grClient.Location = new System.Drawing.Point(12, 12);
             this.grClient.Name = "grClient";
             this.grClient.Size = new System.Drawing.Size(632, 440);
             this.grClient.TabIndex = 43;
             this.grClient.TabStop = false;
             this.grClient.Text = "KinectClient settings";
+            // 
+            // gpPerformance
+            // 
+            this.gpPerformance.Controls.Add(this.cbEnablePreview);
+            this.gpPerformance.Location = new System.Drawing.Point(9, 122);
+            this.gpPerformance.Name = "gpPerformance";
+            this.gpPerformance.Size = new System.Drawing.Size(249, 46);
+            this.gpPerformance.TabIndex = 53;
+            this.gpPerformance.TabStop = false;
+            this.gpPerformance.Text = "Performance";
+            // 
+            // cbEnablePreview
+            // 
+            this.cbEnablePreview.AutoSize = true;
+            this.cbEnablePreview.Location = new System.Drawing.Point(6, 20);
+            this.cbEnablePreview.Name = "cbEnablePreview";
+            this.cbEnablePreview.Size = new System.Drawing.Size(171, 17);
+            this.cbEnablePreview.TabIndex = 0;
+            this.cbEnablePreview.Text = "Enable Preview during capture";
+            this.cbEnablePreview.UseVisualStyleBackColor = true;
+            this.cbEnablePreview.CheckedChanged += new System.EventHandler(this.cbEnablePreview_CheckedChanged);
             // 
             // btApplyAllSettings
             // 
@@ -189,7 +198,7 @@
             this.grExposure.Controls.Add(this.lbManualExposure);
             this.grExposure.Controls.Add(this.chAutoExposureEnabled);
             this.grExposure.Controls.Add(this.trManualExposure);
-            this.grExposure.Location = new System.Drawing.Point(9, 263);
+            this.grExposure.Location = new System.Drawing.Point(9, 174);
             this.grExposure.Name = "grExposure";
             this.grExposure.Size = new System.Drawing.Size(249, 139);
             this.grExposure.TabIndex = 49;
@@ -347,43 +356,6 @@
             this.cbExtrinsicsFormat.Size = new System.Drawing.Size(114, 21);
             this.cbExtrinsicsFormat.TabIndex = 33;
             this.cbExtrinsicsFormat.SelectedIndexChanged += new System.EventHandler(this.cbExtrinsicsFormat_SelectedIndexChanged);
-            // 
-            // grBody
-            // 
-            this.grBody.Controls.Add(this.chSkeletons);
-            this.grBody.Controls.Add(this.chBodyData);
-            this.grBody.Location = new System.Drawing.Point(379, 501);
-            this.grBody.Name = "grBody";
-            this.grBody.Size = new System.Drawing.Size(249, 66);
-            this.grBody.TabIndex = 47;
-            this.grBody.TabStop = false;
-            this.grBody.Text = "Body data";
-            this.grBody.Visible = false;
-            // 
-            // chSkeletons
-            // 
-            this.chSkeletons.AutoSize = true;
-            this.chSkeletons.Enabled = false;
-            this.chSkeletons.Location = new System.Drawing.Point(11, 41);
-            this.chSkeletons.Name = "chSkeletons";
-            this.chSkeletons.Size = new System.Drawing.Size(154, 17);
-            this.chSkeletons.TabIndex = 21;
-            this.chSkeletons.Text = "show skeletons in live view";
-            this.chSkeletons.UseVisualStyleBackColor = true;
-            this.chSkeletons.CheckedChanged += new System.EventHandler(this.chSkeletons_CheckedChanged);
-            // 
-            // chBodyData
-            // 
-            this.chBodyData.AutoSize = true;
-            this.chBodyData.Enabled = false;
-            this.chBodyData.Location = new System.Drawing.Point(11, 18);
-            this.chBodyData.Name = "chBodyData";
-            this.chBodyData.Size = new System.Drawing.Size(113, 17);
-            this.chBodyData.TabIndex = 19;
-            this.chBodyData.Text = "stream only bodies";
-            this.chBodyData.UseVisualStyleBackColor = true;
-            this.chBodyData.Visible = false;
-            this.chBodyData.CheckedChanged += new System.EventHandler(this.chBodyData_CheckedChanged);
             // 
             // grMarkers
             // 
@@ -662,65 +634,6 @@
             this.lbX.TabIndex = 17;
             this.lbX.Text = "X";
             // 
-            // grFiltering
-            // 
-            this.grFiltering.Controls.Add(this.txtFilterNeighbors);
-            this.grFiltering.Controls.Add(this.chFilter);
-            this.grFiltering.Controls.Add(this.lbFilterNeighbors);
-            this.grFiltering.Controls.Add(this.lbFilterDistance);
-            this.grFiltering.Controls.Add(this.txtFilterDistance);
-            this.grFiltering.Location = new System.Drawing.Point(9, 116);
-            this.grFiltering.Name = "grFiltering";
-            this.grFiltering.Size = new System.Drawing.Size(249, 88);
-            this.grFiltering.TabIndex = 45;
-            this.grFiltering.TabStop = false;
-            this.grFiltering.Text = "Filtering";
-            // 
-            // txtFilterNeighbors
-            // 
-            this.txtFilterNeighbors.Location = new System.Drawing.Point(93, 39);
-            this.txtFilterNeighbors.Name = "txtFilterNeighbors";
-            this.txtFilterNeighbors.Size = new System.Drawing.Size(38, 20);
-            this.txtFilterNeighbors.TabIndex = 20;
-            this.txtFilterNeighbors.TextChanged += new System.EventHandler(this.txtFilterNeighbors_TextChanged);
-            // 
-            // chFilter
-            // 
-            this.chFilter.AutoSize = true;
-            this.chFilter.Location = new System.Drawing.Point(93, 16);
-            this.chFilter.Name = "chFilter";
-            this.chFilter.Size = new System.Drawing.Size(100, 17);
-            this.chFilter.TabIndex = 18;
-            this.chFilter.Text = "filtering enabled";
-            this.chFilter.UseVisualStyleBackColor = true;
-            this.chFilter.CheckedChanged += new System.EventHandler(this.chFilter_CheckedChanged);
-            // 
-            // lbFilterNeighbors
-            // 
-            this.lbFilterNeighbors.AutoSize = true;
-            this.lbFilterNeighbors.Location = new System.Drawing.Point(8, 42);
-            this.lbFilterNeighbors.Name = "lbFilterNeighbors";
-            this.lbFilterNeighbors.Size = new System.Drawing.Size(67, 13);
-            this.lbFilterNeighbors.TabIndex = 19;
-            this.lbFilterNeighbors.Text = "N neighbors:";
-            // 
-            // lbFilterDistance
-            // 
-            this.lbFilterDistance.AutoSize = true;
-            this.lbFilterDistance.Location = new System.Drawing.Point(8, 68);
-            this.lbFilterDistance.Name = "lbFilterDistance";
-            this.lbFilterDistance.Size = new System.Drawing.Size(73, 13);
-            this.lbFilterDistance.TabIndex = 21;
-            this.lbFilterDistance.Text = "Max distance:";
-            // 
-            // txtFilterDistance
-            // 
-            this.txtFilterDistance.Location = new System.Drawing.Point(93, 65);
-            this.txtFilterDistance.Name = "txtFilterDistance";
-            this.txtFilterDistance.Size = new System.Drawing.Size(38, 20);
-            this.txtFilterDistance.TabIndex = 22;
-            this.txtFilterDistance.TextChanged += new System.EventHandler(this.txtFilterDistance_TextChanged);
-            // 
             // grServer
             // 
             this.grServer.Controls.Add(this.cbCompressionLevel);
@@ -824,27 +737,6 @@
             this.lbOuterIters.TabIndex = 26;
             this.lbOuterIters.Text = "Num of refinement iters:";
             // 
-            // gpPerformance
-            // 
-            this.gpPerformance.Controls.Add(this.cbEnablePreview);
-            this.gpPerformance.Location = new System.Drawing.Point(9, 211);
-            this.gpPerformance.Name = "gpPerformance";
-            this.gpPerformance.Size = new System.Drawing.Size(249, 46);
-            this.gpPerformance.TabIndex = 53;
-            this.gpPerformance.TabStop = false;
-            this.gpPerformance.Text = "Performance";
-            // 
-            // cbEnablePreview
-            // 
-            this.cbEnablePreview.AutoSize = true;
-            this.cbEnablePreview.Location = new System.Drawing.Point(6, 20);
-            this.cbEnablePreview.Name = "cbEnablePreview";
-            this.cbEnablePreview.Size = new System.Drawing.Size(171, 17);
-            this.cbEnablePreview.TabIndex = 0;
-            this.cbEnablePreview.Text = "Enable Preview during capture";
-            this.cbEnablePreview.UseVisualStyleBackColor = true;
-            this.cbEnablePreview.CheckedChanged += new System.EventHandler(this.cbEnablePreview_CheckedChanged);
-            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -852,7 +744,6 @@
             this.ClientSize = new System.Drawing.Size(656, 599);
             this.Controls.Add(this.grServer);
             this.Controls.Add(this.grClient);
-            this.Controls.Add(this.grBody);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.Name = "SettingsForm";
@@ -860,6 +751,8 @@
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SettingsForm_FormClosed);
             this.Load += new System.EventHandler(this.SettingsForm_Load);
             this.grClient.ResumeLayout(false);
+            this.gpPerformance.ResumeLayout(false);
+            this.gpPerformance.PerformLayout();
             this.grExposure.ResumeLayout(false);
             this.grExposure.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).EndInit();
@@ -867,18 +760,12 @@
             this.grTempSync.PerformLayout();
             this.exportGroup.ResumeLayout(false);
             this.exportGroup.PerformLayout();
-            this.grBody.ResumeLayout(false);
-            this.grBody.PerformLayout();
             this.grMarkers.ResumeLayout(false);
             this.grMarkers.PerformLayout();
             this.grBounding.ResumeLayout(false);
             this.grBounding.PerformLayout();
-            this.grFiltering.ResumeLayout(false);
-            this.grFiltering.PerformLayout();
             this.grServer.ResumeLayout(false);
             this.grServer.PerformLayout();
-            this.gpPerformance.ResumeLayout(false);
-            this.gpPerformance.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -893,12 +780,6 @@
         private System.Windows.Forms.GroupBox grServer;
         private System.Windows.Forms.TextBox txtRefinIters;
         private System.Windows.Forms.Label lbOuterIters;
-        private System.Windows.Forms.GroupBox grFiltering;
-        private System.Windows.Forms.TextBox txtFilterNeighbors;
-        private System.Windows.Forms.CheckBox chFilter;
-        private System.Windows.Forms.Label lbFilterNeighbors;
-        private System.Windows.Forms.Label lbFilterDistance;
-        private System.Windows.Forms.TextBox txtFilterDistance;
         private System.Windows.Forms.GroupBox grMarkers;
         private System.Windows.Forms.Label lbX2;
         private System.Windows.Forms.Button btRemove;
@@ -928,12 +809,9 @@
         private System.Windows.Forms.Label lbZ;
         private System.Windows.Forms.Label lbY;
         private System.Windows.Forms.Label lbX;
-        private System.Windows.Forms.GroupBox grBody;
-        private System.Windows.Forms.CheckBox chBodyData;
         private System.Windows.Forms.RadioButton rBinaryPly;
         private System.Windows.Forms.Label lbFormat;
         private System.Windows.Forms.RadioButton rAsciiPly;
-        private System.Windows.Forms.CheckBox chSkeletons;
         private System.Windows.Forms.ComboBox cbCompressionLevel;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.GroupBox grTempSync;

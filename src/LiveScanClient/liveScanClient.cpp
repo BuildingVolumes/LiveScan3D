@@ -25,7 +25,7 @@
 std::mutex m_mSocketThreadMutex;
 
 // HOGUE
-int g_winWidth = 969;
+int g_winWidth = 800;
 int g_winHeight = 540;
 int g_winX = 0;
 int g_winY = 0;
@@ -78,8 +78,6 @@ LiveScanClient::LiveScanClient() :
 	m_pColorInColorSpace(NULL),
 	m_pDepthInColorSpace(NULL),
 	m_bCalibrate(false),
-	m_bFilter(false),
-	m_bStreamOnlyBodies(false),
 	m_bCaptureFrame(false),
 	m_bRecordingStart(false),
 	m_bRecordingStop(false),
@@ -92,14 +90,13 @@ LiveScanClient::LiveScanClient() :
 	m_bFrameCompression(true),
 	m_iCompressionLevel(2),
 	m_pClientSocket(NULL),
-	m_nFilterNeighbors(10),
-	m_fFilterThreshold(0.01f),
 	m_bRestartingCamera(false),
 	m_bRequestConfiguration(false),
 	m_bSendConfiguration(false),
 	m_bAutoExposureEnabled(true),
 	m_nExposureStep(-5),
 	m_nExtrinsicsStyle(0), // 0 = no export of extrinsics
+	m_eCaptureMode(CM_POINTCLOUD),
 	m_nFrameIndex(0)
 {
 	pCapture = new AzureKinectCapture();
@@ -256,9 +253,6 @@ void LiveScanClient::UpdateFrame()
 	{
 		if (ReinitAndConfirm())
 			m_bRestartCamera = false;
-
-		if (!pCapture->bAquiresPointcloud)
-			SetStatusMessage(L"NOTICE: Preview will be disabled while recording raw data!", 2000, true);
 	}
 
 	if (m_bRecordingStart)
@@ -278,24 +272,46 @@ void LiveScanClient::UpdateFrame()
 
 	//Capture logic
 
+	//We always need to capture the raw frame data
 	if (pCapture->AquireRawFrame())
 	{
-		//If we show a preview/live data, capture a pointcloud or run calibration we need to further process the data
-		if (pCapture->bAquiresPointcloud || m_bShowPreviewDuringRecording || m_bCalibrate)
-		{
+		//To optimize our use of system resources, we only process what is needed
+		bool fullRGBData = false;
+		bool fullDepthData = false;
+		bool pointcloud = false;
+
+		if (m_eCaptureMode == CM_POINTCLOUD || m_bCalibrate || m_bRequestLiveFrame) {
+			fullRGBData = true;
+			fullDepthData = true;
+			pointcloud = true;
+		}
+
+		if (!m_bPreviewDisabled && !m_bShowDepth)
+			fullRGBData = true;
+
+		if (!m_bPreviewDisabled && m_bShowDepth)
+			fullDepthData = true;
+
+		if (fullRGBData) {
 			pCapture->DecodeRawColor();
 			pCapture->DownscaleColorImgToDepthImgSize();
-			pCapture->MapDepthToColor();
 		}
+
+		if (fullDepthData)
+			pCapture->MapDepthToColor();
+
+		if (pointcloud)
+			pCapture->GeneratePointcloud();
+
 
 		if (m_bCaptureFrame)
 		{
-			if (!pCapture->bAquiresPointcloud)
+			if (m_eCaptureMode == CM_RAW)
 			{
 				CaptureRaw();
 			}
 
-			else if (pCapture->bAquiresPointcloud)
+			else if (m_eCaptureMode == CM_POINTCLOUD)
 			{
 				CapturePointcloud();
 			}
@@ -308,6 +324,14 @@ void LiveScanClient::UpdateFrame()
 				ShowPreviewDisabled();
 			}
 		}
+
+		if (m_bRequestLiveFrame) {
+			CapturePointcloud();
+			SendFrame(m_vLastFrameVertices, m_vLastFrameVerticesSize, m_vLastFrameRGB);
+			m_bRequestLiveFrame = false;
+		}
+
+
 
 		if (!m_bCaptureFrame || m_bShowPreviewDuringRecording) 
 		{
@@ -503,10 +527,8 @@ void LiveScanClient::CaptureRaw()
 
 void LiveScanClient::CapturePointcloud()
 {
-	pCapture->GeneratePointcloud();
-
 	std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-	StoreFrame(pCapture->pointCloudImage, pCapture->colorBGR, pCapture->vBodies, pCapture->pBodyIndex);
+	StoreFrame(pCapture->pointCloudImage, pCapture->colorBGR);
 
 	if (m_bCaptureFrame)
 	{
@@ -519,7 +541,7 @@ void LiveScanClient::CapturePointcloud()
 
 		m_nFrameIndex++;
 
-		m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
+		m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameVerticesSize,  m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
 		m_bConfirmCaptured = true;
 		m_bCaptureFrame = false;
 	}
@@ -602,17 +624,18 @@ void LiveScanClient::ManagePreviewWindowInitialization() {
 void LiveScanClient::ShowDepth()
 {
 	// Make sure we've received valid data
-	if (pCapture->pointCloudImage != NULL)
+	if (pCapture->transformedDepthImage != NULL)
 	{
 		ManagePreviewWindowInitialization();
 
-		int16_t* pointCloudImageData = (int16_t*)(void*)k4a_image_get_buffer(pCapture->pointCloudImage);
+		uint16_t* pointCloudImageData = (uint16_t*)(void*)k4a_image_get_buffer(pCapture->transformedDepthImage);
 
 		for (int i = 0; i < pCapture->nColorFrameWidth * pCapture->nColorFrameHeight; i++)
 		{
-			m_pRainbowColorDepth[i].rgbRed = turbo_srgb_bytes[pointCloudImageData[i + 0] / 1000 / 256][0];
-			m_pRainbowColorDepth[i].rgbGreen = turbo_srgb_bytes[pointCloudImageData[i + 1] / 1000 / 256][1];
-			m_pRainbowColorDepth[i].rgbBlue = turbo_srgb_bytes[pointCloudImageData[i + 2] / 1000 / 256][2];
+			BYTE intensity = pointCloudImageData[i] / 40;
+			m_pRainbowColorDepth[i].rgbRed = rainbowLookup[intensity][0];
+			m_pRainbowColorDepth[i].rgbGreen = rainbowLookup[intensity][1];
+			m_pRainbowColorDepth[i].rgbBlue = rainbowLookup[intensity][2];
 		}
 
 		// Draw the data with Direct2D
@@ -758,16 +781,7 @@ void LiveScanClient::HandleSocket()
 				bounds[j] = *(float*)(received.c_str() + i);
 				i += sizeof(float);
 			}
-
-			m_bFilter = (received[i] != 0);
-			i++;
-
-			m_nFilterNeighbors = *(int*)(received.c_str() + i);
-			i += sizeof(int);
-
-			m_fFilterThreshold = *(float*)(received.c_str() + i);
-			i += sizeof(float);
-
+			
 			m_vBounds = bounds;
 
 			int nMarkers = *(int*)(received.c_str() + i);
@@ -796,9 +810,6 @@ void LiveScanClient::HandleSocket()
 				i += sizeof(int);
 			}
 
-			m_bStreamOnlyBodies = (received[i] != 0);
-			i += 1;
-
 			m_iCompressionLevel = *(int*)(received.c_str() + i);
 			i += sizeof(int);
 			if (m_iCompressionLevel > 0)
@@ -818,13 +829,14 @@ void LiveScanClient::HandleSocket()
 			if (exportFormat == 0)
 			{
 				std::cout << "Export format set to Pointcloud" << std::endl;
-				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+				m_eCaptureMode = CM_POINTCLOUD;
 			}
 
 			if (exportFormat == 1)
 			{
 				std::cout << "Export format set to Raw Data" << std::endl;
-				configuration.config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
+				m_eCaptureMode = CM_RAW;
+
 			}
 
 			m_nExtrinsicsStyle = *(int*)(received.c_str() + i);
@@ -853,16 +865,21 @@ void LiveScanClient::HandleSocket()
 			byteToSend = MSG_STORED_FRAME;
 			m_pClientSocket->SendBytes(&byteToSend, 1);
 
-			vector<Point3s> points;
-			vector<RGB> colors;
-			bool res = m_framesFileWriterReader.readFrame(points, colors);
+			Point3s* points = NULL;
+			RGB* colors = NULL;
+			int pointsSize;
+
+			bool res = m_framesFileWriterReader.readFrame(points, colors, pointsSize);
 			if (res == false)
 			{
 				int size = -1;
 				m_pClientSocket->SendBytes((char*)&size, 4);
 			}
 			else
-				SendFrame(points, colors, m_vLastFrameBody);
+				SendFrame(points, pointsSize, colors);
+
+			delete[] points;
+			delete[] colors;
 		}
 		//send last frame
 		else if (received[i] == MSG_REQUEST_LAST_FRAME)
@@ -871,7 +888,7 @@ void LiveScanClient::HandleSocket()
 			byteToSend = MSG_LAST_FRAME;
 			m_pClientSocket->SendBytes(&byteToSend, 1);
 
-			SendFrame(m_vLastFrameVertices, m_vLastFrameRGB, m_vLastFrameBody);
+			m_bRequestLiveFrame = true;
 		}
 
 		//receive calibration data
@@ -1043,76 +1060,27 @@ void LiveScanClient::SendReinitConfirmation(bool success)
 	m_pClientSocket->SendBytes(buffer, size);
 }
 
-void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body)
+void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB)
 {
 	std::cout << "Sending Frame" << std::endl;
 
-	int size = RGB.size() * (3 + 3 * sizeof(short)) + sizeof(int);
+	int size = verticesSize * (3 + 3 * sizeof(short)) + sizeof(int);
 
 	vector<char> buffer(size);
-	char* ptr2 = (char*)vertices.data();
 	int pos = 0;
 
-	int nVertices = RGB.size();
-	memcpy(buffer.data() + pos, &nVertices, sizeof(nVertices));
-	pos += sizeof(nVertices);
+	memcpy(buffer.data() + pos, &verticesSize, sizeof(verticesSize));
+	pos += sizeof(verticesSize);
 
-	for (unsigned int i = 0; i < RGB.size(); i++)
+	for (unsigned int i = 0; i < verticesSize; i++)
 	{
 		buffer[pos++] = RGB[i].rgbRed;
 		buffer[pos++] = RGB[i].rgbGreen;
 		buffer[pos++] = RGB[i].rgbBlue;
 
-		memcpy(buffer.data() + pos, ptr2, sizeof(short) * 3);
-		ptr2 += sizeof(short) * 3;
+		memcpy(buffer.data() + pos, vertices, sizeof(short) * 3);
+		vertices++;
 		pos += sizeof(short) * 3;
-	}
-
-	int nBodies = body.size();
-	size += sizeof(nBodies);
-	for (int i = 0; i < nBodies; i++)
-	{
-		size += sizeof(body[i].bTracked);
-		int nJoints = body[i].vJoints.size();
-		size += sizeof(nJoints);
-		size += nJoints * (3 * sizeof(float) + 2 * sizeof(int));
-		size += nJoints * 2 * sizeof(float);
-	}
-	buffer.resize(size);
-
-	memcpy(buffer.data() + pos, &nBodies, sizeof(nBodies));
-	pos += sizeof(nBodies);
-
-	for (int i = 0; i < nBodies; i++)
-	{
-		memcpy(buffer.data() + pos, &body[i].bTracked, sizeof(body[i].bTracked));
-		pos += sizeof(body[i].bTracked);
-
-		int nJoints = body[i].vJoints.size();
-		memcpy(buffer.data() + pos, &nJoints, sizeof(nJoints));
-		pos += sizeof(nJoints);
-
-		for (int j = 0; j < nJoints; j++)
-		{
-			////Joint
-			//memcpy(buffer.data() + pos, &body[i].vJoints[j].JointType, sizeof(JointType));
-			//pos += sizeof(JointType);
-			//memcpy(buffer.data() + pos, &body[i].vJoints[j].TrackingState, sizeof(TrackingState));
-			//pos += sizeof(TrackingState);
-			////Joint position
-			//memcpy(buffer.data() + pos, &body[i].vJoints[j].Position.X, sizeof(float));
-			//pos += sizeof(float);
-			//memcpy(buffer.data() + pos, &body[i].vJoints[j].Position.Y, sizeof(float));
-			//pos += sizeof(float);
-			//memcpy(buffer.data() + pos, &body[i].vJoints[j].Position.Z, sizeof(float));
-			//pos += sizeof(float);
-
-			////JointInColorSpace
-			//memcpy(buffer.data() + pos, &body[i].vJointsInColorSpace[j].X, sizeof(float));
-			//pos += sizeof(float);
-			//memcpy(buffer.data() + pos, &body[i].vJointsInColorSpace[j].Y, sizeof(float));
-			//pos += sizeof(float);
-		}
 	}
 
 	int iCompression = static_cast<int>(m_bFrameCompression);
@@ -1135,7 +1103,7 @@ void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector
 	m_pClientSocket->SendBytes(buffer.data(), size);
 }
 
-void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorInDepth, vector<Body>& bodies, BYTE* bodyIndex)
+void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage)
 {
 	std::cout << "Storing Pointcloud Frame" << std::endl;
 
@@ -1147,14 +1115,11 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorInDep
 	//instead of using push_back for each vertice. Even though we have to copy the vertices into a clean array
 	//later and it uses a little bit more RAM, this gives us a nice speed increase for this function, around 25-50%
 	Point3f invalidPoint = Point3f(0, 0, 0, true);
-	vector<Point3f> AllVertices(nVertices);
+	Point3f* allVertices = new Point3f[nVertices];
 	int goodVerticesCount = 0;
 
 	for (unsigned int vertexIndex = 0; vertexIndex < nVertices; vertexIndex++)
 	{
-		if (m_bStreamOnlyBodies && bodyIndex[vertexIndex] >= bodies.size())
-			continue;
-
 		//As the resizing function doesn't return a valid RGB-Reserved value which indicates that this pixel is invalid,
 		//we cut all vertices under a distance of 0.0001mm, as the invalid vertices always have a Z-Value of 0
 		if (pointCloudImageData[3 * vertexIndex + 2] >= 0.0001) // TODO: Needed? && colorInDepth->data[vertexIndex] == 255)
@@ -1176,79 +1141,54 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorInDep
 					|| temp.Y < m_vBounds[1] || temp.Y > m_vBounds[4]
 					|| temp.Z < m_vBounds[2] || temp.Z > m_vBounds[5])
 				{
-					AllVertices[vertexIndex] = invalidPoint;
+					allVertices[vertexIndex] = invalidPoint;
 					continue;
 				}
 			}
 
-			AllVertices[vertexIndex] = temp;
+			allVertices[vertexIndex] = temp;
 			goodVerticesCount++;
 		}
 
 		else
 		{
-			AllVertices[vertexIndex] = invalidPoint;
+			allVertices[vertexIndex] = invalidPoint;
 		}
 	}
+	
 
-	vector<Body> tempBodies = bodies;
+	delete[] m_vLastFrameVertices;
+	delete[] m_vLastFrameRGB;
 
-	/*
-	for (unsigned int i = 0; i < tempBodies.size(); i++)
-	{
-		for (unsigned int j = 0; j < tempBodies[i].vJoints.size(); j++)
-		{
-			if (calibration.bCalibrated)
-			{
-				tempBodies[i].vJoints[j].Position.X += calibration.worldT[0];
-				tempBodies[i].vJoints[j].Position.Y += calibration.worldT[1];
-				tempBodies[i].vJoints[j].Position.Z += calibration.worldT[2];
-
-				Point3f tempPoint(tempBodies[i].vJoints[j].Position.X, tempBodies[i].vJoints[j].Position.Y, tempBodies[i].vJoints[j].Position.Z);
-
-				tempPoint = RotatePoint(tempPoint, calibration.worldR);
-
-				tempBodies[i].vJoints[j].Position.X = tempPoint.X;
-				tempBodies[i].vJoints[j].Position.Y = tempPoint.Y;
-				tempBodies[i].vJoints[j].Position.Z = tempPoint.Z;
-			}
-		}
-	}
-	*/
-
-	vector<Point3f> validVertices(goodVerticesCount);
-	vector<RGB> validColorPoints(goodVerticesCount);
+	m_vLastFrameVertices = new Point3s[goodVerticesCount];
+	m_vLastFrameRGB = new RGB[goodVerticesCount];
 	int validVerticesShortCounter = 0;
 
+	uchar* colorValues = colorImage->data;
+
 	//Copy all valid vertices into a clean vector 
-	for (unsigned int i = 0; i < AllVertices.size(); i++)
+	for (unsigned int i = 0; i < nVertices; i++)
 	{
-		if (!AllVertices[i].Invalid)
+		if (!allVertices[i].Invalid)
 		{
 			RGB color;
-			color.rgbBlue = colorInDepth->data[i * 3];
-			color.rgbBlue = colorInDepth->data[(i * 3) + 1];
-			color.rgbBlue = colorInDepth->data[(i * 3) + 2];
+			color.rgbRed = colorValues[i * 4];
+			color.rgbGreen = colorValues[(i * 4) + 1];
+			color.rgbBlue = colorValues[(i * 4) + 2];
 
-			validVertices[validVerticesShortCounter] = AllVertices[i];
-			validColorPoints[validVerticesShortCounter] = color;
+			m_vLastFrameVertices[validVerticesShortCounter] = allVertices[i];
+			m_vLastFrameRGB[validVerticesShortCounter] = color;
 			validVerticesShortCounter++;
 		}
 	}
 
-	if (m_bFilter)
-		filter(validVertices, validColorPoints, m_nFilterNeighbors, m_fFilterThreshold);
+	m_vLastFrameVerticesSize = validVerticesShortCounter;
 
-	vector<Point3s> goodVerticesShort(validVertices.size());
+	delete[] allVertices;
 
-	for (size_t i = 0; i < validVertices.size(); i++)
-	{
-		goodVerticesShort[i] = validVertices[i];
-	}
-
-	m_vLastFrameBody = tempBodies;
-	m_vLastFrameVertices = goodVerticesShort;
-	m_vLastFrameRGB = validColorPoints;
+	//Real time filtering has a way to high processing cost, should be done in postprocessing (VolNodes)
+	/*if (m_bFilter)
+		filter(validVertices, validColorPoints, m_nFilterNeighbors, m_fFilterThreshold);*/
 }
 
 void LiveScanClient::ShowFPS()

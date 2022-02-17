@@ -8,6 +8,7 @@
 #include "utils.h"
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include "turbojpeg/turbojpeg.h"
 
 class AzureKinectCapture : public ICapture
 {
@@ -17,7 +18,6 @@ public:
 
 	bool Initialize(KinectConfiguration& configuration);
 	bool AquireRawFrame();
-	//bool AquirePointcloudFrame();
 	void DecodeRawColor();
 	void DownscaleColorImgToDepthImgSize();
 	bool Close();
@@ -52,4 +52,6 @@ private:
 	int exposureTimeStep = 0;
 
 	KinectConfiguration configuration;
+
+	tjhandle turboJpeg;
 };

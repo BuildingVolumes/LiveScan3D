@@ -21,7 +21,7 @@ public:
 	// leave filename blank if you want the filename to be generated from the date
 	void setCurrentFilename(std::string filename = "");
 
-	void writeFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
+	void writeFrame(Point3s* points, int pointsSize, RGB* colors, uint64_t timestamp, int deviceID);
 	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
 	bool DirExists(std::string path);
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
@@ -29,7 +29,7 @@ public:
 	void WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex);
 	void WriteTimestampLog();
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
-	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);
+	bool readFrame(Point3s* outPoints, RGB* outColors, int& outPointsSize);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
 	bool openedForReading() { return m_bFileOpenedForReading; }

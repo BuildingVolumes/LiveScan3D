@@ -13,7 +13,7 @@
 //        year={2015},
 //    }
 #include "icp.h"
-#include "opencv\cv.h"
+#include "opencv2/opencv.hpp"
 
 void FindClosestPointForEach(PointCloud &sourceCloud, cv::Mat &destPoints, vector<float> &distances, vector<size_t> &indices)
 {
@@ -138,7 +138,7 @@ ICP_API float __stdcall ICP(Point3f *verts1, Point3f *verts2, int nVerts1, int n
 		cv::Mat matched1MatCv(matched1.size(), 3, CV_32F, matched1.data());
 		cv::Mat matched2MatCv(matched2.size(), 3, CV_32F, matched2.data());
 		cv::Mat tempT;
-		cv::reduce(matched1MatCv - matched2MatCv, tempT, 0, CV_REDUCE_AVG);
+		cv::reduce(matched1MatCv - matched2MatCv, tempT, 0, cv::REDUCE_AVG);
 
 		for (int i = 0; i < verts2Mat.rows; i++)
 		{

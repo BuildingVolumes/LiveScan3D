@@ -62,7 +62,6 @@ public:
 	virtual void SetConfiguration(KinectConfiguration& configuration) = 0;
 
 	bool bInitialized;
-	bool bAquiresPointcloud;
 
 	int nColorFrameHeight, nColorFrameWidth;
 	int nDepthFrameHeight, nDepthFrameWidth;

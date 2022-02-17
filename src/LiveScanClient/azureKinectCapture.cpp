@@ -5,9 +5,10 @@
 #include <chrono>
 
 
+
 AzureKinectCapture::AzureKinectCapture()
 {
-
+	turboJpeg = tjInitDecompress();
 }
 
 AzureKinectCapture::~AzureKinectCapture()
@@ -19,6 +20,8 @@ AzureKinectCapture::~AzureKinectCapture()
 	k4a_image_release(colorImageDownscaled);
 	k4a_transformation_destroy(transformation);
 	k4a_device_close(kinectSensor);
+
+	tjDestroy(turboJpeg);
 }
 
 /// <summary>
@@ -159,12 +162,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	SetConfiguration(configuration); //We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
 
-	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
-		bAquiresPointcloud = true;
-
-	else
-		bAquiresPointcloud = false;
-
 	GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize);
 
 	std::cout << "Initialization successfull: " << bInitialized << std::endl;
@@ -254,20 +251,26 @@ bool AzureKinectCapture::AquireRawFrame() {
 
 }
 
+/// <summary>
+/// Decompresses the raw MJPEG image from the camera to a BGRA cvMat using TurboJpeg
+/// </summary>
 void AzureKinectCapture::DecodeRawColor() {
 	
 	if(colorBGR != NULL)
 		colorBGR->release();
 
-	colorBGR = new cv::Mat(k4a_image_get_width_pixels(colorImageMJPG), k4a_image_get_height_pixels(colorImageMJPG), CV_8UC3);
-	cv::Mat rawData(1, k4a_image_get_size(colorImageMJPG), CV_8UC1, (void*)k4a_image_get_buffer(colorImageMJPG));
-	cv::imdecode(rawData, cv::ImreadModes::IMREAD_COLOR, colorBGR);
+	nColorFrameHeight = k4a_image_get_height_pixels(colorImageMJPG);
+	nColorFrameWidth = k4a_image_get_width_pixels(colorImageMJPG);
 
-	//TODO: Is this really needed?
-	cv::cvtColor(*colorBGR, *colorBGR, cv::COLOR_BGR2BGRA);
+	colorBGR = new cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
+	
+	//cv::Mat rawData(1, k4a_image_get_size(colorImageMJPG), CV_8UC1, (void*)k4a_image_get_buffer(colorImageMJPG));
+	//cv::imdecode(rawData, cv::ImreadModes::IMREAD_COLOR, colorBGR);
 
-	nColorFrameHeight = colorBGR->cols;
-	nColorFrameWidth = colorBGR->rows;
+	//cv::cvtColor(*colorBGR, *colorBGR, cv::COLOR_BGR2BGRA);
+
+
+	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR->data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
 }
 
 void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
@@ -275,55 +278,14 @@ void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
 	//Resize the k4a_image to the precalculated size. Takes quite along time, maybe there is a faster algorithm?
 	cv::resize(*colorBGR, *colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
 
-	nColorFrameHeight = colorBGR->cols;
-	nColorFrameWidth = colorBGR->rows;
+	nColorFrameHeight = colorBGR->rows;
+	nColorFrameWidth = colorBGR->cols;
 }
 
 
-//bool AzureKinectCapture::AquirePointcloudFrame()
-//{
-//	if (!bInitialized)
-//	{
-//		return false;
-//	}
-//
-//	k4a_capture_t capture = NULL;
-//
-//	k4a_wait_result_t captureResult = k4a_device_get_capture(kinectSensor, &capture, captureTimeoutMs);
-//	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
-//	{
-//		k4a_capture_release(capture);
-//		return false;
-//	}
-//
-//	k4a_image_release(colorImageMJPG);
-//	k4a_image_release(colorImageDownscaled);
-//	k4a_image_release(depthImage16Int);
-//
-//	colorImageMJPG = k4a_capture_get_color_image(capture);
-//	depthImage16Int = k4a_capture_get_depth_image(capture);
-//
-//	currentTimeStamp = k4a_image_get_device_timestamp_usec(colorImageMJPG);
-//
-//	if (colorImageMJPG == NULL || depthImage16Int == NULL)
-//	{
-//		k4a_capture_release(capture);
-//		return false;
-//	}
-//
-//	//We need to resize the color image, so that it's height fits the depth camera height, while preserving the aspect ratio of the color camera:
-//
-//	//Convert the k4a_image to an OpenCV Mat
-//	cv::Mat cImg = cv::Mat(k4a_image_get_height_pixels(colorImageMJPG), k4a_image_get_width_pixels(colorImageMJPG), CV_8UC4, k4a_image_get_buffer(colorImageMJPG));
-//
-//	//Resize the k4a_image to the precalculated size. Takes quite along time, maybe there is a faster algorithm?
-//	cv::resize(cImg, cImg, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
-//
-//	//Create a k4a_image from the resized OpenCV Mat. Code taken from here: https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/978#issuecomment-566002061
-//	k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, cImg.cols, cImg.rows, cImg.cols * 4 * (int)sizeof(uint8_t), &colorImageDownscaled);
-//	memcpy(k4a_image_get_buffer(colorImageDownscaled), &cImg.ptr<cv::Vec4b>(0)[0], cImg.rows * cImg.cols * sizeof(cv::Vec4b));
-//
-//	//fix depth image here
+void AzureKinectCapture::MapDepthToColor()
+{
+	//fix depth image here
 //	if (configuration.filter_depth_map)
 //	{
 //		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage16Int), k4a_image_get_width_pixels(depthImage16Int), CV_16UC1, k4a_image_get_buffer(depthImage16Int));
@@ -340,26 +302,22 @@ void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
 //		//cv::GaussianBlur(cImgD3, cImgD, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size), 0);
 //	}
 //
-//	k4a_capture_release(capture);
-//
-//	std::cout << "Successfully captured Pointcloud Frame" << std::endl;
-//
-//	return true;
-//}
 
 
-void AzureKinectCapture::MapDepthToColor()
-{
 	if (transformedDepthImage == NULL)
 	{
 		k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * (int)sizeof(uint16_t), &transformedDepthImage);
 	}
 
-	k4a_transformation_depth_image_to_color_camera(transformationColorDownscaled, depthImage16Int, transformedDepthImage);
+	k4a_result_t res = k4a_transformation_depth_image_to_color_camera(transformationColorDownscaled, depthImage16Int, transformedDepthImage);
+
+	if (res == K4A_RESULT_FAILED) {
+		std::cout << "Nope" << std::endl;
+	}
 }
 
 /// <summary>
-/// Creates a Pointcloud out of the transformedDepthImage and saves it in PointcloudImage
+/// Creates a Pointcloud out of the transformedDepthImage and saves it in PointcloudImage. Make sure to run MapDepthToColor before calling this function
 /// </summary>
 void AzureKinectCapture::GeneratePointcloud() {
 	
@@ -369,6 +327,8 @@ void AzureKinectCapture::GeneratePointcloud() {
 	}
 
 	k4a_transformation_depth_image_to_point_cloud(transformationColorDownscaled, transformedDepthImage, K4A_CALIBRATION_TYPE_COLOR, pointCloudImage);
+
+	std::cout << "lo" << std::endl;
 }
 
 

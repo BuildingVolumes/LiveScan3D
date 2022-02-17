@@ -50,14 +50,7 @@ namespace KinectServer
             txtMaxY.Text = oSettings.aMaxBounds[1].ToString(CultureInfo.InvariantCulture);
             txtMaxZ.Text = oSettings.aMaxBounds[2].ToString(CultureInfo.InvariantCulture);
 
-            chFilter.Checked = oSettings.bFilter;
-            txtFilterNeighbors.Text = oSettings.nFilterNeighbors.ToString();
-            txtFilterDistance.Text = oSettings.fFilterThreshold.ToString(CultureInfo.InvariantCulture);
-
             lisMarkers.DataSource = oSettings.lMarkerPoses;
-
-            chBodyData.Checked = oSettings.bStreamOnlyBodies;
-            chSkeletons.Checked = oSettings.bShowSkeletons;
 
             cbCompressionLevel.SelectedText = oSettings.iCompressionLevel.ToString();
 
@@ -232,24 +225,6 @@ namespace KinectServer
             SettingsChanged();
         }
 
-        private void chFilter_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bFilter = chFilter.Checked;
-            SettingsChanged();
-        }
-
-        private void txtFilterNeighbors_TextChanged(object sender, EventArgs e)
-        {
-            Int32.TryParse(txtFilterNeighbors.Text, out oSettings.nFilterNeighbors);
-            SettingsChanged();
-        }
-
-        private void txtFilterDistance_TextChanged(object sender, EventArgs e)
-        {
-            Single.TryParse(txtFilterDistance.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.fFilterThreshold);
-            SettingsChanged();
-        }
-
         private void txtICPIters_TextChanged(object sender, EventArgs e)
         {
             Int32.TryParse(txtICPIters.Text, out oSettings.nNumICPIterations);
@@ -383,12 +358,6 @@ namespace KinectServer
             }
         }
 
-        private void chBodyData_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bStreamOnlyBodies = chBodyData.Checked;
-            SettingsChanged();
-        }
-
         private void PlyFormat_CheckedChanged(object sender, EventArgs e)
         {
             if (rAsciiPly.Checked)
@@ -399,11 +368,6 @@ namespace KinectServer
             {
                 oSettings.bSaveAsBinaryPLY = true;
             }
-        }
-
-        private void chSkeletons_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bShowSkeletons = chSkeletons.Checked;
         }
 
         private void cbCompressionLevel_SelectedIndexChanged(object sender, EventArgs e)

@@ -26,14 +26,8 @@ namespace KinectServer
         public float[] aMinBounds = new float[3];
         public float[] aMaxBounds = new float[3];
 
-        public bool bFilter = false;
-        public int nFilterNeighbors = 10;
-        public float fFilterThreshold = 0.1f;
-
         public BindingList<MarkerPose> lMarkerPoses = new BindingList<MarkerPose>();
 
-        public bool bStreamOnlyBodies = false;
-        public bool bShowSkeletons = true;
         public int iCompressionLevel = 2;       // 0 for no compression, 2 is recommended
 
         public int nNumICPIterations = 10;
@@ -76,17 +70,6 @@ namespace KinectServer
             Buffer.BlockCopy(aMaxBounds, 0, bTemp, 0, sizeof(float) * 3);
             lData.AddRange(bTemp);
 
-            if (bFilter)
-                lData.Add(1);
-            else
-                lData.Add(0);
-
-            bTemp = BitConverter.GetBytes(nFilterNeighbors);
-            lData.AddRange(bTemp);
-
-            bTemp = BitConverter.GetBytes(fFilterThreshold);
-            lData.AddRange(bTemp);
-
             bTemp = BitConverter.GetBytes(lMarkerPoses.Count);
             lData.AddRange(bTemp);
 
@@ -103,11 +86,6 @@ namespace KinectServer
                 bTemp = BitConverter.GetBytes(lMarkerPoses[i].id);
                 lData.AddRange(bTemp);
             }
-
-            if (bStreamOnlyBodies)
-                lData.Add(1);
-            else
-                lData.Add(0);
 
             bTemp = BitConverter.GetBytes(iCompressionLevel);
             lData.AddRange(bTemp);

@@ -57,6 +57,12 @@ enum SYNC_STATE
 	Unknown
 };
 
+enum CAPTURE_MODE 
+{
+	CM_POINTCLOUD,
+	CM_RAW
+};
+
 typedef struct Point3f
 {
 	Point3f()

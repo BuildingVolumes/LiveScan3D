@@ -153,13 +153,6 @@ namespace KinectServer
         public TrackingState trackingState;
     }
 
-    public struct Body
-    {
-        public bool bTracked;
-        public List<Joint> lJoints;
-        public List<Point2f> lJointsInColorSpace;
-    }
-
     public class Utils
     {
         public static void saveToPly(string filename, List<Single> vertices, List<byte> colors, bool binary)
