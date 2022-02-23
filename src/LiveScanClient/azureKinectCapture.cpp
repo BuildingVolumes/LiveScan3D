@@ -245,8 +245,6 @@ bool AzureKinectCapture::AquireRawFrame() {
 	nDepthFrameHeight = k4a_image_get_height_pixels(depthImage16Int);
 	nDepthFrameWidth = k4a_image_get_width_pixels(depthImage16Int);
 
-	std::cout << "Successfully captured raw Frame" << std::endl;
-
 	return true;
 
 }

@@ -178,6 +178,10 @@ namespace KinectServer
                 btRecord.Text = "Start recording";
                 btRefineCalib.Enabled = true;
                 btCalibrate.Enabled = true;
+
+                //If the live view window was open, we need to restart the UpdateWorker.
+                if (bLiveViewRunning)
+                    RestartUpdateWorker();
             }
 
         }
