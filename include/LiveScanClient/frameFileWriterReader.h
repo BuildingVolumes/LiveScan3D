@@ -29,7 +29,7 @@ public:
 	void WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex);
 	void WriteTimestampLog();
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
-	bool readFrame(Point3s* outPoints, RGB* outColors, int& outPointsSize);
+	bool readFrame(Point3s* &outPoints, RGB* &outColors, int& outPointsSize);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
 	bool openedForReading() { return m_bFileOpenedForReading; }

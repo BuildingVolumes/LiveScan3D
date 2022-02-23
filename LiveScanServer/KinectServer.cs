@@ -40,7 +40,6 @@ namespace KinectServer
         public event SocketListChangedHandler eSocketListChanged;
 
         public bool bTempSyncEnabled = false;
-        public bool bPointCloudMode = true;
 
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
@@ -136,10 +135,6 @@ namespace KinectServer
         public KinectServer(KinectSettings settings)
         {
             this.oSettings = settings;
-
-            if (settings.eExportMode != KinectSettings.ExportMode.Pointcloud)
-                bPointCloudMode = false;
-
             kinectSettingsForms = new Dictionary<int, KinectConfigurationForm>();
         }
 
@@ -493,7 +488,7 @@ namespace KinectServer
                 oSettings.nExposureStep = -5;
 
                 if (fSettingsForm != null) //Reflect this change in the settings UI
-                    fSettingsForm.SetExposureControlsToManual();
+                    fSettingsForm.SetExposureControlsToManual(true);
 
                 SendSettings(); //Send settings to update the exposure
 
@@ -504,7 +499,17 @@ namespace KinectServer
                 }
 
                 else
+                {
+                    //Enabeling failed, we undo the Exposure Settings
+                    oSettings.bAutoExposureEnabled = true;
+
+                    if (fSettingsForm != null) //Reflect this change in the settings UI
+                        fSettingsForm.SetExposureControlsToManual(false);
+
+                    SendSettings(); //Send settings to update the exposure
+
                     return false;
+                }
             }
 
             else

@@ -263,12 +263,6 @@ void AzureKinectCapture::DecodeRawColor() {
 	nColorFrameWidth = k4a_image_get_width_pixels(colorImageMJPG);
 
 	colorBGR = new cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
-	
-	//cv::Mat rawData(1, k4a_image_get_size(colorImageMJPG), CV_8UC1, (void*)k4a_image_get_buffer(colorImageMJPG));
-	//cv::imdecode(rawData, cv::ImreadModes::IMREAD_COLOR, colorBGR);
-
-	//cv::cvtColor(*colorBGR, *colorBGR, cv::COLOR_BGR2BGRA);
-
 
 	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR->data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
 }
@@ -311,9 +305,6 @@ void AzureKinectCapture::MapDepthToColor()
 
 	k4a_result_t res = k4a_transformation_depth_image_to_color_camera(transformationColorDownscaled, depthImage16Int, transformedDepthImage);
 
-	if (res == K4A_RESULT_FAILED) {
-		std::cout << "Nope" << std::endl;
-	}
 }
 
 /// <summary>
@@ -327,8 +318,6 @@ void AzureKinectCapture::GeneratePointcloud() {
 	}
 
 	k4a_transformation_depth_image_to_point_cloud(transformationColorDownscaled, transformedDepthImage, K4A_CALIBRATION_TYPE_COLOR, pointCloudImage);
-
-	std::cout << "lo" << std::endl;
 }
 
 

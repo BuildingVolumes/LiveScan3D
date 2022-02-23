@@ -70,7 +70,7 @@ namespace KinectServer
             rExportRawFrames.Checked = !rExportPointcloud.Checked;
 
             cbEnablePreview.Checked = oSettings.bPreviewEnabled;
-            
+
 
             if (oSettings.bSaveAsBinaryPLY)
             {
@@ -98,37 +98,24 @@ namespace KinectServer
                 oServer.SendSettings();
 
                 //Check if we need to restart the cameras
-
-                if(rTempSyncEnabled.Checked != oServer.bTempSyncEnabled)
+                if (rTempSyncEnabled.Checked != oServer.bTempSyncEnabled)
                 {
                     if (rTempSyncEnabled.Checked)
                     {
-                        if (oServer.EnableTemporalSync())
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
-
-                        else
-                            rTempSyncDisabled.Checked = true;
+                        rTempSyncEnabled.Checked = oServer.EnableTemporalSync();
                     }
 
                     else
                     {
                         if (oServer.DisableTemporalSync())
                         {
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
-                            rTempSyncDisabled.Checked = true;
-                            chAutoExposureEnabled.Enabled = true;
+                            rTempSyncDisabled.Checked = oServer.DisableTemporalSync();
                         }
-
-                        else
-                            rTempSyncEnabled.Checked = true;                        
                     }
                 }
 
                 btApplyAllSettings.Enabled = false;
                 lApplyWarning.Text = "";
-
-                oServer.fMainWindowForm.SetButtonsForExport();
-
                 Cursor.Current = Cursors.Default;
             }
         }
@@ -141,7 +128,7 @@ namespace KinectServer
 
         void UpdateApplyButton()
         {
-            if(settingsChanged)
+            if (settingsChanged)
             {
                 btApplyAllSettings.Enabled = true;
                 lApplyWarning.Text = "Changed settings are not yet applied!";
@@ -181,10 +168,10 @@ namespace KinectServer
             }
         }
 
-        public void SetExposureControlsToManual()
+        public void SetExposureControlsToManual(bool manual)
         {
-            chAutoExposureEnabled.Enabled = false;
-            trManualExposure.Enabled = true;
+            chAutoExposureEnabled.Enabled = !manual;
+            trManualExposure.Enabled = manual;
             trManualExposure.Value = -5;
             chAutoExposureEnabled.CheckState = CheckState.Unchecked;
         }
@@ -474,7 +461,7 @@ namespace KinectServer
 
         private void btApplyAllSettings_Click(object sender, EventArgs e)
         {
-                UpdateClients();
+            UpdateClients();
         }
 
         private void rTempSyncEnabled_CheckedChanged(object sender, EventArgs e)

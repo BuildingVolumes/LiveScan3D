@@ -36,7 +36,7 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 {
 	vector<MarkerInfo> markers;
 	cv::Mat img2, img3;
-	cv::cvtColor(*img, img2, cv::COLOR_BGR2GRAY);
+	cv::cvtColor(*img, img2, cv::COLOR_BGRA2GRAY);
 	cv::threshold(img2, img2, nThreshold, 255, cv::THRESH_BINARY);
 
 	img2.copyTo(img3);

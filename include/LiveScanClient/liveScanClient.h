@@ -71,6 +71,8 @@ private:
 	FrameFileWriterReader m_framesFileWriterReader;
 
 	SocketClient *m_pClientSocket;
+	std::string m_sReceived;
+	char byteToSend;
 	std::vector<float> m_vBounds;
 
 	Point3s* m_vLastFrameVertices;
@@ -94,7 +96,7 @@ private:
 	UINT16* m_pDepthInColorSpace;
 
     // Direct2D
-    ImageRenderer* m_pDrawColor;
+    ImageRenderer* m_pD2DImageRenderer;
     ID2D1Factory* m_pD2DFactory;
 	RGB* m_pRainbowColorDepth;
 	cv::Mat m_cvPreviewDisabled;
@@ -103,8 +105,8 @@ private:
     void ShowColor();
 	void ShowDepth();
 	void ShowPreviewDisabled();
-	void CaptureRaw();
-	void CapturePointcloud();
+	void SaveRawFrame();
+	void SavePointcloudFrame(uint64_t timeStamp);
 	void Calibrate();
 
 	void ManagePreviewWindowInitialization();
@@ -112,6 +114,7 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
+	void ExecuteServerCommand();
 	bool ReinitAndConfirm();
 	void SendReinitConfirmation(bool success);
 	void SendFrame(Point3s* vertices, int verticesSize, RGB* RGB);

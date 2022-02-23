@@ -66,7 +66,7 @@ void FrameFileWriterReader::openNewFileForWriting(int deviceID)
 	resetTimer();
 }
 
-bool FrameFileWriterReader::readFrame(Point3s* outPoints, RGB* outColors, int &outPointsSize)
+bool FrameFileWriterReader::readFrame(Point3s* &outPoints, RGB* &outColors, int &outPointsSize)
 {
 	std::cout << "Reading Pointcloud Frame" << std::endl;
 
@@ -83,6 +83,8 @@ bool FrameFileWriterReader::readFrame(Point3s* outPoints, RGB* outColors, int &o
 
 	if (nPoints == 0)
 		return true;
+
+	outPointsSize = nPoints;
 
 	fgetc(f);		//  '\n'
 	outPoints = new Point3s[nPoints];
