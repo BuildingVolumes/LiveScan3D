@@ -20,7 +20,6 @@ AzureKinectCapture::~AzureKinectCapture()
 	k4a_image_release(colorImageDownscaled);
 	k4a_transformation_destroy(transformation);
 	k4a_device_close(kinectSensor);
-
 	tjDestroy(turboJpeg);
 }
 
@@ -31,7 +30,7 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns>Returns true on success, false on error</returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
-	std::cout << "Initialiting Azure Kinect Device" << std::endl;
+	std::cout << "Initializing Azure Kinect Device" << std::endl;
 
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -39,7 +38,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	//We save the deviceId of this Client.
 	//When the cameras are reinitialized during runtime, we can then gurantee
 	//that each LiveScan instance uses the same device as before (In case two or more Kinects are connected to the same PC)
-	//A device ID of -1 means that no Kinects has been successfully initalized yet (only happens when the Client starts)
+	//A device ID of -1 means that no Kinects have been successfully initalized yet (only happens when the Client starts)
 	if (localDeviceIndex != -1) {
 		deviceIdx = localDeviceIndex;
 	}
@@ -119,8 +118,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	//We calculate the minimum size that the color Image can be, while preserving its aspect ration
 	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetCameraHeight();
-	colorImageDownscaledHeight = configuration.GetCameraHeight();
 	colorImageDownscaledWidth = calibration.color_camera_calibration.resolution_width / rescaleRatio;
+	colorImageDownscaledHeight = calibration.color_camera_calibration.resolution_height / rescaleRatio;
 
 	//We don't only need the size in pixels of the downscaled color image, but also a new k4a_calibration_t which fits the new 
 	//sizes
@@ -251,25 +250,22 @@ bool AzureKinectCapture::AquireRawFrame() {
 /// Decompresses the raw MJPEG image from the camera to a BGRA cvMat using TurboJpeg
 /// </summary>
 void AzureKinectCapture::DecodeRawColor() {
-	
-	if(colorBGR != NULL)
-		colorBGR->release();
 
 	nColorFrameHeight = k4a_image_get_height_pixels(colorImageMJPG);
 	nColorFrameWidth = k4a_image_get_width_pixels(colorImageMJPG);
 
-	colorBGR = new cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
+	colorBGR = cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
 
-	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR->data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
+	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR.data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
 }
 
 void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
 
 	//Resize the k4a_image to the precalculated size. Takes quite along time, maybe there is a faster algorithm?
-	cv::resize(*colorBGR, *colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
+	cv::resize(colorBGR, colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
 
-	nColorFrameHeight = colorBGR->rows;
-	nColorFrameWidth = colorBGR->cols;
+	nColorFrameHeight = colorBGR.rows;
+	nColorFrameWidth = colorBGR.cols;
 }
 
 
@@ -291,8 +287,6 @@ void AzureKinectCapture::MapDepthToColor()
 //		cv::erode(cImgD, cImgD, kernel);
 //		//cv::GaussianBlur(cImgD3, cImgD, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size), 0);
 //	}
-//
-
 
 	if (transformedDepthImage == NULL)
 	{

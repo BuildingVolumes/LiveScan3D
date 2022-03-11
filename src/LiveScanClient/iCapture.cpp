@@ -20,8 +20,6 @@ ICapture::ICapture()
 
 	nColorFrameHeight = 0;
 	nColorFrameWidth = 0;
-	nDepthFrameHeight = 0;
-	nDepthFrameWidth = 0;
 
 	nCalibrationSize = 0;
 
@@ -42,10 +40,7 @@ ICapture::~ICapture()
 		pBodyIndex = NULL;
 	}
 
-	if (colorBGR != NULL) {
-		colorBGR->release();
-		colorBGR = NULL;
-	}
+	colorBGR.release();
 
 	k4a_image_release(colorImageMJPG);
 	k4a_image_release(depthImage16Int);

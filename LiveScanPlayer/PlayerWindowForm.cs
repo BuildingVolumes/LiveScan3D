@@ -39,7 +39,7 @@ namespace LiveScanPlayer
 
             //oTransferServer.lVertices = lAllVertices;
             //oTransferServer.lColors = lAllColors;
-            viewportSettings.targetFPS = (int)nUDFramerate.Value;
+            viewportSettings.targetPlaybackFPS = (int)nUDFramerate.Value;
             lFrameFilesListView.Columns.Add("Current frame", 75);
             lFrameFilesListView.Columns.Add("Filename", 300);
         }
@@ -79,7 +79,7 @@ namespace LiveScanPlayer
                     lFrameFilesListView.Items.Add(item);
 
                     //.bin files use BGR color mode
-                    viewportSettings.colorMode = ViewportSettings.EColorMode.BGR;
+                    viewportSettings.colorMode = EColorMode.BGR;
                 }
             }
         }
@@ -111,7 +111,7 @@ namespace LiveScanPlayer
                 lFrameFilesListView.Items.Add(item);
 
                 //Pointclouds use RGB color mode
-                viewportSettings.colorMode = ViewportSettings.EColorMode.RGB;
+                viewportSettings.colorMode = EColorMode.RGB;
             }
         }
 
@@ -292,29 +292,12 @@ namespace LiveScanPlayer
             lock (lAllVertices)
             {
                 lVertices.AddRange(lAllVertices);
-            }
-
-            if (viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
-            {
                 lColors.AddRange(lAllColors);
-            }
 
-            //Convert BGR to RGB
-            if (viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
-            {
-                for (int i = 0; i < lAllColors.Count; i += 3)
-                {
-                    byte[] tempCol = new byte[3];
-                    tempCol[0] = lAllColors[i + 2];
-                    tempCol[1] = lAllColors[i + 1];
-                    tempCol[2] = lAllColors[i + 0];
-
-                    lColors.AddRange(tempCol);
-                }
             }
 
             string outputFilename = outDir + frameIdx.ToString().PadLeft(5, '0') + ".ply";
-            Utils.saveToPly(outputFilename, lVertices, lColors, true);
+            Utils.saveToPly(outputFilename, lVertices, lColors, viewportSettings.colorMode, true);
         }
 
         private void PlayerWindowForm_Load(object sender, EventArgs e)
@@ -343,7 +326,7 @@ namespace LiveScanPlayer
 
         private void nUDFramerate_ValueChanged(object sender, EventArgs e)
         {
-            viewportSettings.targetFPS = (int)nUDFramerate.Value;
+            viewportSettings.targetPlaybackFPS = (int)nUDFramerate.Value;
         }
     }
 }

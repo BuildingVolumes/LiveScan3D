@@ -155,6 +155,9 @@ namespace KinectServer
                 form.Show();
                 oServer.SetSettingsForm(form);
             }
+
+            else
+                oServer.GetSettingsForm().Focus();
         }
 
         //Performs recording which is synchronized or unsychronized frame capture.
@@ -182,6 +185,7 @@ namespace KinectServer
                 }
 
                 oServer.SendCaptureFramesStop();
+                counter.Stop();
 
             }
 
@@ -282,7 +286,7 @@ namespace KinectServer
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
                 oOpenGLWindow.settings = oSettings;
                 oOpenGLWindow.viewportSettings = viewportSettings;
-                oOpenGLWindow.viewportSettings.colorMode = ViewportSettings.EColorMode.RGB;
+                oOpenGLWindow.viewportSettings.colorMode = EColorMode.BGR;
             }
             oOpenGLWindow.Run();
         }
@@ -301,14 +305,12 @@ namespace KinectServer
                 bSaving = true;
                 btRecord.Text = "Stop saving";
                 btRecord.Enabled = true;
-
                 savingWorker.RunWorkerAsync();
             }
 
             else
             {
-                btRecord.Enabled = true;
-                btRecord.Text = "Start recording";
+                CaptureComplete();
             }
         }
 
@@ -336,10 +338,10 @@ namespace KinectServer
             //This loop is running till it is either cancelled (using the btRecord button), or till there are no more stored frames.
             while (!worker.CancellationPending)
             {
-                List<List<byte>> lFrameRGBAllDevices = new List<List<byte>>();
+                List<List<byte>> lFrameBGRAllDevices = new List<List<byte>>();
                 List<List<float>> lFrameVertsAllDevices = new List<List<float>>();
 
-                bool success = oServer.GetStoredFrame(lFrameRGBAllDevices, lFrameVertsAllDevices);
+                bool success = oServer.GetStoredFrame(lFrameBGRAllDevices, lFrameVertsAllDevices);
 
                 //This indicates that there are no more stored frames.
                 if (!success)
@@ -347,25 +349,25 @@ namespace KinectServer
 
                 nFrames++;
                 int nVerticesTotal = 0;
-                for (int i = 0; i < lFrameRGBAllDevices.Count; i++)
+                for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
                 {
                     nVerticesTotal += lFrameVertsAllDevices[i].Count;
                 }
 
-                List<byte> lFrameRGB = new List<byte>();
+                List<byte> lFrameBGR = new List<byte>();
                 List<Single> lFrameVerts = new List<Single>();
 
                 SetStatusBarOnTimer("Saving frame " + (nFrames).ToString() + ".", 5000);
-                for (int i = 0; i < lFrameRGBAllDevices.Count; i++)
+                for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
                 {
-                    lFrameRGB.AddRange(lFrameRGBAllDevices[i]);
+                    lFrameBGR.AddRange(lFrameBGRAllDevices[i]);
                     lFrameVerts.AddRange(lFrameVertsAllDevices[i]);
 
                     //This is ran if the frames from each client are to be placed in separate files.
                     if (!oSettings.bMergeScansForSave)
                     {
                         string outputFilename = outDir + "\\" + nFrames.ToString().PadLeft(5, '0') + i.ToString() + ".ply";
-                        Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameRGBAllDevices[i], oSettings.bSaveAsBinaryPLY);
+                        Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameBGRAllDevices[i], EColorMode.BGR, oSettings.bSaveAsBinaryPLY);
                     }
                 }
 
@@ -373,7 +375,7 @@ namespace KinectServer
                 if (oSettings.bMergeScansForSave)
                 {
                     string outputFilename = outDir + "\\" + nFrames.ToString().PadLeft(5, '0') + ".ply";
-                    Utils.saveToPly(outputFilename, lFrameVerts, lFrameRGB, oSettings.bSaveAsBinaryPLY);
+                    Utils.saveToPly(outputFilename, lFrameVerts, lFrameBGR,EColorMode.BGR, oSettings.bSaveAsBinaryPLY);
                 }
             }
 
@@ -412,6 +414,9 @@ namespace KinectServer
             {
                 Thread.Sleep(1);
 
+                Stopwatch timer = new Stopwatch();
+                timer.Start();
+
                 oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.
@@ -428,6 +433,9 @@ namespace KinectServer
                     }
 
                     lAllCameraPoses.AddRange(oServer.lCameraPoses);
+
+                    timer.Stop();
+                    viewportSettings.externalFPSCounter = (int)(1000 / timer.ElapsedMilliseconds);
                 }
             }
         }
@@ -554,7 +562,6 @@ namespace KinectServer
 
             if (oServer.bTempHwSyncEnabled)
             {
-                bool validConfig = true;
 
                 if (!oServer.CheckTempHwSyncValid())
                 {
@@ -576,6 +583,8 @@ namespace KinectServer
             {
                 //Stop the update worker to reduce the network usage (provides better synchronization).
                 updateWorker.CancelAsync();
+                lAllVertices.Clear();
+                lAllColors.Clear();
 
                 string takePath = oServer.CreateTakeDirectories(txtSeqName.Text);
 
@@ -649,6 +658,7 @@ namespace KinectServer
         private void btShowLive_Click(object sender, EventArgs e)
         {
             RestartUpdateWorker();
+
             //Opens the live view window if it is not open yet.
             if (!OpenGLWorker.IsBusy)
                 OpenGLWorker.RunWorkerAsync();

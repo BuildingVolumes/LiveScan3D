@@ -153,9 +153,11 @@ namespace KinectServer
         public TrackingState trackingState;
     }
 
+    public enum EColorMode { RGB, BGR };
+
     public class Utils
     {
-        public static void saveToPly(string filename, List<Single> vertices, List<byte> colors, bool binary)
+        public static void saveToPly(string filename, List<Single> vertices, List<byte> colors, EColorMode colorMode,bool binary)
         {
             int nVertices = vertices.Count / 3;
 
@@ -168,7 +170,7 @@ namespace KinectServer
             if (binary)
                 streamWriter.WriteLine("ply\nformat binary_little_endian 1.0");
             else
-                streamWriter.WriteLine("ply\nformat ascii 1.0\n");
+                streamWriter.WriteLine("ply\nformat ascii 1.0");
             streamWriter.Write("element vertex " + nVertices.ToString() + "\n");
             streamWriter.Write("property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\nend_header\n");
             streamWriter.Flush();
@@ -180,11 +182,21 @@ namespace KinectServer
                 {
                     for (int k = 0; k < 3; k++)
                         binaryWriter.Write(vertices[j * 3 + k]);
-                    for (int k = 0; k < 3; k++)
-                    {
-                        byte temp = colors[j * 3 + k];
-                        binaryWriter.Write(temp);
-                    }
+
+                    if (colorMode == EColorMode.BGR)
+                        for (int k = 2; k > -1; k--)
+                        {
+                            byte temp = colors[j * 3 + k];
+                            binaryWriter.Write(temp);
+                        }
+                            
+
+                    else if (colorMode == EColorMode.RGB)
+                        for (int k = 0; k > 3; k++)
+                        {
+                            byte temp = colors[j * 3 + k];
+                            binaryWriter.Write(temp);
+                        }
                 }
             }
             else
@@ -194,8 +206,16 @@ namespace KinectServer
                     string s = "";
                     for (int k = 0; k < 3; k++)
                         s += vertices[j * 3 + k].ToString(CultureInfo.InvariantCulture) + " ";
-                    for (int k = 0; k < 3; k++)
-                        s += colors[j * 3 + k].ToString(CultureInfo.InvariantCulture) + " ";
+
+                    if(colorMode == EColorMode.BGR)
+                        for (int k = 2; k > -1; k--)
+                            s += colors[j * 3 + k].ToString(CultureInfo.InvariantCulture) + " ";
+
+                    if (colorMode == EColorMode.RGB)
+                        for (int k = 0; k > 3; k++)
+                            s += colors[j * 3 + k].ToString(CultureInfo.InvariantCulture) + " ";
+
+
                     streamWriter.WriteLine(s);
                 }
             }

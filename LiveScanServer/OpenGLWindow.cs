@@ -23,6 +23,7 @@ using System.Diagnostics;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Input;
+using KinectServer;
 
 enum ECameraMode
 {
@@ -31,12 +32,12 @@ enum ECameraMode
 
 public class ViewportSettings
 {
-    public enum EColorMode { RGB, BGR };
 
     public float pointSize;
     public int brightness;
     public bool markerVisibility;
-    public int targetFPS;
+    public int targetPlaybackFPS;
+    public int externalFPSCounter;
     public EColorMode colorMode = EColorMode.BGR;
 
 
@@ -45,7 +46,8 @@ public class ViewportSettings
         pointSize = 0;
         brightness = 0;
         markerVisibility = true;
-        targetFPS = 30;
+        targetPlaybackFPS = 30;
+        externalFPSCounter = -1;
     }
 }
 
@@ -337,16 +339,22 @@ namespace KinectServer
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
-            float smoothing = 0.2f; // larger=more smoothing
-            averageFPS = (averageFPS * smoothing) + ((float)RenderFrequency * (1.0f - smoothing));
-            this.Title = "FPS: " + (int)averageFPS;
+            if(viewportSettings.externalFPSCounter == -1)
+            {
+                float smoothing = 0.2f; // larger=more smoothing
+                averageFPS = (averageFPS * smoothing) + ((float)RenderFrequency * (1.0f - smoothing));
+                this.Title = "FPS: " + (int)averageFPS;
+            }
+            
+            else
+                this.Title = "FPS: " + viewportSettings.externalFPSCounter;
 
             lock (viewportSettings)
             {
                 GL.PointSize(viewportSettings.pointSize);
                 brightnessModifier = (byte)viewportSettings.brightness;
                 bDrawMarkings = viewportSettings.markerVisibility;
-                TargetUpdateFrequency = viewportSettings.targetFPS;
+                TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
 
             }
 
@@ -371,7 +379,7 @@ namespace KinectServer
 
                     for (int i = 0; i < PointCount; i++)
                     {
-                        if (viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
+                        if (viewportSettings.colorMode == EColorMode.RGB)
                         {
                             VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
@@ -379,7 +387,7 @@ namespace KinectServer
                             VBO[i].A = 255;
                         }
 
-                        else if (viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
+                        else if (viewportSettings.colorMode == EColorMode.BGR)
                         {
                             VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));

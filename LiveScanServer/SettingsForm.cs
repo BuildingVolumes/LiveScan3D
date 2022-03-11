@@ -63,6 +63,8 @@ namespace KinectServer
             else
                 chHardwareSync.Checked = false;
 
+            chNetworkSync.Checked = oSettings.bNetworkSync;
+
             chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
             trManualExposure.Value = oSettings.nExposureStep;
 
@@ -103,33 +105,18 @@ namespace KinectServer
 
                 //TODO: Currently, the UI doesn't update as it stalls the thread. How can I get this to work without stalling it?
 
-                if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
+                if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled)
                 {
                     if (chHardwareSync.Checked)
                     {
-                        if (oServer.EnableTemporalSync())
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
-                        else
-                            chHardwareSync.Checked = false;
-                    }
-
-                    else if (!chHardwareSync.Checked && oServer.bTempHwSyncEnabled)
-                    {
-                        if (oServer.DisableTemporalSync())
-                        {
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
-                            chAutoExposureEnabled.Enabled = true;
-                        }
+                        chHardwareSync.Checked = oServer.EnableTemporalSync();
                     }
 
                     else
                     {
-                        if (oServer.RestartAllClients())
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
+                        chHardwareSync.Checked = !oServer.DisableTemporalSync();
                     }
                 }
-
-                oServer.fMainWindowForm.SetButtonsForExport();
 
                 Cursor.Current = Cursors.Default;
 
@@ -517,6 +504,8 @@ namespace KinectServer
             {
                 chNetworkSync.Enabled = true;
             }
+
+        }
 
 
         private void cbEnablePreview_CheckedChanged(object sender, EventArgs e)

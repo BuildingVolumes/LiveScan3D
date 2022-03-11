@@ -43,11 +43,9 @@ private:
 
 	ICapture *pCapture;
 
-	int m_nFilterNeighbors;
-	float m_fFilterThreshold;
-
 	bool m_bCaptureFrames;
 	bool m_bCaptureSingleFrame;
+	bool m_bCapturing;
 	bool m_bStartPreRecordingProcess;
 	bool m_bConfirmPreRecordingProcess;
 	bool m_bStartPostRecordingProcess;
@@ -65,13 +63,20 @@ private:
 	bool m_bSendConfiguration;
 	bool m_bSendTimeStampList;
 	bool m_bPostSyncedListReceived;
-
+	bool m_bShowPreviewDuringRecording;
+	bool m_bPreviewDisabled;
+	bool m_bRequestLiveFrame;
 	bool m_bShowDepth;
+
 	bool m_bFrameCompression;
 	int m_iCompressionLevel;
 
 	bool m_bAutoExposureEnabled;
 	int m_nExposureStep;
+
+	std::chrono::milliseconds m_tFrameTime;
+	std::chrono::milliseconds m_tOldFrameTime;
+
 	KinectConfiguration configuration;
 	CAPTURE_MODE m_eCaptureMode;
 
@@ -99,6 +104,7 @@ private:
     INT64 m_nNextStatusTime;
     DWORD m_nFramesSinceUpdate;
 	int frameRecordCounter;
+	float m_fAverageFPS;
 
 	int m_nFrameIndex;
 
@@ -110,18 +116,11 @@ private:
     ImageRenderer* m_pD2DImageRenderer;
     ID2D1Factory* m_pD2DFactory;
 
-
 	//Image Resources
 	std::vector<uchar>* emptyJPEGBuffer;
-	cv::Mat* emptyDepthMat;
-	k4a_image_t emptyDepthFrame;
-	RGB* m_pDepthRGBX;
-	RGB* m_pBlankGreyImage;
-
-
-	void CreateBlankGrayImage(const int width, const int height);
 	RGB* m_pRainbowColorDepth;
 	cv::Mat m_cvPreviewDisabled;
+	cv::Mat* emptyDepthMat;
 
 	void UpdateFrame();
     void ShowColor();
@@ -137,10 +136,10 @@ private:
 
 	void HandleSocket();
 	bool Reinit();
-	bool CloseCamera();
 	bool InitializeCamera();
+	bool CloseCamera();
 	void SendPostSyncConfirmation(bool success);
-	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
+	void SendFrame(Point3s* vertices,int verticesSize, RGB* RGB);
 	bool PostSyncPointclouds();
 	bool PostSyncRawFrames();
 

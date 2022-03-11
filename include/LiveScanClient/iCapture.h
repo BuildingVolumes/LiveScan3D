@@ -64,13 +64,12 @@ public:
 	bool bInitialized;
 
 	int nColorFrameHeight, nColorFrameWidth;
-	int nDepthFrameHeight, nDepthFrameWidth;
 
 	k4a_image_t colorImageMJPG;
 	k4a_image_t depthImage16Int;
 	k4a_image_t transformedDepthImage;
 	k4a_image_t pointCloudImage;
-	cv::Mat* colorBGR;
+	cv::Mat colorBGR;
 
 	std::vector<uint8_t> calibrationBuffer;
 	size_t nCalibrationSize;

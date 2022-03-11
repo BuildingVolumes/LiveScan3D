@@ -20,11 +20,10 @@ public:
 	bool AquireRawFrame();
 	void DecodeRawColor();
 	void DownscaleColorImgToDepthImgSize();
-	bool Close();
-
 	void MapDepthToColor();
 	void GeneratePointcloud();
 	void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints);
+	bool Close();	
 
 	int GetSyncJackState();
 	uint64_t GetTimeStamp();

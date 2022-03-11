@@ -24,8 +24,8 @@ public:
 	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
 	bool DirExists(std::string path);
 
-	bool writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
-	bool readNextBinaryFrame(std::vector<Point3s>& outPoints, std::vector<RGB>& outColors, int& outTimestamp);
+	bool writeNextBinaryFrame(Point3s* points, int pointsSize, RGB* colors, uint64_t timestamp, int deviceID);
+	bool readNextBinaryFrame(Point3s*& outPoints, RGB*& outColors, int& outPointsSize, int& outTimestamp);
 	void seekBinaryReaderToFrame(int frameID);
 	void skipOneFrameBinaryReader();
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex, std::string optionalPrefix);
