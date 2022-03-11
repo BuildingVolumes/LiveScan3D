@@ -505,8 +505,9 @@ namespace KinectServer
                 chNetworkSync.Enabled = true;
             }
 
-        }
+            SettingsChanged();
 
+        }
 
         private void cbEnablePreview_CheckedChanged(object sender, EventArgs e)
         {
