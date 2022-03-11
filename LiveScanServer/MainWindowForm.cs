@@ -44,13 +44,15 @@ namespace KinectServer
         KinectServer oServer;
         TransferServer oTransferServer;
 
-        //Those three variables are shared with the OpenGLWindow class and are used to exchange data with it.
+        //Those three four are shared with the OpenGLWindow class and are used to exchange data with it.
         //Vertices from all of the sensors
         List<float> lAllVertices = new List<float>();
         //Color data from all of the sensors
         List<byte> lAllColors = new List<byte>();
         //Sensor poses from all of the sensors
         List<AffineTransform> lAllCameraPoses = new List<AffineTransform>();
+        //Viewport settings
+        ViewportSettings viewportSettings = new ViewportSettings();
 
         bool bServerRunning = false;
         bool bRecording = false;
@@ -83,16 +85,13 @@ namespace KinectServer
 
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
+            oServer.eSocketListChanged += new SocketListChangedHandler(ClientConnectionChanged);
             oServer.SetMainWindowForm(this);
             oTransferServer = new TransferServer();
             oTransferServer.lVertices = lAllVertices;
             oTransferServer.lColors = lAllColors;
             InitializeComponent();
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
-
-        }
-        private void Form1_ResizeEnd(object sender, System.EventArgs e)
-        {
 
         }
 
@@ -107,6 +106,23 @@ namespace KinectServer
 
             oServer.StopServer();
             oTransferServer.StopServer();
+        }
+
+        private void ClientConnectionChanged(List<KinectSocket> socketList)
+        {
+            //Disable the temporal hardware sync if all clients disconnected
+            if(socketList.Count == 0)
+            {
+                oServer.bTempHwSyncEnabled = false;
+
+                if(oServer.fSettingsForm != null)
+                {
+                    oServer.fSettingsForm.BeginInvoke(new Action(() =>
+                    {
+                        oServer.fSettingsForm.DisableHardwareSyncButton();
+                    }));
+                }                
+            }
         }
 
         //Starts the server
@@ -141,49 +157,115 @@ namespace KinectServer
             }
         }
 
-        //Performs recording which is synchronized frame capture.
+        //Performs recording which is synchronized or unsychronized frame capture.
         //The frames are downloaded from the clients and saved once recording is finished.
         private void recordingWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             oServer.ClearStoredFrames();
 
-            int nCaptured = 0;
+            bool networkSyncEnabled = oSettings.bNetworkSync;
             BackgroundWorker worker = (BackgroundWorker)sender;
-            while (!worker.CancellationPending)
-            {
-                oServer.CaptureSynchronizedFrame();
 
-                nCaptured++;
-                SetStatusBarOnTimer("Captured frame " + (nCaptured).ToString() + ".", 5000);
+            oServer.SendAndConfirmPreRecordProcess();
+
+            //If we don't use a server-controlled sync method, we just let the clients capture as fast as possible
+            if (!networkSyncEnabled || oServer.bTempHwSyncEnabled)
+            {
+                oServer.SendCaptureFramesStart();
+
+                Stopwatch counter = new Stopwatch();
+                counter.Start();
+
+                while (!worker.CancellationPending)
+                {
+                    SetStatusBarOnTimer("Recording: " + counter.Elapsed.Minutes.ToString("D2") + ":" + counter.Elapsed.Seconds.ToString("D2"), 5000);
+                }
+
+                oServer.SendCaptureFramesStop();
+
             }
+
+            //A server controlled sync method, the server gives the command to capture a single frame and waits until all devices have captured it
+            else if (networkSyncEnabled)
+            {
+                int nCaptured = 0;
+
+                while (!worker.CancellationPending)
+                {
+                    oServer.CaptureSynchronizedFrame();
+                    nCaptured++;
+                    SetStatusBarOnTimer("Captured frame " + (nCaptured).ToString() + ".", 5000);
+                }
+            }
+
+            oServer.SendAndConfirmPostRecordProcess();
+
         }
 
         private void recordingWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            //After recording has been terminated it is time to begin saving the frames.
-            //Saving is downloading the frames from clients and saving them locally.
-
-            //Only store frames when capturing pointclouds
-            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            //After recording has been terminated it is time to begin sorting the frames.
+            if (oServer.bTempHwSyncEnabled)
             {
-                bSaving = true;
-                btRecord.Text = "Stop saving";
-                btRecord.Enabled = true;
-
-                savingWorker.RunWorkerAsync();
+                SetStatusBarOnTimer("Synchronizing recording. This could take some time", 5000);
+                syncWorker.RunWorkerAsync();
             }
+
+            //If sync wasn't enabled, we go straight to saving the files
             else
             {
-                btRecord.Enabled = true;
-                btRecord.Text = "Start recording";
-                btRefineCalib.Enabled = true;
-                btCalibrate.Enabled = true;
-
-                //If the live view window was open, we need to restart the UpdateWorker.
-                if (bLiveViewRunning)
-                    RestartUpdateWorker();
+                SetStatusBarOnTimer("Recording completed!", 2000);
+                StartSaving();
             }
 
+        }
+
+        private void syncWorker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            bool synced = false;
+
+            if (oServer.bTempHwSyncEnabled)
+            {
+                if (!oServer.GetTimestampLists())
+                {
+                    SetStatusBarOnTimer("Could not get Timestamp List. Saved recording is unsychronized!", 5000);
+                }
+
+                else
+                {
+                    if (!oServer.CreatePostSyncList())
+                    {
+                        SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!", 5000);
+                    }
+
+                    else
+                    {
+                        if (!oServer.ReorderSyncFramesOnClient())
+                        {
+                            SetStatusBarOnTimer("Could not reorganize files for sync on at least one device!", 5000);
+                        }
+
+                        else
+                        {
+                            SetStatusBarOnTimer("Sync sucessfull", 5000);
+                            synced = true;
+                        }
+                    }
+
+                }
+            }
+
+            e.Result = synced;
+        }
+
+        private void syncWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            bool syncSuccess = (bool)e.Result;
+
+            if (syncSuccess)
+                StartSaving();
+            else
+                CaptureComplete();
         }
 
         //Opens the live view window
@@ -199,6 +281,8 @@ namespace KinectServer
                 oOpenGLWindow.colors = lAllColors;
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
                 oOpenGLWindow.settings = oSettings;
+                oOpenGLWindow.viewportSettings = viewportSettings;
+                oOpenGLWindow.viewportSettings.colorMode = ViewportSettings.EColorMode.RGB;
             }
             oOpenGLWindow.Run();
         }
@@ -209,8 +293,29 @@ namespace KinectServer
             updateWorker.CancelAsync();
         }
 
+        private void StartSaving()
+        {
+            //Only store frames when capturing pointclouds
+            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
+            {
+                bSaving = true;
+                btRecord.Text = "Stop saving";
+                btRecord.Enabled = true;
+
+                savingWorker.RunWorkerAsync();
+            }
+
+            else
+            {
+                btRecord.Enabled = true;
+                btRecord.Text = "Start recording";
+            }
+        }
+
         private void savingWorker_DoWork(object sender, DoWorkEventArgs e)
         {
+            //Saving is downloading the frames from clients and saving them locally.
+
             int nFrames = 0;
 
             //TODO: Get Take directory
@@ -280,6 +385,11 @@ namespace KinectServer
             oServer.ClearStoredFrames();
             bSaving = false;
 
+            CaptureComplete();
+        }
+
+        private void CaptureComplete()
+        {
             //If the live view window was open, we need to restart the UpdateWorker.
             if (bLiveViewRunning)
                 RestartUpdateWorker();
@@ -288,6 +398,7 @@ namespace KinectServer
             btRecord.Text = "Start recording";
             btRefineCalib.Enabled = true;
             btCalibrate.Enabled = true;
+
         }
 
         //Continually requests frames that will be displayed in the live view window.
@@ -318,10 +429,6 @@ namespace KinectServer
 
                     lAllCameraPoses.AddRange(oServer.lCameraPoses);
                 }
-
-                //Notes the fact that a new frame was downloaded, this is used to estimate the FPS.
-                if (oOpenGLWindow != null)
-                    oOpenGLWindow.CloudUpdateTick();
             }
         }
 
@@ -445,6 +552,17 @@ namespace KinectServer
                 return;
             }
 
+            if (oServer.bTempHwSyncEnabled)
+            {
+                bool validConfig = true;
+
+                if (!oServer.CheckTempHwSyncValid())
+                {
+                    SetStatusBarOnTimer("Temporal Hardware Sync Setup not valid! Please check arrangement", 5000);
+                    return;
+                }
+            }
+
             //If we are saving frames right now, this button stops saving.
             if (bSaving)
             {
@@ -483,13 +601,11 @@ namespace KinectServer
                 btRecord.Text = "Stop recording";
                 btRefineCalib.Enabled = false;
                 btCalibrate.Enabled = false;
-                oServer.SendRecordingStartSignal();
             }
             else
             {
                 btRecord.Enabled = false;
                 recordingWorker.CancelAsync();
-                oServer.SendRecordingStopSignal();
             }
 
         }
@@ -545,7 +661,8 @@ namespace KinectServer
 
         public void SetStatusBarOnTimer(string message, int milliseconds)
         {
-            statusLabel.Text = message;
+            //Thread save change of UI Element
+            Invoke(new Action(() => { statusLabel.Text = message; }));            
 
             oStatusBarTimer.Stop();
             oStatusBarTimer = new System.Timers.Timer();
@@ -554,7 +671,7 @@ namespace KinectServer
             oStatusBarTimer.Elapsed += delegate (object sender, System.Timers.ElapsedEventArgs e)
             {
                 oStatusBarTimer.Stop();
-                statusLabel.Text = "";
+                Invoke(new Action(() => { statusLabel.Text = ""; }));
             };
             oStatusBarTimer.Start();
         }

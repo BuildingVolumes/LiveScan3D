@@ -43,20 +43,29 @@ private:
 
 	ICapture *pCapture;
 
-	bool m_bCaptureFrame;
-	bool m_bRequestLiveFrame;
-	bool m_bShowPreviewDuringRecording;
-	bool m_bPreviewDisabled;
-	bool m_bRecordingStart;
-	bool m_bRecordingStop;
+	int m_nFilterNeighbors;
+	float m_fFilterThreshold;
+
+	bool m_bCaptureFrames;
+	bool m_bCaptureSingleFrame;
+	bool m_bStartPreRecordingProcess;
+	bool m_bConfirmPreRecordingProcess;
+	bool m_bStartPostRecordingProcess;
+	bool m_bConfirmPostRecordingProcess;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
-	bool m_bRestartCamera;
-	bool m_bRestartingCamera;
+	bool m_bCloseCamera;
+	bool m_bConfirmCameraClosed;
+	bool m_bInitializeCamera;
+	bool m_bConfirmCameraInitialized;
+	bool m_bCameraError;
 	bool m_bUpdateSettings;
 	bool m_bRequestConfiguration;
 	bool m_bSendConfiguration;
+	bool m_bSendTimeStampList;
+	bool m_bPostSyncedListReceived;
+
 	bool m_bShowDepth;
 	bool m_bFrameCompression;
 	int m_iCompressionLevel;
@@ -79,8 +88,10 @@ private:
 	int m_vLastFrameVerticesSize;
 	RGB* m_vLastFrameRGB;
 
-	std::vector<int> m_vFrameNumbers;
-	std::vector<uint64_t> m_vTimestamps;
+	std::vector<int> m_vFrameCount;
+	std::vector<uint64_t> m_vFrameTimestamps;
+	std::vector<int> m_vFrameID;
+	std::vector<int> m_vPostSyncedFrameID;
 
 	HWND m_hWnd;
     INT64 m_nLastCounter;
@@ -98,6 +109,17 @@ private:
     // Direct2D
     ImageRenderer* m_pD2DImageRenderer;
     ID2D1Factory* m_pD2DFactory;
+
+
+	//Image Resources
+	std::vector<uchar>* emptyJPEGBuffer;
+	cv::Mat* emptyDepthMat;
+	k4a_image_t emptyDepthFrame;
+	RGB* m_pDepthRGBX;
+	RGB* m_pBlankGreyImage;
+
+
+	void CreateBlankGrayImage(const int width, const int height);
 	RGB* m_pRainbowColorDepth;
 	cv::Mat m_cvPreviewDisabled;
 
@@ -114,10 +136,13 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	void ExecuteServerCommand();
-	bool ReinitAndConfirm();
-	void SendReinitConfirmation(bool success);
-	void SendFrame(Point3s* vertices, int verticesSize, RGB* RGB);
+	bool Reinit();
+	bool CloseCamera();
+	bool InitializeCamera();
+	void SendPostSyncConfirmation(bool success);
+	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
+	bool PostSyncPointclouds();
+	bool PostSyncRawFrames();
 
 	void SocketThreadFunction();
 	void StoreFrame(k4a_image_t pointCloudImage, cv::Mat *colorInDepth);

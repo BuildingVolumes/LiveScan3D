@@ -19,9 +19,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Globalization;
 using System.Windows.Forms.Layout;
-
 using System.Diagnostics;
-
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Input;
@@ -61,6 +59,7 @@ namespace KinectServer
         VertexC4ubV3f[] VBO;
         float PointSize = 0.0f;
         ECameraMode CameraMode = ECameraMode.CAMERA_NONE;
+        float averageFPS = 60;
 
         static float KEYBOARD_MOVE_SPEED = 0.01f;
 
@@ -89,12 +88,10 @@ namespace KinectServer
 
         public ViewportSettings viewportSettings = new ViewportSettings();
 
-        DateTime tFPSUpdateTimer = DateTime.Now;
-        DateTime tLastFrameTimer = DateTime.Now;
-        int nTickCounter = 0;
-        int nLastFrameTimeMS = 0;
-
         bool bDrawMarkings = true;
+
+        //Used to communicate to the file loading threat that we need to load new files
+        bool bufferEmpty = false;
 
         // this struct is used for drawing
         struct VertexC4ubV3f
@@ -111,7 +108,6 @@ namespace KinectServer
         public OpenGLWindow()
             : base(800, 600, GraphicsMode.Default, "LiveScan")
         {
-            this.VSync = VSyncMode.Off;
             MouseUp += new EventHandler<MouseButtonEventArgs>(OnMouseButtonUp);
             MouseDown += new EventHandler<MouseButtonEventArgs>(OnMouseButtonDown);
             MouseMove += new EventHandler<MouseMoveEventArgs>(OnMouseMove);
@@ -127,14 +123,14 @@ namespace KinectServer
             targetPosition[2] = 0;
         }
 
-        public void CloudUpdateTick()
+        public bool GetBufferEmpty()
         {
-            nTickCounter++;
+            return bufferEmpty;
         }
 
-        public int GetLastFrameTimeMS()
+        public void SetBufferEmpty(bool empty)
         {
-            return nLastFrameTimeMS;
+            bufferEmpty = empty;
         }
 
         public void ToggleFullscreen()
@@ -341,23 +337,17 @@ namespace KinectServer
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
-            if ((DateTime.Now - tFPSUpdateTimer).Seconds >= 1)
-            {
-                double FPS = nTickCounter / (DateTime.Now - tFPSUpdateTimer).TotalSeconds;
-                this.Title = "FPS: " + string.Format("{0:F}", nTickCounter);
-
-                tFPSUpdateTimer = DateTime.Now;
-                nTickCounter = 0;
-            }
-
-            nLastFrameTimeMS = (int)(DateTime.Now - tLastFrameTimer).TotalMilliseconds;
-            tLastFrameTimer = DateTime.Now;
+            float smoothing = 0.2f; // larger=more smoothing
+            averageFPS = (averageFPS * smoothing) + ((float)RenderFrequency * (1.0f - smoothing));
+            this.Title = "FPS: " + (int)averageFPS;
 
             lock (viewportSettings)
             {
                 GL.PointSize(viewportSettings.pointSize);
                 brightnessModifier = (byte)viewportSettings.brightness;
                 bDrawMarkings = viewportSettings.markerVisibility;
+                TargetUpdateFrequency = viewportSettings.targetFPS;
+
             }
 
             lock (vertices)
@@ -381,7 +371,7 @@ namespace KinectServer
 
                     for (int i = 0; i < PointCount; i++)
                     {
-                        if(viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
+                        if (viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
                         {
                             VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
@@ -389,7 +379,7 @@ namespace KinectServer
                             VBO[i].A = 255;
                         }
 
-                        else if(viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
+                        else if (viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
                         {
                             VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
@@ -397,7 +387,7 @@ namespace KinectServer
                             VBO[i].A = 255;
                         }
 
-                       
+
                         VBO[i].Position.X = vertices[i * 3];
                         VBO[i].Position.Y = vertices[i * 3 + 1];
                         VBO[i].Position.Z = vertices[i * 3 + 2];
@@ -416,6 +406,8 @@ namespace KinectServer
                             iCurLineCount += AddCamera(PointCount + 2 * iCurLineCount, cameraPoses[i]);
                         }
                     }
+
+                    bufferEmpty = true;
                 }
             }
         }

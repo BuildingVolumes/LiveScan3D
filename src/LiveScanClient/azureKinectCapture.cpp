@@ -223,6 +223,7 @@ bool AzureKinectCapture::AquireRawFrame() {
 	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
 	{
 		k4a_capture_release(capture);
+		std::cout << "Dropped Raw Frame" << std::endl;
 		return false;
 	}
 
@@ -241,9 +242,6 @@ bool AzureKinectCapture::AquireRawFrame() {
 	}
 
 	k4a_capture_release(capture);
-
-	nDepthFrameHeight = k4a_image_get_height_pixels(depthImage16Int);
-	nDepthFrameWidth = k4a_image_get_width_pixels(depthImage16Int);
 
 	return true;
 
@@ -442,7 +440,7 @@ bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buf
 /// <returns></returns>
 uint64_t AzureKinectCapture::GetTimeStamp()
 {
-	std::cout << "Getting timestamp. Timestamp is: " << currentTimeStamp << std::endl;
+	//std::cout << "Getting timestamp at: " << currentTimeStamp << std::endl;
 	return currentTimeStamp;
 }
 

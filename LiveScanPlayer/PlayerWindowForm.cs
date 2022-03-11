@@ -30,6 +30,9 @@ namespace LiveScanPlayer
 
         AutoResetEvent eUpdateWorkerFinished = new AutoResetEvent(false);
 
+        string lastPLYDir = String.Empty;
+        string lastBINDir = String.Empty;
+
         public PlayerWindowForm()
         {
             InitializeComponent();
@@ -50,8 +53,21 @@ namespace LiveScanPlayer
         private void btSelect_Click(object sender, EventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog();
+            dialog.Filter = "Livescan binary files (*.bin) |*.bin";
             dialog.Multiselect = true;
+
+            if (lastBINDir != String.Empty)
+            {
+                dialog.InitialDirectory = lastBINDir;
+                dialog.RestoreDirectory = false;
+            }
+
             dialog.ShowDialog();
+
+            if (dialog.FileNames.Length == 0)
+                return;
+
+            lastBINDir = Path.GetDirectoryName(dialog.FileNames[0]);
 
             lock (lFrameFiles)
             {
@@ -72,10 +88,20 @@ namespace LiveScanPlayer
         {
             OpenFileDialog dialog = new OpenFileDialog();
             dialog.Multiselect = true;
+            dialog.Filter = "ply files (*.ply) |*.ply";
+
+            if (lastPLYDir != String.Empty)
+            {
+                dialog.InitialDirectory = lastPLYDir;
+                dialog.RestoreDirectory = false;
+            }
+
             dialog.ShowDialog();
 
             if (dialog.FileNames.Length == 0)
                 return;
+
+            lastPLYDir = Path.GetDirectoryName(dialog.FileNames[0]);
 
             lock (lFrameFiles)
             {
@@ -91,17 +117,22 @@ namespace LiveScanPlayer
 
         private void btStart_Click(object sender, EventArgs e)
         {
+            lock (lFrameFiles)
+            {
+                if (lFrameFiles.Count == 0)
+                    return;
+            }
+            
+
             bPlayerRunning = !bPlayerRunning;
 
             if (bPlayerRunning)
             {
-                //oTransferServer.StartServer();
                 updateWorker.RunWorkerAsync();
                 btStart.Text = "Pause";
             }
             else
             {
-                //oTransferServer.StopServer();
                 btStart.Text = "Play";
                 eUpdateWorkerFinished.WaitOne();
             }
@@ -150,61 +181,46 @@ namespace LiveScanPlayer
 
             while (bPlayerRunning)
             {
-                //We measure how long the main thread and the OpenGL Thread need to render the frame and
-                //if they are faster than the target FPS, let the thread sleep for the remaining time,
-                //so that we don't play too fast
-                stopwatch.Stop();
-
-                int openGLMS = 0;
-                if (openGLWindow != null)
-                    openGLMS = openGLWindow.GetLastFrameTimeMS();
-
-                int totalMS = (int)stopwatch.ElapsedMilliseconds + openGLMS;
-                int targetMS = 1000 / viewportSettings.targetFPS;
-                if(totalMS < targetMS)
+                if(openGLWindow != null)
                 {
-                    Thread.Sleep(targetMS - totalMS);
-                }
-
-                stopwatch.Restart();
-
-                List<float> tempAllVertices = new List<float>();
-                List<byte> tempAllColors = new List<byte>();
-
-                lock (lFrameFiles)
-                {
-                    for (int i = 0; i < lFrameFiles.Count; i++)
+                    if (openGLWindow.GetBufferEmpty())
                     {
-                        List<float> vertices = new List<float>();
-                        List<byte> colors = new List<byte>();
-                        lFrameFiles[i].ReadFrame(vertices, colors);
+                        List<float> tempAllVertices = new List<float>();
+                        List<byte> tempAllColors = new List<byte>();
 
-                        tempAllVertices.AddRange(vertices);
-                        tempAllColors.AddRange(colors);
+                        lock (lFrameFiles)
+                        {
+                            for (int i = 0; i < lFrameFiles.Count; i++)
+                            {
+                                List<float> vertices = new List<float>();
+                                List<byte> colors = new List<byte>();
+                                lFrameFiles[i].ReadFrame(vertices, colors);
 
-                        Console.WriteLine("Frame: " + curFrameIdx + " FileID: " + i);
+                                tempAllVertices.AddRange(vertices);
+                                tempAllColors.AddRange(colors);
+                            }
+                        }
+
+                        this.Invoke((MethodInvoker)delegate { this.UpdateDisplayedFrameIndices(); });
+
+                        lock (lAllVertices)
+                        {
+                            lAllVertices.Clear();
+                            lAllColors.Clear();
+                            lAllVertices.AddRange(tempAllVertices);
+                            lAllColors.AddRange(tempAllColors);
+                        }
+
+                        if (chSaveFrames.Checked)
+                            SaveCurrentFrameToFile(outDir, curFrameIdx);
+
+
+                        curFrameIdx++;
+
+                        openGLWindow.SetBufferEmpty(false);
                     }
                 }
-
-                Thread frameIdxUpdate = new Thread(() => this.Invoke((MethodInvoker)delegate { this.UpdateDisplayedFrameIndices(); }));
-                frameIdxUpdate.Start();
-
-                lock (lAllVertices)
-                {
-                    lAllVertices.Clear();
-                    lAllColors.Clear();
-                    lAllVertices.AddRange(tempAllVertices);
-                    lAllColors.AddRange(tempAllColors);
-                }
-
-                if (chSaveFrames.Checked)
-                    SaveCurrentFrameToFile(outDir, curFrameIdx);
-
-
-                curFrameIdx++;
-
-                if(openGLWindow != null)
-                    openGLWindow.CloudUpdateTick();
+                             
             }
 
             eUpdateWorkerFinished.Set();
@@ -216,13 +232,21 @@ namespace LiveScanPlayer
             {
                 openGLWindow = new OpenGLWindow();
 
+                openGLWindow.VSync = OpenTK.VSyncMode.Adaptive;
+
+                openGLWindow.Closed += OpenGLWindowClosed;
+
                 openGLWindow.vertices = lAllVertices;
                 openGLWindow.colors = lAllColors;
                 openGLWindow.viewportSettings = this.viewportSettings;
 
                 openGLWindow.Run();
             }
+        }
 
+        private void OpenGLWindowClosed(object sender, EventArgs EventArgs)
+        {
+            openGLWindow = null;
         }
 
         private void lFrameFilesListView_DoubleClick(object sender, EventArgs e)
@@ -268,8 +292,27 @@ namespace LiveScanPlayer
             lock (lAllVertices)
             {
                 lVertices.AddRange(lAllVertices);
+            }
+
+            if (viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
+            {
                 lColors.AddRange(lAllColors);
             }
+
+            //Convert BGR to RGB
+            if (viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
+            {
+                for (int i = 0; i < lAllColors.Count; i += 3)
+                {
+                    byte[] tempCol = new byte[3];
+                    tempCol[0] = lAllColors[i + 2];
+                    tempCol[1] = lAllColors[i + 1];
+                    tempCol[2] = lAllColors[i + 0];
+
+                    lColors.AddRange(tempCol);
+                }
+            }
+
             string outputFilename = outDir + frameIdx.ToString().PadLeft(5, '0') + ".ply";
             Utils.saveToPly(outputFilename, lVertices, lColors, true);
         }

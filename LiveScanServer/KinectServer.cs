@@ -39,7 +39,8 @@ namespace KinectServer
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
         public event SocketListChangedHandler eSocketListChanged;
 
-        public bool bTempSyncEnabled = false;
+        public bool bTempHwSyncEnabled = false;
+        public bool bPointCloudMode = true;
 
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
@@ -303,40 +304,6 @@ namespace KinectServer
             }
         }
 
-        //TODO: This code isn't needed anymore, as better functions to set the configuration already exist.
-        public void SendConfigurationToSocket(KinectSocket socket, KinectConfiguration newConfig)
-        {
-            var gotConfigurations = GetConfigurations(new List<KinectSocket>() { socket });
-            if (!gotConfigurations)
-            {
-                //error
-                return;
-            }
-
-            var oldConfig = socket.configuration;
-            bool needsRestart = KinectConfiguration.RequiresRestartAfterChange(oldConfig, newConfig);
-            var confirmed = SetAndConfirmConfig(socket, newConfig);
-
-            if (confirmed)
-            {
-                if (needsRestart)
-                {
-                    if (bTempSyncEnabled)
-                    {
-                        RestartWithTemporalSyncPattern();
-                    }
-                    else
-                    {
-                        RestartClients(new List<KinectSocket>() { socket });//todo: method overload for single socket.
-                    }
-                }
-            }
-            else
-            {
-                //error in getting configuration 
-            }
-        }
-
         public bool SetAndConfirmConfig(KinectSocket socket, KinectConfiguration newConfig)
         {
             lock (oClientSocketLock)
@@ -372,60 +339,110 @@ namespace KinectServer
         }
 
 
+        public bool CloseClient(KinectSocket client)
+        {
+            return CloseClient(new List<KinectSocket>() { client });
+        }
+
         /// <summary>
-        /// Restarts all clients in the list 
+        /// Closes all clients in the list 
         /// </summary>
         /// <returns>Returns true on successfull restart, false on restart error</returns>
-        public bool RestartClients(List<KinectSocket> clients)
+        public bool CloseClient(List<KinectSocket> clients)
         {
+            bool cameraError = false;
+
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < clients.Count; i++)
                 {
-                    clients[i].ReinitializeAndConfirm();
-                    clients[i].UpdateSocketState(" Restarting... ");
+                    clients[i].CloseCameraAndConfirm();
+                    clients[i].UpdateSocketState(" Reinitializing Camera... ");
                 }
             }
 
-            bool recievedData = false;
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-            while (!recievedData && timer.Elapsed.TotalSeconds < networkTimeout)
+            bool camerasClosed = false;
+            while (!camerasClosed)
             {
-                recievedData = true;
+                camerasClosed = true;
 
                 lock (oClientSocketLock)
                 {
                     for (int i = 0; i < clients.Count; i++)
                     {
-                        if (!clients[i].bReinitialized)
-                            recievedData = false;
+                        if (!clients[i].bCameraClosed)
+                            camerasClosed = false;
                     }
                 }
-
-
             }
 
-            timer.Stop();
-
-            bool restartSuccess = true;
 
             for (int i = 0; i < clients.Count; i++)
             {
-                if (!clients[i].bReinitialized || clients[i].bReinizializationError)
+                if (clients[i].bCameraError)
                 {
-                    fMainWindowForm?.SetStatusBarOnTimer("Could not restart a kinect. Please connect and try again:", 5000);
-                    restartSuccess = false;
-                    clients[i].UpdateSocketState(" Restart failed! ");
+                    fMainWindowForm?.SetStatusBarOnTimer("Could not close a kinect. Please reconnect the client and try again:", 10000);
+                    clients[i].UpdateSocketState(" Close failed! ");
+                    cameraError = true;
                 }
 
                 else
-                {
                     clients[i].UpdateSocketState("");
+            }            
+
+            if (cameraError)
+                return false;
+
+            return true;
+        }
+
+        public bool InitializeClient(KinectSocket client)
+        {
+            return InitializeClient(new List<KinectSocket>() { client });
+        }
+
+        public bool InitializeClient(List<KinectSocket> clients)
+        {
+            bool cameraError = false;
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < clients.Count; i++)
+                {
+                    clients[i].InitializeCameraAndConfirm();
+                    clients[i].UpdateSocketState(" Initializing Camera... ");
                 }
             }
 
-            if (!restartSuccess)
+            bool camerasInitialized = false;
+            while (!camerasInitialized)
+            {
+                camerasInitialized = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < clients.Count; i++)
+                    {
+                        if (!clients[i].bCameraInitialized)
+                            camerasInitialized = false;
+                    }
+                }
+            }
+
+            for (int i = 0; i < clients.Count; i++)
+            {
+                if (clients[i].bCameraError)
+                {
+                    fMainWindowForm?.SetStatusBarOnTimer("Could not initialize a kinect. Please reconnect the client and try again:", 10000);
+                    clients[i].UpdateSocketState(" Initialization failed! ");
+                    cameraError = true;
+                }
+
+                else
+                    clients[i].UpdateSocketState("");
+            }
+
+            if (cameraError)
                 return false;
 
             return true;
@@ -433,7 +450,13 @@ namespace KinectServer
 
         public bool RestartAllClients()
         {
-            return RestartClients(lClientSockets);
+            if (CloseClient(lClientSockets))
+            {
+                return InitializeClient(lClientSockets);
+            }
+
+            else
+                return false;
         }
 
         /// <summary>
@@ -455,18 +478,26 @@ namespace KinectServer
                     main.Add(lClientSockets[i]);
             }
 
-            if (!RestartClients(subordinates))
+            //First we need to close all cameras, and ensure no camera is running anymore
+            if (!CloseClient(lClientSockets))
             {
-                fMainWindowForm?.SetStatusBarOnTimer("Could not restart one ore more subordinates. Please try again:", 5000);
+                fMainWindowForm?.SetStatusBarOnTimer("Could not close one or more clients. Please try again:", 10000);
                 return false;
             }
 
-            if (!RestartClients(main))
+            //Then we initialize the subordinates. The subordinates don't start yet, but wait for the master to start
+            if (!InitializeClient(subordinates))
             {
-                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main. Please try again:", 5000);
+                fMainWindowForm?.SetStatusBarOnTimer("Could not restart one or more subordinate cameras. Please try again:", 10000);
                 return false;
             }
 
+            //Lastly we initialize the main camera. This will also synchroniously start all other subordinates
+            if (!InitializeClient(main))
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main camera. Please try again:", 10000);
+                return false;
+            }
 
             lock (oClientSocketLock)
             {
@@ -494,7 +525,7 @@ namespace KinectServer
 
                 if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
                 {
-                    bTempSyncEnabled = true;
+                    bTempHwSyncEnabled = true;
                     return true;
                 }
 
@@ -513,14 +544,17 @@ namespace KinectServer
             }
 
             else
+            {
+                fMainWindowForm?.SetStatusBarOnTimer("At least two client are needed for temporal hardware sync", 5000);
                 return false;
+            }
         }
 
         public bool DisableTemporalSync()
         {
             if (SetTempSyncState(false) && RestartAllClients())
             {
-                bTempSyncEnabled = false;
+                bTempHwSyncEnabled = false;
                 return true;
             }
 
@@ -610,6 +644,46 @@ namespace KinectServer
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// This methods checks if all connected clients are in a valid Hardware-Sync configuration
+        /// </summary>
+        /// <returns></returns>
+        public bool CheckTempHwSyncValid()
+        {
+            int mainCount = 0;
+            int subCount = 0;
+            int standaloneCount = 0;
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    switch (lClientSockets[i].configuration.eSoftwareSyncState)
+                    {
+                        case KinectConfiguration.SyncState.Main:
+                            mainCount++;
+                            break;
+                        case KinectConfiguration.SyncState.Subordinate:
+                            subCount++;
+                            break;
+                        case KinectConfiguration.SyncState.Standalone:
+                        case KinectConfiguration.SyncState.Unknown:
+                            standaloneCount++;
+                            break;
+
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            if (mainCount == 1 && standaloneCount == 0 && subCount > 0)
+                return true;
+
+            else
+                return false;
 
         }
 
@@ -626,6 +700,7 @@ namespace KinectServer
 
             if (takeIndex == -1)
             {
+                fMainWindowForm.SetStatusBarOnTimer("Error reading takes.json. Please check or delete file", 5000);
                 return null;
             }
 
@@ -860,6 +935,45 @@ namespace KinectServer
             }
         }
 
+        public bool GetTimestampLists()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].RequestTimestamps();
+                }
+            }
+
+            bool allGathered = false;
+
+            while (!allGathered)
+            {
+                allGathered = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bTimeStampsRecieved)
+                        {
+                            allGathered = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (allGathered)
+                return true;
+
+            else
+            {
+                return false;
+            }
+
+        }
+
         public void ClearStoredFrames()
         {
             lock (oClientSocketLock)
@@ -872,32 +986,162 @@ namespace KinectServer
         }
 
 
+        public bool CreatePostSyncList()
+        {
+            List<ClientSyncData> allDeviceSyncData = new List<ClientSyncData>();
 
-        public void SendRecordingStartSignal()
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    allDeviceSyncData.Add(new ClientSyncData(lClientSockets[i].lFrameNumbers, lClientSockets[i].lTimeStamps, i));
+                }
+            }
+
+            List<ClientSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData);
+
+            if(postSyncDeviceData == null)
+            {
+                return false;
+            }
+
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].postSyncedFrames = postSyncDeviceData[i];
+                }
+            }
+
+            return true;
+        }
+
+       
+        /// <summary>
+        /// Sends the postsync-List to the clients and waits until all clients have confirmed that they renumbered their files correctly
+        /// </summary>
+        /// <returns></returns>
+        public bool ReorderSyncFramesOnClient()
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    lClientSockets[i].SendRecordingStart();
+                    lClientSockets[i].SendPostSyncList();
                 }
             }
+
+            bool postSyncConfirmed = false;
+
+            while (!postSyncConfirmed)
+            {
+                postSyncConfirmed = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPostSyncConfirmed)
+                            postSyncConfirmed = false;
+                    }
+                }                
+            }
+            
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    if (lClientSockets[i].bPostSyncError)
+                        return false;
+                }
+            }
+
+            return true;
         }
 
-
-
-        public void SendRecordingStopSignal()
+        /// <summary>
+        /// Tells the client to prepare themselves for recording. Waits
+        /// until all clients are ready
+        /// </summary>
+        public void SendAndConfirmPreRecordProcess()
         {
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    lClientSockets[i].SendRecordingStop();
+                    lClientSockets[i].SendPreRecordProcessStart();
+                }
+            }
+
+            bool preProcessConfirmed = false;
+
+            while (!preProcessConfirmed)
+            {
+                preProcessConfirmed = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPreRecordProcessConfirmed)
+                            preProcessConfirmed = false;
+                    }
                 }
             }
         }
 
+        /// <summary>
+        /// Lets the client process data right after recording.
+        /// Waits until all clients are finished
+        /// </summary>
+        public void SendAndConfirmPostRecordProcess()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendPostRecordProcessStart();
+                }
+            }
 
+            bool postProcessConfirmation = false;
+
+            while (!postProcessConfirmation)
+            {
+                postProcessConfirmation = true;
+
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        if (!lClientSockets[i].bPostRecordProcessConfirmed)
+                            postProcessConfirmation = false;
+                    }
+                }
+            }
+        }
+
+        public void SendCaptureFramesStart()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendCaptureFramesStart();
+                }
+            }
+        }
+
+        public void SendCaptureFramesStop()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].SendCaptureFramesStop();
+                }
+            }
+        }
 
         private void AcceptCallback(IAsyncResult ar)
         {
@@ -967,9 +1211,9 @@ namespace KinectServer
                 lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
 
 
-                if (bTempSyncEnabled)
+                if (bTempHwSyncEnabled)
                 {
-                    if (RestartWithTemporalSyncPattern())
+                    if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
                     {
                         lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
                     }
@@ -985,7 +1229,6 @@ namespace KinectServer
                 lClientSockets.Remove(client);
                 SocketListChanged();
             }
-
         }
 
         private void ListeningWorker()
@@ -1073,16 +1316,39 @@ namespace KinectServer
                                 lClientSockets[i].RecieveConfiguration();
                             }
 
-                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_RESTART)
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CAMERA_CLOSED)
                             {
-                                lClientSockets[i].RecieveRestartConfirmation();
+                                lClientSockets[i].ReceiveCameraClosedConfirmation();
                             }
 
-
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_CAMERA_INIT)
+                            {
+                                lClientSockets[i].ReceiveCameraInitializedConfirmation();
+                            }
 
                             else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_DIR_CREATION)
                             {
-                                lClientSockets[i].RecieveDirConfirmation();
+                                lClientSockets[i].ReceiveDirConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_SEND_TIMESTAMP_LIST)
+                            {
+                                lClientSockets[i].ReceiveTimestampList();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_POSTSYNCED)
+                            {
+                                lClientSockets[i].ReceivePostSyncConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_PRE_RECORD_PROCESS)
+                            {
+                                lClientSockets[i].ReceivePreRecordProcessConfirmation();
+                            }
+
+                            else if (buffer[0] == (byte)IncomingMessageType.MSG_CONFIRM_POST_RECORD_PROCESS)
+                            {
+                                lClientSockets[i].ReceivePostRecordProcessConfirmation();
                             }
 
                             buffer = lClientSockets[i].Receive(1);

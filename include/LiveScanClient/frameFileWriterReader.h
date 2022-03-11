@@ -15,27 +15,30 @@ class FrameFileWriterReader
 {
 public:
     FrameFileWriterReader();
-	void openNewFileForWriting(int deviceID);
-	void openCurrentFileForReading();
-
-	// leave filename blank if you want the filename to be generated from the date
-	void setCurrentFilename(std::string filename = "");
-
-	void writeFrame(Point3s* points, int pointsSize, RGB* colors, uint64_t timestamp, int deviceID);
+	void openNewBinFileForWriting(int deviceID, std::string prefix);
+	void openNewBinFileForReading(std::string path);
+	void openCurrentBinFileForReading();
+	std::string GetBinFilePath();
+	std::string GetRecordingDirPath();
+	void SetRecordingDirPath(std::string path);
 	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
 	bool DirExists(std::string path);
-	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex);
-	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex);
+
+	bool writeNextBinaryFrame(std::vector<Point3s> points, std::vector<RGB> colors, uint64_t timestamp, int deviceID);
+	bool readNextBinaryFrame(std::vector<Point3s>& outPoints, std::vector<RGB>& outColors, int& outTimestamp);
+	void seekBinaryReaderToFrame(int frameID);
+	void skipOneFrameBinaryReader();
+	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex, std::string optionalPrefix);
+	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex, std::string optionalPrefix);
+	bool RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string optionalPrefix);
 	void WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex);
-	void WriteTimestampLog();
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
-	bool readFrame(Point3s* &outPoints, RGB* &outColors, int& outPointsSize);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
 	bool openedForReading() { return m_bFileOpenedForReading; }
 
-
 	void closeFileIfOpened();
+	void closeAndDeleteFile();
 
     ~FrameFileWriterReader();
 
@@ -47,8 +50,9 @@ private:
 	FILE *m_pFileHandle = nullptr;
 	bool m_bFileOpenedForWriting = false;
 	bool m_bFileOpenedForReading = false;
+	int m_nCurrentReadFrameID = 0;
 
-	std::string m_sFilename = "";
+	std::string m_sBinFilePath = "";
 
 	std::string m_sFrameRecordingsDir = "";
 

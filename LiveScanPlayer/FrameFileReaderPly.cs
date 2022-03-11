@@ -7,6 +7,8 @@ using System.IO;
 
 namespace LiveScanPlayer
 {
+    enum VertexType { vFloat, vDouble };
+
     class FrameFileReaderPly : IFrameFileReader
     {
         string[] filenames;
@@ -34,6 +36,7 @@ namespace LiveScanPlayer
             BinaryReader reader = new BinaryReader(new FileStream(filenames[currentFrameIdx], FileMode.Open));
 
             bool alpha = false;
+            VertexType vertexType = VertexType.vFloat;
             string line = ReadLine(reader);
             while (!line.Contains("element vertex"))
                 line = ReadLine(reader);
@@ -43,6 +46,10 @@ namespace LiveScanPlayer
             {
                 if (line.Contains("alpha"))
                     alpha = true;
+                if(line.Contains("double"))
+                    vertexType = VertexType.vDouble;
+                if(line.Contains("float"))
+                    vertexType = VertexType.vFloat;
                 line = ReadLine(reader);
             }
 
@@ -50,7 +57,10 @@ namespace LiveScanPlayer
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    vertices.Add(reader.ReadSingle());
+                    if(vertexType == VertexType.vFloat)
+                        vertices.Add(reader.ReadSingle());
+                    if (vertexType == VertexType.vDouble)
+                        vertices.Add((float)reader.ReadDouble());
                 }
                 for (int j = 0; j < 3; j++)
                 {
