@@ -317,10 +317,7 @@ namespace KinectServer
         private void savingWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             //Saving is downloading the frames from clients and saving them locally.
-
             int nFrames = 0;
-
-            //TODO: Get Take directory
 
             string outDir;
 
@@ -440,6 +437,15 @@ namespace KinectServer
             }
         }
 
+        private void updateWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs args)
+        {
+            lock (lAllVertices)
+            {
+                lAllVertices.Clear();
+                lAllColors.Clear();
+            }            
+        }
+
         //Performs the ICP based pose refinement.
         private void refineWorker_DoWork(object sender, DoWorkEventArgs e)
         {
@@ -554,22 +560,6 @@ namespace KinectServer
         //This is used for: starting/stopping the recording worker, stopping the saving worker
         private void btRecord_Click(object sender, EventArgs e)
         {
-            if (oServer.nClientCount < 1)
-            {
-                SetStatusBarOnTimer("At least one client needs to be connected for recording.", 5000);
-                return;
-            }
-
-            if (oServer.bTempHwSyncEnabled)
-            {
-
-                if (!oServer.CheckTempHwSyncValid())
-                {
-                    SetStatusBarOnTimer("Temporal Hardware Sync Setup not valid! Please check arrangement", 5000);
-                    return;
-                }
-            }
-
             //If we are saving frames right now, this button stops saving.
             if (bSaving)
             {
@@ -581,10 +571,24 @@ namespace KinectServer
             bRecording = !bRecording;
             if (bRecording)
             {
+                if (oServer.nClientCount < 1)
+                {
+                    SetStatusBarOnTimer("At least one client needs to be connected for recording.", 5000);
+                    return;
+                }
+
+                if (oServer.bTempHwSyncEnabled)
+                {
+
+                    if (!oServer.CheckTempHwSyncValid())
+                    {
+                        SetStatusBarOnTimer("Temporal Hardware Sync Setup not valid! Please check arrangement", 5000);
+                        return;
+                    }
+                }
+
                 //Stop the update worker to reduce the network usage (provides better synchronization).
                 updateWorker.CancelAsync();
-                lAllVertices.Clear();
-                lAllColors.Clear();
 
                 string takePath = oServer.CreateTakeDirectories(txtSeqName.Text);
 
@@ -657,11 +661,12 @@ namespace KinectServer
 
         private void btShowLive_Click(object sender, EventArgs e)
         {
-            RestartUpdateWorker();
-
             //Opens the live view window if it is not open yet.
             if (!OpenGLWorker.IsBusy)
                 OpenGLWorker.RunWorkerAsync();
+
+            if(!bRecording)
+                RestartUpdateWorker();
         }
 
         public void SetLiveButtonActive(bool active)

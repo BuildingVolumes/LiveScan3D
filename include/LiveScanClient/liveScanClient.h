@@ -139,7 +139,7 @@ private:
 	bool InitializeCamera();
 	bool CloseCamera();
 	void SendPostSyncConfirmation(bool success);
-	void SendFrame(Point3s* vertices,int verticesSize, RGB* RGB);
+	void SendFrame(Point3s* vertices,int verticesSize, RGB* RGB, bool live);
 	bool PostSyncPointclouds();
 	bool PostSyncRawFrames();
 

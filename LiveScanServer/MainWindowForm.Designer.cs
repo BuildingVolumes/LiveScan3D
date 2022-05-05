@@ -150,6 +150,7 @@
             // 
             this.updateWorker.WorkerSupportsCancellation = true;
             this.updateWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.updateWorker_DoWork);
+            this.updateWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.updateWorker_RunWorkerCompleted);
             // 
             // btShowLive
             // 

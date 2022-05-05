@@ -391,7 +391,7 @@ void LiveScanClient::UpdateFrame()
 
 		if (m_bRequestLiveFrame) {
 			StoreFrame(pCapture->pointCloudImage, &pCapture->colorBGR);
-			SendFrame(m_vLastFrameVertices, m_vLastFrameVerticesSize, m_vLastFrameRGB);
+			SendFrame(m_vLastFrameVertices, m_vLastFrameVerticesSize, m_vLastFrameRGB, true);
 			m_bRequestLiveFrame = false;
 		}
 
@@ -926,8 +926,6 @@ void LiveScanClient::HandleSocket()
 		else if (received[i] == MSG_REQUEST_STORED_FRAME)
 		{
 			std::cout << "Server requests stored frame" << std::endl;
-			byteToSend = MSG_STORED_FRAME;
-			m_pClientSocket->SendBytes(&byteToSend, 1);
 
 			Point3s* points = NULL;
 			RGB* colors = NULL;
@@ -938,10 +936,12 @@ void LiveScanClient::HandleSocket()
 			if (res == false)
 			{
 				int size = -1;
+				char message = MSG_STORED_FRAME;
+				m_pClientSocket->SendBytes(&message, 1);
 				m_pClientSocket->SendBytes((char*)&size, 4);
 			}
 			else
-				SendFrame(points, pointsSize, colors);
+				SendFrame(points, pointsSize, colors, false);
 
 			delete[] points;
 			delete[] colors;
@@ -950,9 +950,6 @@ void LiveScanClient::HandleSocket()
 		else if (received[i] == MSG_REQUEST_LAST_FRAME)
 		{
 			std::cout << "Server requests lastest frame" << std::endl;
-			byteToSend = MSG_LAST_FRAME;
-			m_pClientSocket->SendBytes(&byteToSend, 1);
-
 			m_bRequestLiveFrame = true;
 		}
 
@@ -1240,11 +1237,12 @@ void LiveScanClient::SendPostSyncConfirmation(bool success)
 	m_pClientSocket->SendBytes(buffer, size);
 }
 
-void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB)
+void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB, bool live)
 {
 	std::cout << "Sending Frame" << std::endl;
 
 	int size = verticesSize * (3 + 3 * sizeof(short)) + sizeof(int);
+
 
 	vector<char> buffer(size);
 	int pos = 0;
@@ -1279,6 +1277,15 @@ void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB)
 	memcpy(header, (char*)&size, sizeof(size));
 	memcpy(header + 4, (char*)&iCompression, sizeof(iCompression));
 
+	char message;
+
+	if (live)
+		message = MSG_LAST_FRAME;
+
+	else
+		message = MSG_STORED_FRAME;
+		
+	m_pClientSocket->SendBytes(&message, 1);
 	m_pClientSocket->SendBytes((char*)&header, sizeof(int) * 2);
 	m_pClientSocket->SendBytes(buffer.data(), size);
 }
