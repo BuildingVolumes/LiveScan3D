@@ -8,6 +8,7 @@
 #include "utils.h"
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include "turbojpeg/turbojpeg.h"
 
 class AzureKinectCapture : public ICapture
 {
@@ -17,12 +18,13 @@ public:
 
 	bool Initialize(KinectConfiguration& configuration);
 	bool AquireRawFrame();
-	bool AquirePointcloudFrame();
-	bool Close();
-	void MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints);
-	void MapColorFrameToCameraSpace(Point3f *pCameraSpacePoints);
-	void MapDepthFrameToColorSpace(UINT16 *pDepthInColorSpace);
-	void MapColorFrameToDepthSpace(RGB *pColorInDepthSpace);
+	void DecodeRawColor();
+	void DownscaleColorImgToDepthImgSize();
+	void MapDepthToColor();
+	void GeneratePointcloud();
+	void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints);
+	bool Close();	
+
 	int GetSyncJackState();
 	uint64_t GetTimeStamp();
 	void SetExposureState(bool enableAutoExposure, int exposureStep);
@@ -32,13 +34,10 @@ public:
 private:
 	k4a_device_t kinectSensor = NULL;
 	int32_t captureTimeoutMs = 1000;
-	k4a_image_t pointCloudImage = NULL;
-	k4a_image_t transformedDepthImage = NULL;
-	k4a_image_t colorImageInDepth = NULL;
 	k4a_image_t depthImageInColor = NULL;
 	k4a_image_t colorImageDownscaled = NULL;
-  k4a_transformation_t transformationColorDownscaled = NULL;
-  k4a_transformation_t transformation = NULL;
+	k4a_transformation_t transformationColorDownscaled = NULL;
+	k4a_transformation_t transformation = NULL;  
 
 	int colorImageDownscaledWidth;
 	int colorImageDownscaledHeight;
@@ -50,9 +49,8 @@ private:
 	int restartAttempts = 0;
 	bool autoExposureEnabled = true;
 	int exposureTimeStep = 0;
-  
-	void UpdateDepthPointCloud();
-	void UpdateDepthPointCloudForColorFrame();
 
 	KinectConfiguration configuration;
+
+	tjhandle turboJpeg;
 };

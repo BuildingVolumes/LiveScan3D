@@ -5,22 +5,22 @@
 #include <chrono>
 
 
+
 AzureKinectCapture::AzureKinectCapture()
 {
-
+	turboJpeg = tjInitDecompress();
 }
 
 AzureKinectCapture::~AzureKinectCapture()
 {
-	k4a_image_release(colorImage);
-	k4a_image_release(depthImage);
+	k4a_image_release(colorImageMJPG);
+	k4a_image_release(depthImage16Int);
 	k4a_image_release(pointCloudImage);
-	k4a_image_release(colorImageInDepth);
 	k4a_image_release(depthImageInColor);
-	k4a_image_release(transformedDepthImage);
 	k4a_image_release(colorImageDownscaled);
 	k4a_transformation_destroy(transformation);
 	k4a_device_close(kinectSensor);
+	tjDestroy(turboJpeg);
 }
 
 /// <summary>
@@ -30,7 +30,7 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns>Returns true on success, false on error</returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
-	std::cout << "Initialiting Azure Kinect Device" << std::endl;
+	std::cout << "Initializing Azure Kinect Device" << std::endl;
 
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -38,7 +38,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	//We save the deviceId of this Client.
 	//When the cameras are reinitialized during runtime, we can then gurantee
 	//that each LiveScan instance uses the same device as before (In case two or more Kinects are connected to the same PC)
-	//A device ID of -1 means that no Kinects has been successfully initalized yet (only happens when the Client starts)
+	//A device ID of -1 means that no Kinects have been successfully initalized yet (only happens when the Client starts)
 	if (localDeviceIndex != -1) {
 		deviceIdx = localDeviceIndex;
 	}
@@ -118,8 +118,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	//We calculate the minimum size that the color Image can be, while preserving its aspect ration
 	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetCameraHeight();
-	colorImageDownscaledHeight = configuration.GetCameraHeight();
 	colorImageDownscaledWidth = calibration.color_camera_calibration.resolution_width / rescaleRatio;
+	colorImageDownscaledHeight = calibration.color_camera_calibration.resolution_height / rescaleRatio;
 
 	//We don't only need the size in pixels of the downscaled color image, but also a new k4a_calibration_t which fits the new 
 	//sizes
@@ -140,10 +140,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 		bool bTemp;
 		do
 		{
-			if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
-				bTemp = AquirePointcloudFrame();
-			else
-				bTemp = AquireRawFrame();
+			bTemp = AquireRawFrame();
 
 			std::chrono::duration<double> elapsedSeconds = std::chrono::system_clock::now() - start;
 			if (elapsedSeconds.count() > 5.0)
@@ -163,12 +160,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	localDeviceIndex = deviceIdx;
 
 	SetConfiguration(configuration); //We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
-
-	if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
-		bAquiresPointcloud = true;
-
-	else
-		bAquiresPointcloud = false;
 
 	GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize);
 
@@ -193,10 +184,9 @@ bool AzureKinectCapture::Close()
 		return false;
 	}
 
-	k4a_image_release(colorImage);
-	k4a_image_release(depthImage);
+	k4a_image_release(colorImageMJPG);
+	k4a_image_release(depthImage16Int);
 	k4a_image_release(pointCloudImage);
-	k4a_image_release(colorImageInDepth);
 	k4a_image_release(depthImageInColor);
 	k4a_image_release(transformedDepthImage);
 	k4a_image_release(colorImageDownscaled);
@@ -205,11 +195,10 @@ bool AzureKinectCapture::Close()
 	k4a_device_stop_cameras(kinectSensor);
 	k4a_device_close(kinectSensor);
 
-	colorImage = NULL;
-	depthImage = NULL;
+	colorImageMJPG = NULL;
+	depthImage16Int = NULL;
 	pointCloudImage = NULL;
 	transformedDepthImage = NULL;
-	colorImageInDepth = NULL;
 	depthImageInColor = NULL;
 	colorImageDownscaled = NULL;
 	transformationColorDownscaled = NULL;
@@ -237,15 +226,15 @@ bool AzureKinectCapture::AquireRawFrame() {
 		return false;
 	}
 
-	k4a_image_release(colorImage);
-	k4a_image_release(depthImage);
+	k4a_image_release(colorImageMJPG);
+	k4a_image_release(depthImage16Int);
 
-	colorImage = k4a_capture_get_color_image(capture);
-	depthImage = k4a_capture_get_depth_image(capture);
+	colorImageMJPG = k4a_capture_get_color_image(capture);
+	depthImage16Int = k4a_capture_get_depth_image(capture);
 
-	currentTimeStamp = k4a_image_get_device_timestamp_usec(colorImage);
+	currentTimeStamp = k4a_image_get_device_timestamp_usec(colorImageMJPG);
 
-	if (colorImage == NULL || depthImage == NULL)
+	if (colorImageMJPG == NULL || depthImage16Int == NULL)
 	{
 		k4a_capture_release(capture);
 		return false;
@@ -257,143 +246,77 @@ bool AzureKinectCapture::AquireRawFrame() {
 
 }
 
-bool AzureKinectCapture::AquirePointcloudFrame()
-{
-	if (!bInitialized)
-	{
-		return false;
-	}
+/// <summary>
+/// Decompresses the raw MJPEG image from the camera to a BGRA cvMat using TurboJpeg
+/// </summary>
+void AzureKinectCapture::DecodeRawColor() {
 
-	k4a_capture_t capture = NULL;
+	nColorFrameHeight = k4a_image_get_height_pixels(colorImageMJPG);
+	nColorFrameWidth = k4a_image_get_width_pixels(colorImageMJPG);
 
-	k4a_wait_result_t captureResult = k4a_device_get_capture(kinectSensor, &capture, captureTimeoutMs);
-	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
-	{
-		k4a_capture_release(capture);
-		std::cout << "Dropped Pointcloud Frame" << std::endl;
-		return false;
-	}
+	colorBGR = cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
 
-	k4a_image_release(colorImage);
-	k4a_image_release(colorImageDownscaled);
-	k4a_image_release(depthImage);
+	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR.data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
+}
 
-	colorImage = k4a_capture_get_color_image(capture);
-	depthImage = k4a_capture_get_depth_image(capture);
-
-	currentTimeStamp = k4a_image_get_device_timestamp_usec(colorImage);
-
-	if (colorImage == NULL || depthImage == NULL)
-	{
-		k4a_capture_release(capture);
-		return false;
-	}
-
-	//We need to resize the color image, so that it's height fits the depth camera height, while preserving the aspect ratio of the color camera:
-
-	//Convert the k4a_image to an OpenCV Mat
-	cv::Mat cImg = cv::Mat(k4a_image_get_height_pixels(colorImage), k4a_image_get_width_pixels(colorImage), CV_8UC4, k4a_image_get_buffer(colorImage));
+void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
 
 	//Resize the k4a_image to the precalculated size. Takes quite along time, maybe there is a faster algorithm?
-	cv::resize(cImg, cImg, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
+	cv::resize(colorBGR, colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
 
-	//Create a k4a_image from the resized OpenCV Mat. Code taken from here: https://github.com/microsoft/Azure-Kinect-Sensor-SDK/issues/978#issuecomment-566002061
-	k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, cImg.cols, cImg.rows, cImg.cols * 4 * (int)sizeof(uint8_t), &colorImageDownscaled);
-	memcpy(k4a_image_get_buffer(colorImageDownscaled), &cImg.ptr<cv::Vec4b>(0)[0], cImg.rows * cImg.cols * sizeof(cv::Vec4b));
-
-	//fix depth image here
-	if (configuration.filter_depth_map)
-	{
-		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage), CV_16UC1, k4a_image_get_buffer(depthImage));
-		cv::Mat cImgD2 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage)), CV_16UC1);// k4a_image_get_buffer(depthImage));
-		cv::Mat cImgD3 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage)), CV_16UC1);// k4a_image_get_buffer(depthImage));
-
-		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
-
-		//cv::medianBlur(cImgD, cImgD2, 5);
-		int CLOSING = 3;
-		// 4 will do a good edge detection if you threshold after as well
-		//cv::morphologyEx(cImgD, cImgD2, CLOSING, kernel);
-		cv::erode(cImgD, cImgD, kernel);
-		//cv::GaussianBlur(cImgD3, cImgD, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size), 0);
-	}
-
-	if (pColorRGBX == NULL)
-	{
-		nColorFrameHeight = k4a_image_get_height_pixels(colorImageDownscaled);
-		nColorFrameWidth = k4a_image_get_width_pixels(colorImageDownscaled);
-		pColorRGBX = new RGB[nColorFrameWidth * nColorFrameHeight];
-	}
-
-	if (pDepth == NULL)
-	{
-		nDepthFrameHeight = k4a_image_get_height_pixels(depthImage);
-		nDepthFrameWidth = k4a_image_get_width_pixels(depthImage);
-		pDepth = new UINT16[nDepthFrameHeight * nDepthFrameWidth];
-	}
-
-
-
-	memcpy(pColorRGBX, k4a_image_get_buffer(colorImageDownscaled), nColorFrameWidth * nColorFrameHeight * sizeof(RGB));
-	memcpy(pDepth, k4a_image_get_buffer(depthImage), nDepthFrameHeight * nDepthFrameWidth * sizeof(UINT16));
-
-
-	k4a_capture_release(capture);
-
-	return true;
+	nColorFrameHeight = colorBGR.rows;
+	nColorFrameWidth = colorBGR.cols;
 }
 
 
-void AzureKinectCapture::UpdateDepthPointCloudForColorFrame()
+void AzureKinectCapture::MapDepthToColor()
 {
+	//fix depth image here
+//	if (configuration.filter_depth_map)
+//	{
+//		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage16Int), k4a_image_get_width_pixels(depthImage16Int), CV_16UC1, k4a_image_get_buffer(depthImage16Int));
+//		cv::Mat cImgD2 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage16Int), k4a_image_get_width_pixels(depthImage16Int)), CV_16UC1);// k4a_image_get_buffer(depthImage));
+//		cv::Mat cImgD3 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage16Int), k4a_image_get_width_pixels(depthImage16Int)), CV_16UC1);// k4a_image_get_buffer(depthImage));
+//
+//		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
+//
+//		//cv::medianBlur(cImgD, cImgD2, 5);
+//		int CLOSING = 3;
+//		// 4 will do a good edge detection if you threshold after as well
+//		//cv::morphologyEx(cImgD, cImgD2, CLOSING, kernel);
+//		cv::erode(cImgD, cImgD, kernel);
+//		//cv::GaussianBlur(cImgD3, cImgD, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size), 0);
+//	}
+
 	if (transformedDepthImage == NULL)
 	{
 		k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * (int)sizeof(uint16_t), &transformedDepthImage);
 	}
 
+	k4a_result_t res = k4a_transformation_depth_image_to_color_camera(transformationColorDownscaled, depthImage16Int, transformedDepthImage);
+
+}
+
+/// <summary>
+/// Creates a Pointcloud out of the transformedDepthImage and saves it in PointcloudImage. Make sure to run MapDepthToColor before calling this function
+/// </summary>
+void AzureKinectCapture::GeneratePointcloud() {
+	
 	if (pointCloudImage == NULL)
 	{
 		k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * 3 * (int)sizeof(int16_t), &pointCloudImage);
 	}
 
-	k4a_transformation_depth_image_to_color_camera(transformationColorDownscaled, depthImage, transformedDepthImage);
-
 	k4a_transformation_depth_image_to_point_cloud(transformationColorDownscaled, transformedDepthImage, K4A_CALIBRATION_TYPE_COLOR, pointCloudImage);
 }
 
-void AzureKinectCapture::UpdateDepthPointCloud()
+
+ ///<summary>
+ ///Translates the k4a_image_t pointcloud into a easier to handle Point3f array. Make sure to run MapDepthToColorFrame & GeneratePointcloud before calling this function
+ ///</summary>
+ ///<param name="pCameraSpacePoints"></param>
+void AzureKinectCapture::PointCloudImageToPoint3f(Point3f* pCameraSpacePoints)
 {
-	if (pointCloudImage == NULL)
-	{
-		k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM16, nDepthFrameWidth, nDepthFrameHeight,
-			nDepthFrameWidth * 3 * (int)sizeof(int16_t),
-			&pointCloudImage);
-	}
-
-	k4a_transformation_depth_image_to_point_cloud(transformation, depthImage, K4A_CALIBRATION_TYPE_DEPTH, pointCloudImage);
-}
-
-void AzureKinectCapture::MapDepthFrameToCameraSpace(Point3f* pCameraSpacePoints)
-{
-	UpdateDepthPointCloud();
-
-	int16_t* pointCloudData = (int16_t*)k4a_image_get_buffer(pointCloudImage);
-
-	for (int i = 0; i < nDepthFrameHeight; i++)
-	{
-		for (int j = 0; j < nDepthFrameWidth; j++)
-		{
-			pCameraSpacePoints[j + i * nDepthFrameWidth].X = pointCloudData[3 * (j + i * nDepthFrameWidth) + 0] / 1000.0f;
-			pCameraSpacePoints[j + i * nDepthFrameWidth].Y = pointCloudData[3 * (j + i * nDepthFrameWidth) + 1] / 1000.0f;
-			pCameraSpacePoints[j + i * nDepthFrameWidth].Z = pointCloudData[3 * (j + i * nDepthFrameWidth) + 2] / 1000.0f;
-		}
-	}
-}
-
-void AzureKinectCapture::MapColorFrameToCameraSpace(Point3f* pCameraSpacePoints)
-{
-	UpdateDepthPointCloudForColorFrame();
-
 	int16_t* pointCloudData = (int16_t*)k4a_image_get_buffer(pointCloudImage);
 
 	for (int i = 0; i < nColorFrameHeight; i++)
@@ -405,34 +328,6 @@ void AzureKinectCapture::MapColorFrameToCameraSpace(Point3f* pCameraSpacePoints)
 			pCameraSpacePoints[j + i * nColorFrameWidth].Z = pointCloudData[3 * (j + i * nColorFrameWidth) + 2] / 1000.0f;
 		}
 	}
-}
-
-void AzureKinectCapture::MapDepthFrameToColorSpace(UINT16* pDepthInColorSpace)
-{
-	if (depthImageInColor == NULL)
-	{
-		k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, nColorFrameWidth, nColorFrameHeight,
-			nColorFrameWidth * (int)sizeof(uint16_t),
-			&depthImageInColor);
-	}
-
-	k4a_transformation_depth_image_to_color_camera(transformationColorDownscaled, depthImage, depthImageInColor);
-
-	memcpy(pDepthInColorSpace, k4a_image_get_buffer(depthImageInColor), nColorFrameHeight * nColorFrameWidth * (int)sizeof(uint16_t));
-}
-
-void AzureKinectCapture::MapColorFrameToDepthSpace(RGB* pColorInDepthSpace)
-{
-	if (colorImageInDepth == NULL)
-	{
-		k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, nDepthFrameWidth, nDepthFrameHeight,
-			nDepthFrameWidth * 4 * (int)sizeof(uint8_t),
-			&colorImageInDepth);
-	}
-
-	k4a_transformation_color_image_to_depth_camera(transformationColorDownscaled, depthImage, colorImage, colorImageInDepth);
-
-	memcpy(pColorInDepthSpace, k4a_image_get_buffer(colorImageInDepth), nDepthFrameHeight * nDepthFrameWidth * 4 * (int)sizeof(uint8_t));
 }
 
 /// <summary>
@@ -533,6 +428,10 @@ bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buf
 }
 
 
+/// <summary>
+/// Returns the timestamp in microseconds
+/// </summary>
+/// <returns></returns>
 uint64_t AzureKinectCapture::GetTimeStamp()
 {
 	//std::cout << "Getting timestamp at: " << currentTimeStamp << std::endl;

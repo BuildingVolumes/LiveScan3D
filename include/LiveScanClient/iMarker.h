@@ -15,6 +15,7 @@
 #pragma once
 
 #include "utils.h"
+#include "opencv2/opencv.hpp"
 
 //struktura przechowywuj¹ca wszystkie dane markera
 typedef struct MarkerStruct
@@ -45,5 +46,5 @@ public:
 	IMarker() {};
 
 	//znajduje wszystkie markery w obrazie i zapisuje je w zmiennej markers
-	virtual bool GetMarker(RGB *img, int height, int width, MarkerInfo &marker) = 0;
+	virtual bool GetMarker(cv::Mat *colorMat, MarkerInfo &marker) = 0;
 };

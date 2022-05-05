@@ -28,26 +28,23 @@
 		//add depth mode.
 		char depthMode = (char)config.depth_mode;
 		message[0] = depthMode;
-		//add color mode
-		char colorMode = (char)config.color_format;
-		message[1] = colorMode;
 		//add software sync_state
-		message[2] = (char)(int)eSoftwareSyncState; //Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
+		message[1] = (char)(int)eSoftwareSyncState; //Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
 		//add hardware sync_state
-		message[3] = (char)(int)eHardwareSyncState;
+		message[2] = (char)(int)eHardwareSyncState;
 		
 		//add sync_offset
-		message[4] = (char)(int)nSyncOffset;
+		message[3] = (char)(int)nSyncOffset;
 
-		for (int i = 5; i < serialNumberSize+5; i++) {
-			message[i] = (int)serialNumber[i - 5];//ascii->char
+		for (int i = 4; i < serialNumberSize+4; i++) {
+			message[i] = (int)serialNumber[i - 4];//ascii->char
 		}
 
 		//Global Device Index
-		message[18] = nGlobalDeviceIndex;
+		message[17] = nGlobalDeviceIndex;
 		//Filter Depth Map option
-		message[19] = filter_depth_map ? 1 : 0;
-		message[20] = filter_depth_map_size;
+		message[18] = filter_depth_map ? 1 : 0;
+		message[19] = filter_depth_map_size;
 		//add color/resolution
 		return message;
 	}
@@ -65,9 +62,6 @@
 		int depthMode = (int)received[i];
 		//see: https://microsoft.github.io/Azure-Kinect-Sensor-SDK/master/group___enumerations_ga3507ee60c1ffe1909096e2080dd2a05d.html
 		config.depth_mode = static_cast<k4a_depth_mode_t>(depthMode);
-		i++;
-
-		//We skip setting the color mode, as this is done through the Server settings, not configuration
 		i++;
 
 		//set software sync_state
@@ -98,8 +92,8 @@
 	void KinectConfiguration::InitializeDefaults()
 	{
 		config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+		config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG;
 		config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-		config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 		config.color_resolution = K4A_COLOR_RESOLUTION_720P;
 		config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
 		config.synchronized_images_only = true;
@@ -132,24 +126,25 @@
 		switch (config.depth_mode)
 		{
 		case K4A_DEPTH_MODE_NFOV_UNBINNED:
-
 			m_nDepth_camera_width = 640;
 			m_nDepth_camera_height = 576;
 			break;
-		case K4A_DEPTH_MODE_NFOV_2X2BINNED:
 
+		case K4A_DEPTH_MODE_NFOV_2X2BINNED:
 			m_nDepth_camera_width = 320;
 			m_nDepth_camera_height = 288;
 			break;
-		case K4A_DEPTH_MODE_WFOV_UNBINNED:
 
+		case K4A_DEPTH_MODE_WFOV_UNBINNED:
 			m_nDepth_camera_width = 1024;
 			m_nDepth_camera_height = 1024;
-		case K4A_DEPTH_MODE_WFOV_2X2BINNED:
+			break;
 
+		case K4A_DEPTH_MODE_WFOV_2X2BINNED:
 			m_nDepth_camera_width = 512;
 			m_nDepth_camera_height = 512;
 			break;
+
 		default:
 			break;
 		}

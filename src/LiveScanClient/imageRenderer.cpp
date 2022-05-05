@@ -184,6 +184,14 @@ HRESULT ImageRenderer::Draw(BYTE* pImage, unsigned long cbImage, std::vector<Bod
     return hr;
 }
 
+int ImageRenderer::GetRenderWidth() {
+    return m_sourceWidth;
+}
+
+int ImageRenderer::GetRenderHeight() {
+    return m_sourceHeight;
+}
+
 /// <summary>
 /// Draws all the body to the associated hwnd, assumes that BeginDraw has been called
 /// </summary>

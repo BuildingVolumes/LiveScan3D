@@ -32,17 +32,17 @@ MarkerDetector::MarkerDetector()
 	GetMarkerPointsForWarp(vPts);
 }
 
-bool MarkerDetector::GetMarker(cv::Mat &img, MarkerInfo &marker)
+bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 {
 	vector<MarkerInfo> markers;
 	cv::Mat img2, img3;
-	cv::cvtColor(img, img2, CV_BGR2GRAY);
-	cv::threshold(img2, img2, nThreshold, 255, CV_THRESH_BINARY);
+	cv::cvtColor(*img, img2, cv::COLOR_BGRA2GRAY);
+	cv::threshold(img2, img2, nThreshold, 255, cv::THRESH_BINARY);
 
 	img2.copyTo(img3);
 
 	vector<vector<cv::Point>> contours;	
-	cv::findContours(img3, contours, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+	cv::findContours(img3, contours, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
 
 	for (unsigned int i = 0; i < contours.size(); i++)
 	{
@@ -96,8 +96,8 @@ bool MarkerDetector::GetMarker(cv::Mat &img, MarkerInfo &marker)
 			{
 				for (unsigned int j = 0; j < corners.size(); j++)
 				{
-					cv::circle(img, cornersFloat[j], 2, cv::Scalar(0, 50 * j, 0), 1);
-					cv::line(img, cornersFloat[j], cornersFloat[(j + 1) % cornersFloat.size()], cv::Scalar(0, 0, 255), 2);
+					cv::circle(*img, cornersFloat[j], 2, cv::Scalar(0, 50 * j, 0), 1);
+					cv::line(*img, cornersFloat[j], cornersFloat[(j + 1) % cornersFloat.size()], cv::Scalar(0, 0, 255), 2);
 				}
 			}
 		}
@@ -124,7 +124,7 @@ bool MarkerDetector::GetMarker(cv::Mat &img, MarkerInfo &marker)
 			{
 				cv::Point2f pt1 = cv::Point2f(marker.corners[j].X, marker.corners[j].Y);
 				cv::Point2f pt2 = cv::Point2f(marker.corners[(j + 1) % nMarkerCorners].X, marker.corners[(j + 1) % nMarkerCorners].Y);
-				cv::line(img, pt1, pt2, cv::Scalar(0, 255, 0), 2);
+				cv::line(*img, pt1, pt2, cv::Scalar(0, 255, 0), 2);
 			}
 		}
 
@@ -132,35 +132,6 @@ bool MarkerDetector::GetMarker(cv::Mat &img, MarkerInfo &marker)
 	}
 	else
 		return false;
-}
-
-bool MarkerDetector::GetMarker(RGB *img, int height, int width, MarkerInfo &marker)
-{
-	cv::Mat cvImg(height, width, CV_8UC3);
-
-	for (int i = 0; i < height; i++)
-	{
-		for (int j = 0; j < width; j++)
-		{
-			cvImg.at<cv::Vec3b>(i, j)[0] = img[j + width * i].rgbBlue;
-			cvImg.at<cv::Vec3b>(i, j)[1] = img[j + width * i].rgbGreen;
-			cvImg.at<cv::Vec3b>(i, j)[2] = img[j + width * i].rgbRed;
-		}
-	}
-
-	bool res = GetMarker(cvImg, marker);
-
-	for (int i = 0; i < height; i++)
-	{
-		for (int j = 0; j < width; j++)
-		{
-			img[j + width * i].rgbBlue = cvImg.at<cv::Vec3b>(i, j)[0];
-			img[j + width * i].rgbGreen = cvImg.at<cv::Vec3b>(i, j)[1];
-			img[j + width * i].rgbRed = cvImg.at<cv::Vec3b>(i, j)[2];
-		}
-	}
-
-	return res;
 }
 
 bool MarkerDetector::OrderCorners(vector<cv::Point2f> &corners)
@@ -323,7 +294,7 @@ void MarkerDetector::CornersSubPix(vector<cv::Point2f> &corners, vector<cv::Poin
 	
 	for (unsigned int i = 0; i < corners.size(); i++)
 	{
-		cv::fitLine(pts[i], lines[i], CV_DIST_L2, 0, 0.01, 0.01);
+		cv::fitLine(pts[i], lines[i], cv::DIST_L2, 0, 0.01, 0.01);
 	}
 
 	vector<cv::Point2f> corners2;

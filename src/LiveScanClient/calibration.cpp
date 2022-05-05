@@ -14,7 +14,7 @@
 //    }
 
 #include "calibration.h"
-#include "opencv\cv.h"
+#include "opencv2\opencv.hpp"
 
 #include <fstream>
 
@@ -43,11 +43,11 @@ Calibration::~Calibration()
 	}
 }
 
-bool Calibration::Calibrate(RGB *pBuffer, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight)
+bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight)
 {
 	MarkerInfo marker;
 
-	bool res = pDetector->GetMarker(pBuffer, cColorHeight, cColorWidth, marker);
+	bool res = pDetector->GetMarker(colorMat, marker);
 	if (!res)
 		return false;
 

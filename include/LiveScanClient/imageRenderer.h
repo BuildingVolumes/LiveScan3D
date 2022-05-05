@@ -44,6 +44,9 @@ public:
     /// <returns>indicates success or failure</returns>
     HRESULT Draw(BYTE* pImage, unsigned long cbImage, std::vector<Body> &bodies);
 
+    int GetRenderWidth();
+    int GetRenderHeight();
+
 private:
     HWND                     m_hWnd;
 

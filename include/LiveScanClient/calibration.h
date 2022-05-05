@@ -41,7 +41,7 @@ public:
 	Calibration();
 	~Calibration();
 
-	bool Calibrate(RGB *pBuffer, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight);
+	bool Calibrate(cv::Mat *colorMat, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight);
 	bool LoadCalibration(const string &serialNumber);
 	void SaveCalibration(const string &serialNumber);
 private:

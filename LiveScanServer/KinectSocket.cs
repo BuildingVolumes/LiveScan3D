@@ -60,7 +60,6 @@ namespace KinectServer
 
         public List<byte> lFrameRGB = new List<byte>();
         public List<Single> lFrameVerts = new List<Single>();
-        public List<Body> lBodies = new List<Body>();
 
         public List<ulong> lTimeStamps = new List<ulong>();
         public List<int> lFrameNumbers = new List<int>();
@@ -347,7 +346,6 @@ namespace KinectServer
         {
             lFrameRGB.Clear();
             lFrameVerts.Clear();
-            lBodies.Clear();
 
             int nToRead;
             byte[] buffer = new byte[1024];
@@ -388,9 +386,7 @@ namespace KinectServer
                 }
 
                 nAlreadyRead += oSocket.Receive(buffer, nAlreadyRead, nToRead - nAlreadyRead, SocketFlags.None);
-            }
-
-            
+            }            
 
 
             if (iCompressed == 1)
@@ -416,47 +412,6 @@ namespace KinectServer
                     lFrameVerts.Add(val);
                     startIdx += 2;
                 }
-            }
-
-            //Receive body data
-            int nBodies = BitConverter.ToInt32(buffer, startIdx);
-            startIdx += 4;
-            for (int i = 0; i < nBodies; i++)
-            {
-                Body tempBody = new Body();
-                tempBody.bTracked = BitConverter.ToBoolean(buffer, startIdx++);
-                int nJoints = BitConverter.ToInt32(buffer, startIdx);
-                startIdx += 4;
-
-                tempBody.lJoints = new List<Joint>(nJoints);
-                tempBody.lJointsInColorSpace = new List<Point2f>(nJoints);
-
-                for (int j = 0; j < nJoints; j++)
-                {
-                    Joint tempJoint = new Joint();
-                    Point2f tempPoint = new Point2f();
-
-                    tempJoint.jointType = (JointType)BitConverter.ToInt32(buffer, startIdx);
-                    startIdx += 4;
-                    tempJoint.trackingState = (TrackingState)BitConverter.ToInt32(buffer, startIdx);
-                    startIdx += 4;
-                    tempJoint.position.X = BitConverter.ToSingle(buffer, startIdx);
-                    startIdx += 4;
-                    tempJoint.position.Y = BitConverter.ToSingle(buffer, startIdx);
-                    startIdx += 4;
-                    tempJoint.position.Z = BitConverter.ToSingle(buffer, startIdx);
-                    startIdx += 4;
-
-                    tempPoint.X = BitConverter.ToSingle(buffer, startIdx);
-                    startIdx += 4;
-                    tempPoint.Y = BitConverter.ToSingle(buffer, startIdx);
-                    startIdx += 4;
-
-                    tempBody.lJoints.Add(tempJoint);
-                    tempBody.lJointsInColorSpace.Add(tempPoint);
-                }
-
-                lBodies.Add(tempBody);
             }
         }
 

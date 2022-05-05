@@ -17,43 +17,33 @@
 ICapture::ICapture()
 {
 	bInitialized = false;
-	bAquiresPointcloud = true;
 
 	nColorFrameHeight = 0;
 	nColorFrameWidth = 0;
-	nDepthFrameHeight = 0;
-	nDepthFrameWidth = 0;
 
 	nCalibrationSize = 0;
 
-	pDepth = NULL;
-	pColorRGBX = NULL;
 	pBodyIndex = NULL;
 
-	colorImage = 0;
-	depthImage = 0;
+	colorImageMJPG = 0;
+	depthImage16Int = 0;
+	pointCloudImage = 0;
+	transformedDepthImage = 0;
+	colorBGR = 0;
 }
 
 ICapture::~ICapture()
 {
-	if (pDepth != NULL)
-	{
-		delete[] pDepth;
-		pDepth = NULL;
-	}
-
-	if (pColorRGBX != NULL)
-	{
-		delete[] pColorRGBX;
-		pColorRGBX = NULL;
-	}
-
 	if (pBodyIndex != NULL)
 	{
 		delete[] pBodyIndex;
 		pBodyIndex = NULL;
 	}
 
-	k4a_image_release(colorImage);
-	k4a_image_release(depthImage);
+	colorBGR.release();
+
+	k4a_image_release(colorImageMJPG);
+	k4a_image_release(depthImage16Int);
+	k4a_image_release(pointCloudImage);
+	k4a_image_release(transformedDepthImage);
 }

@@ -50,14 +50,7 @@ namespace KinectServer
             txtMaxY.Text = oSettings.aMaxBounds[1].ToString(CultureInfo.InvariantCulture);
             txtMaxZ.Text = oSettings.aMaxBounds[2].ToString(CultureInfo.InvariantCulture);
 
-            chFilter.Checked = oSettings.bFilter;
-            txtFilterNeighbors.Text = oSettings.nFilterNeighbors.ToString();
-            txtFilterDistance.Text = oSettings.fFilterThreshold.ToString(CultureInfo.InvariantCulture);
-
             lisMarkers.DataSource = oSettings.lMarkerPoses;
-
-            chBodyData.Checked = oSettings.bStreamOnlyBodies;
-            chSkeletons.Checked = oSettings.bShowSkeletons;
 
             cbCompressionLevel.SelectedText = oSettings.iCompressionLevel.ToString();
 
@@ -70,6 +63,8 @@ namespace KinectServer
             else
                 chHardwareSync.Checked = false;
 
+            chNetworkSync.Checked = oSettings.bNetworkSync;
+
             chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
             trManualExposure.Value = oSettings.nExposureStep;
 
@@ -77,7 +72,9 @@ namespace KinectServer
 
             rExportPointcloud.Checked = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud ? true : false;
             rExportRawFrames.Checked = !rExportPointcloud.Checked;
-            
+
+            cbEnablePreview.Checked = oSettings.bPreviewEnabled;
+
 
             if (oSettings.bSaveAsBinaryPLY)
             {
@@ -108,33 +105,18 @@ namespace KinectServer
 
                 //TODO: Currently, the UI doesn't update as it stalls the thread. How can I get this to work without stalling it?
 
-                if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled || rExportPointcloud.Checked != oServer.bPointCloudMode)
+                if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled)
                 {
                     if (chHardwareSync.Checked)
                     {
-                        if (oServer.EnableTemporalSync())
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
-                        else
-                            chHardwareSync.Checked = false;
-                    }
-
-                    else if (!chHardwareSync.Checked && oServer.bTempHwSyncEnabled)
-                    {
-                        if (oServer.DisableTemporalSync())
-                        {
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
-                            chAutoExposureEnabled.Enabled = true;
-                        }
+                        chHardwareSync.Checked = oServer.EnableTemporalSync();
                     }
 
                     else
                     {
-                        if (oServer.RestartAllClients())
-                            oServer.bPointCloudMode = rExportPointcloud.Checked;
+                        chHardwareSync.Checked = !oServer.DisableTemporalSync();
                     }
                 }
-
-                oServer.fMainWindowForm.SetButtonsForExport();
 
                 Cursor.Current = Cursors.Default;
 
@@ -151,7 +133,7 @@ namespace KinectServer
 
         void UpdateApplyButton()
         {
-            if(settingsChanged)
+            if (settingsChanged)
             {
                 btApplyAllSettings.Enabled = true;
                 lApplyWarning.Text = "Changed settings are not yet applied!";
@@ -191,10 +173,10 @@ namespace KinectServer
             }
         }
 
-        public void SetExposureControlsToManual()
+        public void SetExposureControlsToManual(bool manual)
         {
-            chAutoExposureEnabled.Enabled = false;
-            trManualExposure.Enabled = true;
+            chAutoExposureEnabled.Enabled = !manual;
+            trManualExposure.Enabled = manual;
             trManualExposure.Value = -5;
             chAutoExposureEnabled.CheckState = CheckState.Unchecked;
         }
@@ -243,24 +225,6 @@ namespace KinectServer
         private void txtMaxZ_TextChanged(object sender, EventArgs e)
         {
             Single.TryParse(txtMaxZ.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.aMaxBounds[2]);
-            SettingsChanged();
-        }
-
-        private void chFilter_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bFilter = chFilter.Checked;
-            SettingsChanged();
-        }
-
-        private void txtFilterNeighbors_TextChanged(object sender, EventArgs e)
-        {
-            Int32.TryParse(txtFilterNeighbors.Text, out oSettings.nFilterNeighbors);
-            SettingsChanged();
-        }
-
-        private void txtFilterDistance_TextChanged(object sender, EventArgs e)
-        {
-            Single.TryParse(txtFilterDistance.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.fFilterThreshold);
             SettingsChanged();
         }
 
@@ -397,12 +361,6 @@ namespace KinectServer
             }
         }
 
-        private void chBodyData_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bStreamOnlyBodies = chBodyData.Checked;
-            SettingsChanged();
-        }
-
         private void PlyFormat_CheckedChanged(object sender, EventArgs e)
         {
             if (rAsciiPly.Checked)
@@ -413,11 +371,6 @@ namespace KinectServer
             {
                 oSettings.bSaveAsBinaryPLY = true;
             }
-        }
-
-        private void chSkeletons_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bShowSkeletons = chSkeletons.Checked;
         }
 
         private void cbCompressionLevel_SelectedIndexChanged(object sender, EventArgs e)
@@ -524,7 +477,7 @@ namespace KinectServer
 
         private void btApplyAllSettings_Click(object sender, EventArgs e)
         {
-                UpdateClients();
+            UpdateClients();
         }
 
         private void chNetworkSync_CheckedChanged(object sender, EventArgs e)
@@ -552,6 +505,13 @@ namespace KinectServer
                 chNetworkSync.Enabled = true;
             }
 
+            SettingsChanged();
+
+        }
+
+        private void cbEnablePreview_CheckedChanged(object sender, EventArgs e)
+        {
+            oSettings.bPreviewEnabled = cbEnablePreview.Checked;
             SettingsChanged();
         }
     }

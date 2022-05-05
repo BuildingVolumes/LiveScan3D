@@ -26,7 +26,7 @@ class MarkerDetector : public IMarker
 public:
 	MarkerDetector();
 
-	bool GetMarker(RGB *img, int height, int width, MarkerInfo &marker);
+	bool GetMarker(cv::Mat* img, MarkerInfo& marker);
 private:
 	int nMarkerCorners;
 	vector<cv::Point2f> vPts;
@@ -38,7 +38,7 @@ private:
 	double dMarkerFrame;
 	bool bDraw;
 
-	bool GetMarker(cv::Mat &img, MarkerInfo &marker);
+	
 	bool OrderCorners(vector<cv::Point2f> &corners);
 	int GetCode(cv::Mat &img, vector<cv::Point2f> points, vector<cv::Point2f> corners);
 	void CornersSubPix(vector<cv::Point2f> &corners, vector<cv::Point> contour, bool order);

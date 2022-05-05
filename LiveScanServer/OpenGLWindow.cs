@@ -23,6 +23,7 @@ using System.Diagnostics;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Input;
+using KinectServer;
 
 enum ECameraMode
 {
@@ -31,12 +32,12 @@ enum ECameraMode
 
 public class ViewportSettings
 {
-    public enum EColorMode { RGB, BGR };
 
     public float pointSize;
     public int brightness;
     public bool markerVisibility;
-    public int targetFPS;
+    public int targetPlaybackFPS;
+    public int externalFPSCounter;
     public EColorMode colorMode = EColorMode.BGR;
 
 
@@ -45,7 +46,8 @@ public class ViewportSettings
         pointSize = 0;
         brightness = 0;
         markerVisibility = true;
-        targetFPS = 30;
+        targetPlaybackFPS = 30;
+        externalFPSCounter = -1;
     }
 }
 
@@ -84,7 +86,6 @@ namespace KinectServer
         public List<float> vertices = new List<float>();
         public List<byte> colors = new List<byte>();
         public List<AffineTransform> cameraPoses = new List<AffineTransform>();
-        public List<Body> bodies = new List<Body>();
         public KinectSettings settings = new KinectSettings();
 
         public ViewportSettings viewportSettings = new ViewportSettings();
@@ -338,16 +339,22 @@ namespace KinectServer
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
-            float smoothing = 0.2f; // larger=more smoothing
-            averageFPS = (averageFPS * smoothing) + ((float)RenderFrequency * (1.0f - smoothing));
-            this.Title = "FPS: " + (int)averageFPS;
+            if(viewportSettings.externalFPSCounter == -1)
+            {
+                float smoothing = 0.2f; // larger=more smoothing
+                averageFPS = (averageFPS * smoothing) + ((float)RenderFrequency * (1.0f - smoothing));
+                this.Title = "FPS: " + (int)averageFPS;
+            }
+            
+            else
+                this.Title = "FPS: " + viewportSettings.externalFPSCounter;
 
             lock (viewportSettings)
             {
                 GL.PointSize(viewportSettings.pointSize);
                 brightnessModifier = (byte)viewportSettings.brightness;
                 bDrawMarkings = viewportSettings.markerVisibility;
-                TargetUpdateFrequency = viewportSettings.targetFPS;
+                TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
 
             }
 
@@ -355,7 +362,6 @@ namespace KinectServer
             {
                 lock (settings)
                 {
-                    bool bShowSkeletons = settings.bShowSkeletons;
 
                     PointCount = vertices.Count / 3;
                     LineCount = 0;
@@ -367,15 +373,13 @@ namespace KinectServer
                         LineCount += settings.lMarkerPoses.Count * 3;
                         //cameras
                         LineCount += cameraPoses.Count * 3;
-                        if (bShowSkeletons)
-                            LineCount += 24 * bodies.Count;
                     }
 
                     VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
 
                     for (int i = 0; i < PointCount; i++)
                     {
-                        if (viewportSettings.colorMode == ViewportSettings.EColorMode.RGB)
+                        if (viewportSettings.colorMode == EColorMode.RGB)
                         {
                             VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
@@ -383,7 +387,7 @@ namespace KinectServer
                             VBO[i].A = 255;
                         }
 
-                        else if (viewportSettings.colorMode == ViewportSettings.EColorMode.BGR)
+                        else if (viewportSettings.colorMode == EColorMode.BGR)
                         {
                             VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
                             VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
@@ -409,8 +413,6 @@ namespace KinectServer
                         {
                             iCurLineCount += AddCamera(PointCount + 2 * iCurLineCount, cameraPoses[i]);
                         }
-                        if (bShowSkeletons)
-                            iCurLineCount += AddBodies(PointCount + 2 * iCurLineCount);
                     }
 
                     bufferEmpty = true;
@@ -636,71 +638,6 @@ namespace KinectServer
             return nLinesBeingAdded;
         }
 
-        private int AddBone(int bodyIdx, JointType jointType0, JointType jointType1, int startIdx)
-        {
-            Point3f joint0 = bodies[bodyIdx].lJoints[(int)jointType0].position;
-            Point3f joint1 = bodies[bodyIdx].lJoints[(int)jointType1].position;
-            AddLine(startIdx, joint0.X, joint0.Y, joint0.Z, joint1.X, joint1.Y, joint1.Z);
-            return 2;
-        }
-
-        private int AddBodies(int startIdx)
-        {
-            int nLinesToAdd = 24 * bodies.Count;
-            int nPointsToAdd = nLinesToAdd * 2;
-
-            for (int i = startIdx; i < startIdx + nPointsToAdd; i++)
-            {
-                VBO[i].R = 0;
-                VBO[i].G = 255;
-                VBO[i].B = 0;
-                VBO[i].A = 0;
-            }
-
-            int n = 0;
-
-            for (int bodyIdx = 0; bodyIdx < bodies.Count; bodyIdx++)
-            {
-                if (bodies[bodyIdx].bTracked == false)
-                    continue;
-
-                //Torso
-                n += AddBone(bodyIdx, JointType.JointType_Head, JointType.JointType_Neck, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_Neck, JointType.JointType_SpineShoulder, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_SpineShoulder, JointType.JointType_SpineMid, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_SpineMid, JointType.JointType_SpineBase, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_SpineShoulder, JointType.JointType_ShoulderRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_SpineShoulder, JointType.JointType_ShoulderLeft, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_SpineBase, JointType.JointType_HipRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_SpineBase, JointType.JointType_HipLeft, startIdx + n);
-
-                // Right Arm    
-                n += AddBone(bodyIdx, JointType.JointType_ShoulderRight, JointType.JointType_ElbowRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_ElbowRight, JointType.JointType_WristRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_WristRight, JointType.JointType_HandRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_HandRight, JointType.JointType_HandTipRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_WristRight, JointType.JointType_ThumbRight, startIdx + n);
-
-                // Left Arm
-                n += AddBone(bodyIdx, JointType.JointType_ShoulderLeft, JointType.JointType_ElbowLeft, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_ElbowLeft, JointType.JointType_WristLeft, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_WristLeft, JointType.JointType_HandLeft, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_HandLeft, JointType.JointType_HandTipLeft, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_WristLeft, JointType.JointType_ThumbLeft, startIdx + n);
-
-                // Right Leg
-                n += AddBone(bodyIdx, JointType.JointType_HipRight, JointType.JointType_KneeRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_KneeRight, JointType.JointType_AnkleRight, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_AnkleRight, JointType.JointType_FootRight, startIdx + n);
-
-                // Left Leg
-                n += AddBone(bodyIdx, JointType.JointType_HipLeft, JointType.JointType_KneeLeft, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_KneeLeft, JointType.JointType_AnkleLeft, startIdx + n);
-                n += AddBone(bodyIdx, JointType.JointType_AnkleLeft, JointType.JointType_FootLeft, startIdx + n);
-            }         
-
-            return nLinesToAdd;
-        }
 
         private void AddLine(int startIdx, float x0, float y0, float z0, 
             float x1, float y1, float z1)

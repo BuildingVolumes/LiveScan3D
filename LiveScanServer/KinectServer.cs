@@ -136,10 +136,6 @@ namespace KinectServer
         public KinectServer(KinectSettings settings)
         {
             this.oSettings = settings;
-
-            if (settings.eExportMode != KinectSettings.ExportMode.Pointcloud)
-                bPointCloudMode = false;
-
             kinectSettingsForms = new Dictionary<int, KinectConfigurationForm>();
         }
 
@@ -523,7 +519,7 @@ namespace KinectServer
                 oSettings.nExposureStep = -5;
 
                 if (fSettingsForm != null) //Reflect this change in the settings UI
-                    fSettingsForm.SetExposureControlsToManual();
+                    fSettingsForm.SetExposureControlsToManual(true);
 
                 SendSettings(); //Send settings to update the exposure
 
@@ -534,7 +530,17 @@ namespace KinectServer
                 }
 
                 else
+                {
+                    //Enabeling failed, we undo the Exposure Settings
+                    oSettings.bAutoExposureEnabled = true;
+
+                    if (fSettingsForm != null) //Reflect this change in the settings UI
+                        fSettingsForm.SetExposureControlsToManual(false);
+
+                    SendSettings(); //Send settings to update the exposure
+
                     return false;
+                }
             }
 
             else
@@ -881,11 +887,10 @@ namespace KinectServer
 
         }
 
-        public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts, List<List<Body>> lFramesBody)
+        public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts)
         {
             lFramesRGB.Clear();
             lFramesVerts.Clear();
-            lFramesBody.Clear();
 
             lock (oFrameRequestLock)
             {
@@ -924,7 +929,6 @@ namespace KinectServer
                     {
                         lFramesRGB.Add(new List<byte>(lClientSockets[i].lFrameRGB));
                         lFramesVerts.Add(new List<Single>(lClientSockets[i].lFrameVerts));
-                        lFramesBody.Add(new List<Body>(lClientSockets[i].lBodies));
                     }
                 }
 
@@ -1206,26 +1210,10 @@ namespace KinectServer
 
                 lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
 
-                //Check if a restart is needed to apply the settings to the kinect device
-                bool requiresRestart = false;
-
-                if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.MJPEG && oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-                    requiresRestart = true;
-
-                if (lClientSockets[lClientSockets.Count - 1].configuration.eColorMode == KinectConfiguration.colorMode.BGRA && oSettings.eExportMode == KinectSettings.ExportMode.RawFrames)
-                    requiresRestart = true;
 
                 if (bTempHwSyncEnabled)
                 {
                     if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
-                    {
-                        lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
-                    }
-                }
-
-                else if (requiresRestart)
-                {
-                    if (CloseClient(lClientSockets[lClientSockets.Count - 1]) && InitializeClient(lClientSockets[lClientSockets.Count - 1]))
                     {
                         lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
                     }

@@ -51,8 +51,6 @@ namespace KinectServer
         List<byte> lAllColors = new List<byte>();
         //Sensor poses from all of the sensors
         List<AffineTransform> lAllCameraPoses = new List<AffineTransform>();
-        //Body data from all of the sensors
-        List<Body> lAllBodies = new List<Body>();
         //Viewport settings
         ViewportSettings viewportSettings = new ViewportSettings();
 
@@ -94,7 +92,7 @@ namespace KinectServer
             oTransferServer.lColors = lAllColors;
             InitializeComponent();
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
-            SetButtonsForExport();
+
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -157,6 +155,9 @@ namespace KinectServer
                 form.Show();
                 oServer.SetSettingsForm(form);
             }
+
+            else
+                oServer.GetSettingsForm().Focus();
         }
 
         //Performs recording which is synchronized or unsychronized frame capture.
@@ -184,6 +185,7 @@ namespace KinectServer
                 }
 
                 oServer.SendCaptureFramesStop();
+                counter.Stop();
 
             }
 
@@ -282,10 +284,9 @@ namespace KinectServer
                 oOpenGLWindow.vertices = lAllVertices;
                 oOpenGLWindow.colors = lAllColors;
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
-                oOpenGLWindow.bodies = lAllBodies;
                 oOpenGLWindow.settings = oSettings;
                 oOpenGLWindow.viewportSettings = viewportSettings;
-                oOpenGLWindow.viewportSettings.colorMode = ViewportSettings.EColorMode.RGB;
+                oOpenGLWindow.viewportSettings.colorMode = EColorMode.BGR;
             }
             oOpenGLWindow.Run();
         }
@@ -304,24 +305,19 @@ namespace KinectServer
                 bSaving = true;
                 btRecord.Text = "Stop saving";
                 btRecord.Enabled = true;
-
                 savingWorker.RunWorkerAsync();
             }
 
             else
             {
-                btRecord.Enabled = true;
-                btRecord.Text = "Start recording";
+                CaptureComplete();
             }
         }
 
         private void savingWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             //Saving is downloading the frames from clients and saving them locally.
-
             int nFrames = 0;
-
-            //TODO: Get Take directory
 
             string outDir;
 
@@ -339,10 +335,10 @@ namespace KinectServer
             //This loop is running till it is either cancelled (using the btRecord button), or till there are no more stored frames.
             while (!worker.CancellationPending)
             {
-                List<List<byte>> lFrameRGBAllDevices = new List<List<byte>>();
+                List<List<byte>> lFrameBGRAllDevices = new List<List<byte>>();
                 List<List<float>> lFrameVertsAllDevices = new List<List<float>>();
 
-                bool success = oServer.GetStoredFrame(lFrameRGBAllDevices, lFrameVertsAllDevices);
+                bool success = oServer.GetStoredFrame(lFrameBGRAllDevices, lFrameVertsAllDevices);
 
                 //This indicates that there are no more stored frames.
                 if (!success)
@@ -350,25 +346,25 @@ namespace KinectServer
 
                 nFrames++;
                 int nVerticesTotal = 0;
-                for (int i = 0; i < lFrameRGBAllDevices.Count; i++)
+                for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
                 {
                     nVerticesTotal += lFrameVertsAllDevices[i].Count;
                 }
 
-                List<byte> lFrameRGB = new List<byte>();
+                List<byte> lFrameBGR = new List<byte>();
                 List<Single> lFrameVerts = new List<Single>();
 
                 SetStatusBarOnTimer("Saving frame " + (nFrames).ToString() + ".", 5000);
-                for (int i = 0; i < lFrameRGBAllDevices.Count; i++)
+                for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
                 {
-                    lFrameRGB.AddRange(lFrameRGBAllDevices[i]);
+                    lFrameBGR.AddRange(lFrameBGRAllDevices[i]);
                     lFrameVerts.AddRange(lFrameVertsAllDevices[i]);
 
                     //This is ran if the frames from each client are to be placed in separate files.
                     if (!oSettings.bMergeScansForSave)
                     {
                         string outputFilename = outDir + "\\" + nFrames.ToString().PadLeft(5, '0') + i.ToString() + ".ply";
-                        Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameRGBAllDevices[i], oSettings.bSaveAsBinaryPLY);
+                        Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameBGRAllDevices[i], EColorMode.BGR, oSettings.bSaveAsBinaryPLY);
                     }
                 }
 
@@ -376,7 +372,7 @@ namespace KinectServer
                 if (oSettings.bMergeScansForSave)
                 {
                     string outputFilename = outDir + "\\" + nFrames.ToString().PadLeft(5, '0') + ".ply";
-                    Utils.saveToPly(outputFilename, lFrameVerts, lFrameRGB, oSettings.bSaveAsBinaryPLY);
+                    Utils.saveToPly(outputFilename, lFrameVerts, lFrameBGR,EColorMode.BGR, oSettings.bSaveAsBinaryPLY);
                 }
             }
 
@@ -409,33 +405,45 @@ namespace KinectServer
         {
             List<List<byte>> lFramesRGB = new List<List<byte>>();
             List<List<Single>> lFramesVerts = new List<List<Single>>();
-            List<List<Body>> lFramesBody = new List<List<Body>>();
 
             BackgroundWorker worker = (BackgroundWorker)sender;
             while (!worker.CancellationPending)
             {
                 Thread.Sleep(1);
 
-                oServer.GetLatestFrame(lFramesRGB, lFramesVerts, lFramesBody);
+                Stopwatch timer = new Stopwatch();
+                timer.Start();
+
+                oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.
                 lock (lAllVertices)
                 {
                     lAllVertices.Clear();
                     lAllColors.Clear();
-                    lAllBodies.Clear();
                     lAllCameraPoses.Clear();
 
                     for (int i = 0; i < lFramesRGB.Count; i++)
                     {
                         lAllVertices.AddRange(lFramesVerts[i]);
                         lAllColors.AddRange(lFramesRGB[i]);
-                        lAllBodies.AddRange(lFramesBody[i]);
                     }
 
                     lAllCameraPoses.AddRange(oServer.lCameraPoses);
+
+                    timer.Stop();
+                    viewportSettings.externalFPSCounter = (int)(1000 / timer.ElapsedMilliseconds);
                 }
             }
+        }
+
+        private void updateWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs args)
+        {
+            lock (lAllVertices)
+            {
+                lAllVertices.Clear();
+                lAllColors.Clear();
+            }            
         }
 
         //Performs the ICP based pose refinement.
@@ -450,8 +458,7 @@ namespace KinectServer
             //Download a frame from each client.
             List<List<float>> lAllFrameVertices = new List<List<float>>();
             List<List<byte>> lAllFrameColors = new List<List<byte>>();
-            List<List<Body>> lAllFrameBody = new List<List<Body>>();
-            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices, lAllFrameBody);
+            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices);
 
             //Initialize containers for the poses.
             List<float[]> Rs = new List<float[]>();
@@ -553,23 +560,6 @@ namespace KinectServer
         //This is used for: starting/stopping the recording worker, stopping the saving worker
         private void btRecord_Click(object sender, EventArgs e)
         {
-            if (oServer.nClientCount < 1)
-            {
-                SetStatusBarOnTimer("At least one client needs to be connected for recording.", 5000);
-                return;
-            }
-
-            if (oServer.bTempHwSyncEnabled)
-            {
-                bool validConfig = true;
-
-                if (!oServer.CheckTempHwSyncValid())
-                {
-                    SetStatusBarOnTimer("Temporal Hardware Sync Setup not valid! Please check arrangement", 5000);
-                    return;
-                }
-            }
-
             //If we are saving frames right now, this button stops saving.
             if (bSaving)
             {
@@ -581,6 +571,22 @@ namespace KinectServer
             bRecording = !bRecording;
             if (bRecording)
             {
+                if (oServer.nClientCount < 1)
+                {
+                    SetStatusBarOnTimer("At least one client needs to be connected for recording.", 5000);
+                    return;
+                }
+
+                if (oServer.bTempHwSyncEnabled)
+                {
+
+                    if (!oServer.CheckTempHwSyncValid())
+                    {
+                        SetStatusBarOnTimer("Temporal Hardware Sync Setup not valid! Please check arrangement", 5000);
+                        return;
+                    }
+                }
+
                 //Stop the update worker to reduce the network usage (provides better synchronization).
                 updateWorker.CancelAsync();
 
@@ -619,10 +625,7 @@ namespace KinectServer
 
         private void btCalibrate_Click(object sender, EventArgs e)
         {
-            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-            {
-                oServer.Calibrate();
-            }
+            oServer.Calibrate();
         }
 
         public void SetCalibrateButtonActive(bool active)
@@ -638,14 +641,11 @@ namespace KinectServer
                 return;
             }
 
-            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-            {
-                btRefineCalib.Enabled = false;
-                btCalibrate.Enabled = false;
-                btRecord.Enabled = false;
+            btRefineCalib.Enabled = false;
+            btCalibrate.Enabled = false;
+            btRecord.Enabled = false;
 
-                refineWorker.RunWorkerAsync();
-            }
+            refineWorker.RunWorkerAsync();
         }
 
         public void SetRefineButtonActive(bool active)
@@ -661,14 +661,12 @@ namespace KinectServer
 
         private void btShowLive_Click(object sender, EventArgs e)
         {
-            if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-            {
-                RestartUpdateWorker();
+            //Opens the live view window if it is not open yet.
+            if (!OpenGLWorker.IsBusy)
+                OpenGLWorker.RunWorkerAsync();
 
-                //Opens the live view window if it is not open yet.
-                if (!OpenGLWorker.IsBusy)
-                    OpenGLWorker.RunWorkerAsync();
-            }
+            if(!bRecording)
+                RestartUpdateWorker();
         }
 
         public void SetLiveButtonActive(bool active)
@@ -727,29 +725,6 @@ namespace KinectServer
             form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
             form.Show();
             oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
-        }
-
-        /// <summary>
-        /// Calibration, Refinement and Live view are only supported in Pointcloud mode.
-        /// If we are in another mode, we disable the Main Window Buttons
-        /// </summary>
-        public void SetButtonsForExport()
-        {
-            bool pointCloudMode = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud;
-            if (oServer.fMainWindowForm != null)
-            {
-                oServer.fMainWindowForm.SetCalibrateButtonActive(pointCloudMode);
-                oServer.fMainWindowForm.SetLiveButtonActive(pointCloudMode);
-                oServer.fMainWindowForm.SetRefineButtonActive(pointCloudMode);
-            }
-
-            foreach (var configForm in oServer.kinectSettingsForms.Values)
-            {
-                if (configForm != null)
-                {
-                    configForm.SetDepthFilterBoxActive(pointCloudMode);
-                }
-            }
         }
 
         private void UpdateSettingsButtonEnabled()
