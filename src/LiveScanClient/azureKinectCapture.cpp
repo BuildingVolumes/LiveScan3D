@@ -30,7 +30,7 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns>Returns true on success, false on error</returns>
 bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 {
-	std::cout << "Initializing Azure Kinect Device" << std::endl;
+	log.LogDebug("Starting Azure Kinect Device initialization");
 
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -52,6 +52,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 			if (deviceIdx >= count)
 			{
 				bInitialized = false;
+				log.LogError("Could not open an Azure Kinect device");
 				return bInitialized;
 			}
 		}
@@ -60,12 +61,12 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	if (configuration.eSoftwareSyncState == Main)
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
-		std::cout << "Initializing Azure Kinect as Main" << std::endl;
+		log.LogInfo("Starting Azure Kinect as Main");
 	}
 
 	else if (configuration.eSoftwareSyncState == Subordinate)
 	{
-		std::cout << "Initializing Azure Kinect as Subordinate" << std::endl;
+		log.LogInfo("Starting Azure Kinect as Subordinate");
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
 		//Sets the offset on subordinate devices. Should be a multiple of 160, each subordinate having a different multiplier in ascending order.
 		//It avoids firing the Kinects lasers at the same time.		
@@ -74,7 +75,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	else
 	{
-		std::cout << "Initializing Azure Kinect as Standalone" << std::endl;
+		log.LogInfo("Starting Azure Kinect as Standalone");
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
 		configuration.config.subordinate_delay_off_master_usec = 0;
 	}
@@ -83,11 +84,15 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	bInitialized = K4A_SUCCEEDED(k4a_device_start_cameras(kinectSensor, &configuration.config));
 
 	if (!bInitialized)
+	{
+		log.LogError("Could not start Azure Kinect Device");
 		return bInitialized;
+	}
 
 	k4a_calibration_t calibration;
 	if (K4A_FAILED(k4a_device_get_calibration(kinectSensor, configuration.config.depth_mode, configuration.config.color_resolution, &calibration)))
 	{
+		log.LogError("Could not get Azure Kinect Device calibration");
 		bInitialized = false;
 		return bInitialized;
 	}
@@ -98,7 +103,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	if (autoExposureEnabled == false) {
 
-		std::cout << "Manual exposure enabled. Setting camera to auto exposure and adjust for one second as a workaround for a bug in exposure settings" << std::endl;
+		log.LogDebug("Manual exposure enabled. Setting camera to auto exposure and adjust for one second as a workaround for a bug in exposure settings");
 
 		k4a_device_set_color_control(kinectSensor, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
 
@@ -134,6 +139,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	transformationColorDownscaled = k4a_transformation_create(&calibrationColorDownscaled);
 
 	//If this device is a subordinate, it is expected to start capturing at a later time (When the master has started), so we skip this check  
+	//Is this really neccessary?
 	if (configuration.eSoftwareSyncState != Subordinate)
 	{
 		std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
@@ -163,21 +169,19 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize);
 
-	std::cout << "Initialization successfull: " << bInitialized << std::endl;
+	log.LogInfo("Initialization successfull");
 
 	return bInitialized;
 }
 
 void AzureKinectCapture::SetConfiguration(KinectConfiguration& configuration)
 {
-	std::cout << "Setting configuration to device" << std::endl;
-
 	this->configuration = configuration;
 }
 
 bool AzureKinectCapture::Close()
 {
-	std::cout << "Closing Azure Kinect device" << std::endl;
+	log.LogInfo("Closing Azure Kinect device");
 
 	if (!bInitialized)
 	{
@@ -192,6 +196,7 @@ bool AzureKinectCapture::Close()
 	k4a_image_release(colorImageDownscaled);
 	k4a_transformation_destroy(transformationColorDownscaled);
 	k4a_transformation_destroy(transformation);
+	
 	k4a_device_stop_cameras(kinectSensor);
 	k4a_device_close(kinectSensor);
 
@@ -213,6 +218,7 @@ bool AzureKinectCapture::AquireRawFrame() {
 
 	if (!bInitialized)
 	{
+		log.LogCaptureDebug("Trying to aquire a Frame, but camera is not initialized");
 		return false;
 	}
 
@@ -222,7 +228,7 @@ bool AzureKinectCapture::AquireRawFrame() {
 	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
 	{
 		k4a_capture_release(capture);
-		std::cout << "Dropped Raw Frame" << std::endl;
+		log.LogCaptureDebug("Could not aquire frame from device");
 		return false;
 	}
 
@@ -339,7 +345,9 @@ void AzureKinectCapture::PointCloudImageToPoint3f(Point3f* pCameraSpacePoints)
 /// <param name="exposureStep">The Exposure Step between -11 and 1</param>
 void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureStep)
 {
-	std::cout << "Setting Exposure. Auto exposure enabled: " << enableAutoExposure << " , exposure step: " << exposureStep << std::endl;
+	std::ostringstream ss;
+	ss << "Setting Exposure. Auto exposure enabled: " << enableAutoExposure << " , exposure step: " << exposureStep;
+	log.LogDebug(ss.str());
 
 	if (bInitialized)
 	{
@@ -375,33 +383,23 @@ void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureS
 /// <returns>Returns int -1 for Subordinate, int 0 for Master and int 1 for Standalone</returns>
 int AzureKinectCapture::GetSyncJackState()
 {
-	std::cout << "Getting hardware sync jack state" << std::endl;
-
 	k4a_result_t syncJackResult = k4a_device_get_sync_jack(kinectSensor, &syncInConnected, &syncOutConnected);
 
 	if (K4A_RESULT_SUCCEEDED == syncJackResult)
 	{
 		if (syncOutConnected && !syncInConnected)
-		{
-			return 0; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port
-		}
+			return 0; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port}
 
 		else if(syncInConnected)
-		{
 			return 1; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
-		}
 
 		else 
-		{
 			return 2;
-		}
 
 	}
 
 	else
-	{
 		return 2; //Probably failed because there are no cabels connected, this means the device should be set as standalone
-	}
 }
 
 /// <summary>
@@ -410,7 +408,7 @@ int AzureKinectCapture::GetSyncJackState()
 /// <returns> Returns true when the calibration file got successfully retrieved from the sensor, false when an error has occured</returns>
 bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size)
 {
-	std::cout << "Getting intrinsics as JSON" << std::endl;
+	log.LogDebug("Getting intrinsics as JSON file");
 
 	calibration_size = 0;
 	k4a_buffer_result_t buffer_result = k4a_device_get_raw_calibration(kinectSensor, NULL, &calibration_size);

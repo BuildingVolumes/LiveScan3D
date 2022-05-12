@@ -46,6 +46,7 @@ int APIENTRY wWinMain(
 	LPWSTR* szArgList;
 	int argCount;
 	szArgList = CommandLineToArgvW(GetCommandLine(), &argCount);
+
 	if (argCount >= 5) {
 		// assume window width, height, x, y
 		g_winWidth = _wtoi(szArgList[1]);
@@ -54,13 +55,6 @@ int APIENTRY wWinMain(
 		g_winY = _wtoi(szArgList[4]);
 		if (argCount >= 6) g_connectToServerImmediately = _wtoi(szArgList[5]);
 	}
-
-//TODO: Write a logging class
-#ifdef _DEBUG
-	AllocConsole();
-	freopen("CONOUT$", "w", stdout);
-	freopen("CONOUT$", "w", stderr);
-#endif
 
 	LiveScanClient application;
 	application.Run(hInstance, nShowCmd);
@@ -78,6 +72,8 @@ LiveScanClient::LiveScanClient() :
 	m_pCameraSpaceCoordinates(NULL),
 	m_pColorInColorSpace(NULL),
 	m_pDepthInColorSpace(NULL),
+	log(log.Get()),
+	m_loglevel(Log::LOGLEVEL_INFO),
 	m_bCalibrate(false),
 	m_bCaptureFrames(false),
 	m_bCaptureSingleFrame(false),
@@ -177,7 +173,6 @@ LiveScanClient::~LiveScanClient()
 		emptyDepthMat->release();
 		emptyDepthMat = NULL;
 	}
-	
 }
 
 int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
@@ -215,6 +210,7 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
 	std::thread t1(&LiveScanClient::SocketThreadFunction, this);
 	// HOGUE
 	if (g_connectToServerImmediately) Connect();
+
 	// Main message loop
 	while (WM_QUIT != msg.message)
 	{
@@ -438,7 +434,7 @@ void LiveScanClient::Connect() {
 
 	if (m_bConnected)
 	{
-		std::cout << "Disconnecting from server" << std::endl;
+		log.LogInfo("Disconnecting from server");
 		delete m_pClientSocket;
 		m_pClientSocket = NULL;
 
@@ -449,7 +445,7 @@ void LiveScanClient::Connect() {
 	{
 		try
 		{
-			std::cout << "Trying to connect to server" << std::endl;
+			log.LogInfo("Trying to connect to server");
 			char address[20];
 			GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
 			m_pClientSocket = new SocketClient(address, 48001);
@@ -464,7 +460,7 @@ void LiveScanClient::Connect() {
 		}
 		catch (...)
 		{
-			std::cout << "ERROR: Couldn't connect to server" << std::endl;
+			log.LogInfo("Couldn't connect to server");
 			SetStatusMessage(L"Failed to connect. Did you start the server?", 10000, true);
 		}
 	}
@@ -481,6 +477,11 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		// Bind application window handle
 		m_hWnd = hWnd;
 
+#ifdef _DEBUG
+		if (m_loglevel <= Log::LOGLEVEL_DEBUG)
+			m_loglevel = Log::LOGLEVEL_DEBUG;
+#endif
+
 		// Init Direct2D
 		D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
 
@@ -490,7 +491,19 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		bool res = pCapture->Initialize(configuration);
 		if (res)
 		{
-			std::cout << "Device could be opened successfully" << std::endl;
+			bool openConsole = false;
+			if (m_loglevel >= Log::LOGLEVEL_DEBUG)
+			{
+				openConsole = true;
+			}
+
+			bool logging = log.StartLog(pCapture->serialNumber, m_loglevel, openConsole);
+			if(!logging)
+				SetStatusMessage(L"Log file could not be created!", 10000, true);
+
+
+			log.LogInfo("Device could be opened successfully");
+
 			configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 			calibration.LoadCalibration(pCapture->serialNumber);
 			//m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
@@ -501,7 +514,6 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		}
 		else
 		{
-			std::cout << "ERROR: Device failed to open/initialize" << std::endl;
 			SetStatusMessage(L"Capture device failed to initialize!", 10000, true);
 		}
 
@@ -578,20 +590,18 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 
 void LiveScanClient::SaveRawFrame()
 {
-	std::cout << "Saving Raw Frame" << std::endl;
 	m_framesFileWriterReader.WriteColorJPGFile(k4a_image_get_buffer(pCapture->colorImageMJPG), k4a_image_get_size(pCapture->colorImageMJPG), m_nFrameIndex, "");
 	m_framesFileWriterReader.WriteDepthTiffFile(pCapture->depthImage16Int, m_nFrameIndex, "");
 }
 
 void LiveScanClient::SavePointcloudFrame(uint64_t timeStamp)
 {
-	std::cout << "Saving Pointcloud Frame" << std::endl;
 	m_framesFileWriterReader.writeNextBinaryFrame(m_vLastFrameVertices, m_vLastFrameVerticesSize, m_vLastFrameRGB, timeStamp, configuration.nGlobalDeviceIndex);
 }
 
 void LiveScanClient::Calibrate() {
 
-	std::cout << "Calibrating Client" << std::endl;
+	log.LogInfo("Start Calibration process");
 
 	Point3f* pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 	pCapture->PointCloudImageToPoint3f(pCameraCoordinates);
@@ -602,12 +612,14 @@ void LiveScanClient::Calibrate() {
 
 	if (res)
 	{
-		std::cout << "Calibration successfull" << std::endl;
-
+		log.LogInfo("Calibration Successfull");
 		calibration.SaveCalibration(pCapture->serialNumber);
 		m_bConfirmCalibrated = true;
 		m_bCalibrate = false;
 	}
+
+	else
+		log.LogInfo("Calibration unsuccessfull");
 
 }
 
@@ -617,6 +629,7 @@ void LiveScanClient::Calibrate() {
 /// </summary>
 /// <returns></returns>
 void LiveScanClient::ManagePreviewWindowInitialization() {
+
 
 	bool initializationNeeded = false;
 
@@ -633,6 +646,8 @@ void LiveScanClient::ManagePreviewWindowInitialization() {
 
 	if (initializationNeeded)
 	{
+		log.LogInfo("Initializing Preview Window");
+
 		//if there already is a preview D2D Renderer, delete it
 		if (m_pD2DImageRenderer)
 		{
@@ -650,13 +665,22 @@ void LiveScanClient::ManagePreviewWindowInitialization() {
 		hr = m_pD2DImageRenderer->Initialize(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), m_pD2DFactory, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight, pCapture->colorBGR.step);
 		if (FAILED(hr))
 		{
-			std::cout << "ERROR: Failed to initialize the Direct2D draw device" << std::endl;
+			log.LogFatal("Failed to initialize the Direct2D Draw device");
 			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 		}
 
 		//Initialize Preview Resources
+		try {
+			m_cvPreviewDisabled = cv::imread("resources/preview_disabled.png");
+		}
+
+		catch (cv::Exception e) {
+			log.LogFatal(e.what());
+			SetStatusMessage(L"Failed to load resources", 10000, true);
+		}
+
+
 		m_pRainbowColorDepth = new RGB[pCapture->nColorFrameHeight * pCapture->nColorFrameWidth];
-		m_cvPreviewDisabled = cv::imread("resources/preview_disabled.png");
 		cv::resize(m_cvPreviewDisabled, m_cvPreviewDisabled, cv::Size(pCapture->nColorFrameWidth, pCapture->nColorFrameHeight), cv::INTER_AREA);
 		cv::cvtColor(m_cvPreviewDisabled, m_cvPreviewDisabled, cv::COLOR_BGR2BGRA);
 	}
@@ -748,72 +772,73 @@ void LiveScanClient::HandleSocket()
 
 	if (!received.empty()) {
 
-		std::cout << "Message: ";
+		std::ostringstream message;
+		message << "Message Raw data: ";
 
 		for (unsigned int i = 0; i < received.length(); i++)
-			std::cout << (int)received[i] << " ";
+			message << (int)received[i] << " ";
 
-		std::cout << std::endl;
+		log.LogTrace(message.str());
 	}
 
 	for (unsigned int i = 0; i < received.length(); i++)
 	{
-		std::cout << "Received Server message:	";
+		log.LogTrace("Received Server message");
 
 		//Capture a single frame. Used for network-synced recording
 		if (received[i] == MSG_CAPTURE_SINGLE_FRAME)
 		{
-			std::cout << "Capture single frame Received" << std::endl;
+			log.LogTrace("Capture single frame Received");
 			m_bCaptureSingleFrame = true;
 		}
 
 		//Capture frames as fast as possible. Used for hardware-synced, or not-synced recording
 		if (received[i] == MSG_START_CAPTURING_FRAMES)
 		{
-			std::cout << "Capture frames start received" << std::endl;
+			log.LogTrace("Capture frames start received");
 			m_bCaptureFrames = true;
 		}
 
 		if (received[i] == MSG_STOP_CAPTURING_FRAMES)
 		{
-			std::cout << "Capture frames stop received" << std::endl;
+			log.LogTrace("Capture frames stop received");
 			m_bCaptureFrames = false;
 		}
 
 		if (received[i] == MSG_PRE_RECORD_PROCESS_START)
 		{
-			std::cout << "Received pre recording process start" << std::endl;
+			log.LogTrace("Received pre recording process start");
 			m_bStartPreRecordingProcess = true;
 		}
 
 		if (received[i] == MSG_POST_RECORD_PROCESS_START)
 		{
-			std::cout << "Received post recording process start" << std::endl;
+			log.LogTrace("Received post recording process start");
 			m_bStartPostRecordingProcess = true;
 		}
 
 		//calibrate
 		else if (received[i] == MSG_CALIBRATE)
 		{
-			std::cout << "Calibrate command recieved" << std::endl;
+			log.LogTrace("Calibrate command recieved");
 			m_bCalibrate = true;
 		}
 
 		else if (received[i] == MSG_CLOSE_CAMERA)
 		{
-			std::cout << "Closing camera command received" << std::endl;
+			log.LogTrace("Closing camera command received");
 			m_bCloseCamera = true;
 		}
 
 		else if (received[i] == MSG_INIT_CAMERA)
 		{
-			std::cout << "Initialize camera command received" << std::endl;
+			log.LogTrace("Initialize camera command received");
 			m_bInitializeCamera = true;
 		}
 
 		else if (received[i] == MSG_SET_CONFIGURATION)
 		{
-			std::cout << "Recieved new configuration" << std::endl;
+			log.LogInfo("Recieved new configuration");
 
 			i++;
 		std:string message;
@@ -833,7 +858,7 @@ void LiveScanClient::HandleSocket()
 		//TODO: what if packet is split?
 		else if (received[i] == MSG_RECEIVE_SETTINGS)
 		{
-			std::cout << "Recieved new settings" << std::endl;
+			log.LogInfo("Recieved new settings");
 
 			vector<float> bounds(6);
 			i++;
@@ -892,13 +917,13 @@ void LiveScanClient::HandleSocket()
 
 			if (exportFormat == 0)
 			{
-				std::cout << "Export format set to Pointcloud" << std::endl;
+				log.LogInfo("Export format set to Pointcloud");
 				m_eCaptureMode = CM_POINTCLOUD;
 			}
 
 			if (exportFormat == 1)
 			{
-				std::cout << "Export format set to Raw Data" << std::endl;
+				log.LogInfo("Export format set to Raw Data");
 				m_eCaptureMode = CM_RAW;
 
 			}
@@ -911,6 +936,11 @@ void LiveScanClient::HandleSocket()
 
 			m_bUpdateSettings = true;
 
+			std::ostringstream stream;
+			stream << "Received Settings: Auto Exposure enabled= " << m_bAutoExposureEnabled << ", Exposure Step = " << m_nExposureStep
+				<< ", Extrinsics Stlye = " << m_nExtrinsicsStyle << ", Show preview during capture = " << m_bShowPreviewDuringRecording;
+			Log::Get().LogDebug(stream.str());
+
 			//so that we do not lose the next character in the stream
 			i--;
 		}
@@ -918,14 +948,14 @@ void LiveScanClient::HandleSocket()
 		//send configuration
 		else if (received[i] == MSG_REQUEST_CONFIGURATION)
 		{
-			std::cout << "Server requests configuration" << std::endl;
+			log.LogTrace("Server requests configuration");
 			m_bRequestConfiguration = true;
 		}
 
 		//send stored frame
 		else if (received[i] == MSG_REQUEST_STORED_FRAME)
 		{
-			std::cout << "Server requests stored frame" << std::endl;
+			log.LogCaptureDebug("Server requests stored frame");
 
 			Point3s* points = NULL;
 			RGB* colors = NULL;
@@ -949,14 +979,14 @@ void LiveScanClient::HandleSocket()
 		//send last frame
 		else if (received[i] == MSG_REQUEST_LAST_FRAME)
 		{
-			std::cout << "Server requests lastest frame" << std::endl;
+			log.LogCaptureDebug("Server requests lastest frame");
 			m_bRequestLiveFrame = true;
 		}
 
 		//receive calibration data
 		else if (received[i] == MSG_RECEIVE_CALIBRATION)
 		{
-			std::cout << "Recieving calibration data" << std::endl;
+			log.LogInfo("Recieving calibration data");
 
 			i++;
 			for (int j = 0; j < 3; j++)
@@ -978,13 +1008,12 @@ void LiveScanClient::HandleSocket()
 		}
 		else if (received[i] == MSG_CLEAR_STORED_FRAMES)
 		{
-			std::cout << "Recieving Clearing stored frames" << std::endl;
+			log.LogTrace("Recieving command to clear stored frames");
 			m_framesFileWriterReader.closeFileIfOpened();
 		}
 
 		else if (received[i] == MSG_CREATE_DIR) //Creates a dir on the client. Message also marks the start of the recording
-		{
-			std::cout << "Creating new take directory" << std::endl;
+		{	
 
 			i++;
 			int stringLength = *(int*)(received.c_str() + i); //Get the length of the following string
@@ -1012,6 +1041,7 @@ void LiveScanClient::HandleSocket()
 				//Tell the server that the directory creation has failed, server will abort the recording
 				buffer[1] = 0;
 				m_pClientSocket->SendBytes(buffer, size);
+				log.LogWarning("Recording directory creation has failed");
 			}
 
 			//Write the calibration intrinsics into the newly created dir if we record raw frames
@@ -1022,13 +1052,13 @@ void LiveScanClient::HandleSocket()
 
 		else if (received[i] == MSG_REQUEST_TIMESTAMP_LIST)
 		{
-			std::cout << "Server requests timestamp list" << std::endl;
+			log.LogTrace("Server requests timestamp list");
 			m_bSendTimeStampList = true;
 		}
 
 		else if (received[i] == MSG_RECEIVE_POSTSYNC_LIST)
 		{
-			std::cout << "Receiving Postsync List" << std::endl;
+			log.LogInfo("Received Postsync List");
 
 			i++;
 			int size = *(int*)(received.c_str() + i);
@@ -1042,6 +1072,7 @@ void LiveScanClient::HandleSocket()
 			memcpy(m_vFrameID.data(), &received[i], size * sizeof(int));
 			i += size * sizeof(int);
 
+
 			memcpy(m_vPostSyncedFrameID.data(), &received[i], size * sizeof(int));
 			i += size * sizeof(int);
 
@@ -1052,7 +1083,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCaptured)
 	{
-		std::cout << "Sending capture confirmed" << std::endl;
+		log.LogTrace("Confirming capture to server");
 
 		byteToSend = MSG_CONFIRM_CAPTURED;
 		m_pClientSocket->SendBytes(&byteToSend, 1);
@@ -1061,7 +1092,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCalibrated)
 	{
-		std::cout << "Sending calibration confirmed" << std::endl;
+		log.LogTrace("Sending calibration confirmed");
 
 		int size = (9 + 3) * sizeof(float) + sizeof(int) + 1;
 		char* buffer = new char[size];
@@ -1085,7 +1116,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmPreRecordingProcess) {
 
-		std::cout << "Sending Pre Record Process confirmation" << std::endl;
+		log.LogTrace("Sending Pre Record Process confirmation");
 
 		byteToSend = MSG_CONFIRM_PRE_RECORD_PROCESS;
 		m_pClientSocket->SendBytes(&byteToSend, 1);
@@ -1094,7 +1125,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmPostRecordingProcess) {
 
-		std::cout << "Sending Post Record Process confirmation" << std::endl;
+		log.LogTrace("Sending Post Record Process confirmation");
 
 		byteToSend = MSG_CONFIRM_POST_RECORD_PROCESS;
 		m_pClientSocket->SendBytes(&byteToSend, 1);
@@ -1103,7 +1134,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bSendConfiguration)
 	{
-		std::cout << "Sending configuration" << std::endl;
+		log.LogInfo("Sending configuration");
 
 		int size = configuration.byteLength + 1;
 		char* buffer = new char[size];
@@ -1115,7 +1146,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bSendTimeStampList)
 	{
-		std::cout << "Sending Timestamp list" << std::endl;
+		log.LogInfo("Sending Timestamp list");
 
 		//Structure of timestamp byte list:
 		// Message Char + Timestamps Array Size + Timestamps Array as uint64 + FrameNumbers Array Size + FrameNumbers as Int32
@@ -1151,15 +1182,18 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCameraClosed) 
 	{
-		std::cout << "Sending camera closed confirmation. Reinitialization successfull: " << to_string(m_bCameraError) << std::endl;
 		int size = 2;
 		char* buffer = new char[size];
 		buffer[0] = MSG_CONFIRM_CAMERA_CLOSED;
 
-		if (m_bCameraError)
+		if (m_bCameraError) {
 			buffer[1] = 1; // = Error
-		else
+			log.LogWarning("Camera could not be closed, reporting to server");
+		}
+		else {
 			buffer[1] = 0; // = Success
+			log.LogDebug("Camera could be closed successfully, reporting to server");
+		}
 
 		m_pClientSocket->SendBytes(buffer, size);
 		m_bConfirmCameraClosed = false;
@@ -1167,16 +1201,18 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCameraInitialized) 
 	{
-		std::cout << "Sending camera initialized confirmation. Reinitialization successfull: " << to_string(m_bCameraError) << std::endl;
-
 		int size = 2;
 		char* buffer = new char[size];
 		buffer[0] = MSG_CONFIRM_CAMERA_INIT;
 
-		if (m_bCameraError)
-			buffer[1] = 1;
-		else
-			buffer[1] = 0;
+		if (m_bCameraError) {
+			buffer[1] = 1; // = Error
+			log.LogWarning("Camera could not be initialized, reporting to server");
+		}
+		else {
+			buffer[1] = 0; // = Success
+			log.LogDebug("Camera could be initialized successfully, reporting to server");
+		};
 
 		m_pClientSocket->SendBytes(buffer, size);
 		m_bConfirmCameraInitialized = false;
@@ -1185,11 +1221,12 @@ void LiveScanClient::HandleSocket()
 
 bool LiveScanClient::CloseCamera()
 {
-	std::cout << "Closing camera" << std::endl;
+	log.LogDebug("Closing Camera");
 
 	bool res = false;
 	res = pCapture->Close();
 	if (!res) {
+		log.LogFatal("Could not close camera");
 		SetStatusMessage(L"Device failed to close! Please restart Application!", 10000, true);
 		return false;
 	}
@@ -1199,12 +1236,13 @@ bool LiveScanClient::CloseCamera()
 
 bool LiveScanClient::InitializeCamera()
 {
-	std::cout << "Initializing camera" << std::endl;
+	log.LogDebug("Initializing Camera");
 
 	bool res = false;
 
 	res = pCapture->Initialize(configuration);
 	if (!res) {
+		log.LogDebug("Could not initialize camera");
 		SetStatusMessage(L"Device failed to initialize! Please restart Application!", 10000, true);
 		return false;
 	}
@@ -1222,24 +1260,27 @@ bool LiveScanClient::InitializeCamera()
 
 void LiveScanClient::SendPostSyncConfirmation(bool success)
 {
-	std::cout << "Sending Post Sync confirmation. Post Sync successfull: " << success << std::endl;
-
 	int size = 2;
 	char* buffer = new char[size];
 	buffer[0] = MSG_CONFIRM_POSTSYNCED;
 
-	if (success)
+	if (success) {
 		buffer[1] = 1;
-
-	else
+		log.LogTrace("Post Sync Confirmation: Successfull");
+	}
+		
+	else {
+		log.LogTrace("Post Sync Confirmation: Failed");
 		buffer[1] = 0;
+	}
 
 	m_pClientSocket->SendBytes(buffer, size);
 }
 
 void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB, bool live)
 {
-	std::cout << "Sending Frame" << std::endl;
+
+	log.LogCaptureDebug("Sending Frame to server");
 
 	int size = verticesSize * (3 + 3 * sizeof(short)) + sizeof(int);
 
@@ -1292,7 +1333,7 @@ void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB, bo
 
 void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage)
 {
-	//std::cout << "Storing Pointcloud Frame" << std::endl;
+	log.LogTrace("Storing Frame");
 
 	unsigned int nVertices = pCapture->nColorFrameHeight * pCapture->nColorFrameWidth;
 
@@ -1387,7 +1428,7 @@ void LiveScanClient::ShowFPS()
 
 void LiveScanClient::ReadIPFromFile()
 {
-	std::cout << "Reading IP from File" << std::endl;
+	log.LogDebug("Reading IP from file: ");
 
 	ifstream file;
 	file.open("lastIP.txt");
@@ -1397,12 +1438,13 @@ void LiveScanClient::ReadIPFromFile()
 		file.getline(lastUsedIPAddress, 20);
 		file.close();
 		SetDlgItemTextA(m_hWnd, IDC_IP, lastUsedIPAddress);
+		log.LogDebug(lastUsedIPAddress);
 	}
 }
 
 void LiveScanClient::WriteIPToFile()
 {
-	std::cout << "Writing IP to File" << std::endl;
+	log.LogDebug("Writing IP to file: ");
 
 	ofstream file;
 	file.open("lastIP.txt");
@@ -1410,11 +1452,15 @@ void LiveScanClient::WriteIPToFile()
 	GetDlgItemTextA(m_hWnd, IDC_IP, lastUsedIPAddress, 20);
 	file << lastUsedIPAddress;
 	file.close();
+	
+	log.LogDebug(lastUsedIPAddress);
 }
 
 
 
 bool LiveScanClient::PostSyncPointclouds() {
+
+	log.LogDebug("Starting Post Sync for Pointclouds");
 
 	bool success = true;
 
@@ -1448,7 +1494,8 @@ bool LiveScanClient::PostSyncPointclouds() {
 			m_framesFileWriterReader.seekBinaryReaderToFrame(m_vFrameID[i]);
 			m_framesFileWriterReader.readNextBinaryFrame(points, colors, pointsSize, timestamp);
 			if (!syncedFileWriter.writeNextBinaryFrame(points, pointsSize, colors, timestamp, configuration.nGlobalDeviceIndex)) {
-				std::cout << "Could not write Pointcloud Frame during post sync. Frame ID: " << m_vFrameID[i] << std::endl;
+				log.LogWarning("Could not write Pointcloud Frame during post sync. Frame ID: ");
+				log.LogWarning(to_string(m_vFrameID[i]));
 				success = false;
 			}
 
@@ -1468,6 +1515,9 @@ bool LiveScanClient::PostSyncPointclouds() {
 
 bool LiveScanClient::PostSyncRawFrames() {
 
+	log.LogDebug("Starting Post Sync for Raw frames");
+
+
 	bool success = true;
 	k4a_image_t emptyDepthFrame;
 	k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, 1, 1, 0, &emptyDepthFrame);
@@ -1482,7 +1532,8 @@ bool LiveScanClient::PostSyncRawFrames() {
 
 		else {
 			if (!m_framesFileWriterReader.RenameRawFramePair(m_vFrameID[i], m_vPostSyncedFrameID[i], std::string("synced_"))) {
-				std::cout << "Could not rename Frame with ID: " << m_vFrameID[i] << std::endl;
+				log.LogWarning("Could not rename Frame during post sync. Frame ID: ");
+				log.LogWarning(to_string(m_vFrameID[i]));
 				success = false;
 			}
 		}		

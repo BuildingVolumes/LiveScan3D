@@ -9,6 +9,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include "turbojpeg/turbojpeg.h"
+#include "Log.h"
 
 class AzureKinectCapture : public ICapture
 {
@@ -38,6 +39,8 @@ private:
 	k4a_image_t colorImageDownscaled = NULL;
 	k4a_transformation_t transformationColorDownscaled = NULL;
 	k4a_transformation_t transformation = NULL;  
+	Log& log = Log::Get();
+
 
 	int colorImageDownscaledWidth;
 	int colorImageDownscaledHeight;
@@ -51,6 +54,5 @@ private:
 	int exposureTimeStep = 0;
 
 	KinectConfiguration configuration;
-
 	tjhandle turboJpeg;
 };

@@ -10,6 +10,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
+#include <Log.h>
 
 class FrameFileWriterReader
 {
@@ -57,5 +58,7 @@ private:
 	std::string m_sFrameRecordingsDir = "";
 
 	std::chrono::steady_clock::time_point recording_start_time;
+
+	Log& log = Log::Get();
 
 };

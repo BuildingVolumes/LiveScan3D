@@ -21,6 +21,7 @@
 //#include "utils.h"
 #include "azureKinectCapture.h"
 #include "frameFileWriterReader.h"
+#include "Log.h"
 #include <thread>
 #include <mutex>
 
@@ -105,6 +106,8 @@ private:
     DWORD m_nFramesSinceUpdate;
 	int frameRecordCounter;
 	float m_fAverageFPS;
+	Log& log;
+	Log::LOGLEVEL m_loglevel;
 
 	int m_nFrameIndex;
 

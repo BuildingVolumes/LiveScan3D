@@ -1,6 +1,7 @@
 #include "KinectConfiguration.h"
 #include <k4a/k4atypes.h>
 #include <utils.h>
+#include <Log.h>
 
 
 	std::string sSerialNumber;
@@ -87,6 +88,12 @@
 		i++;
 		filter_depth_map_size = int(received[i]);
 		//update const byteLength when changing this.
+
+		std::ostringstream stream;
+		stream << "Setting configuration: depthMode = " << depthMode << ", Software Sync State = " << eSoftwareSyncState
+			   << ", Sync Offset = " << nSyncOffset << ", GlobalDeviceIndex = " << nGlobalDeviceIndex;
+		Log::Get().LogDebug(stream.str());
+
 	}
 
 	void KinectConfiguration::InitializeDefaults()
