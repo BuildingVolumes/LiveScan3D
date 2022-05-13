@@ -71,6 +71,28 @@ namespace KinectServer
 
         public MainWindowForm()
         {
+            //Set the logging level
+            string[] cmdLineArgs = Environment.GetCommandLineArgs();
+            Log.LogLevel loglevel = Log.LogLevel.Normal;
+
+            if(cmdLineArgs.Length > 1)
+            {
+                if (cmdLineArgs[1] == "-none" || cmdLineArgs[0] == "-None")
+                    loglevel = Log.LogLevel.None;
+
+                if (cmdLineArgs[1] == "-debug" || cmdLineArgs[0] == "-Debug")
+                    loglevel = Log.LogLevel.Debug;
+
+                if (cmdLineArgs[1] == "-debugcapture" || cmdLineArgs[1] == "-debugCapture" || cmdLineArgs[0] == "-DebugCapture")
+                    loglevel = Log.LogLevel.DebugCapture;
+
+                if (cmdLineArgs[1] == "-debugall" || cmdLineArgs[1] == "-debugAll" || cmdLineArgs[0] == "-DebugAll")
+                    loglevel = Log.LogLevel.All;
+
+            }
+
+            Log.StartLog(loglevel);
+
             //This tries to read the settings from "settings.bin", if it failes the settings stay at default values.
             try
             {
@@ -81,6 +103,7 @@ namespace KinectServer
             }
             catch (Exception)
             {
+                Log.LogWarning("Could not read settings. Reverting to default settings");
             }
 
             oServer = new KinectServer(oSettings);
@@ -106,6 +129,9 @@ namespace KinectServer
 
             oServer.StopServer();
             oTransferServer.StopServer();
+
+            Log.LogInfo("Programm termined normally, exiting");
+            Log.CloseLog();
         }
 
         private void ClientConnectionChanged(List<KinectSocket> socketList)
@@ -135,12 +161,14 @@ namespace KinectServer
                 oServer.StartServer();
                 oTransferServer.StartServer();
                 btStart.Text = "Stop server";
+                Log.LogInfo("Starting Server");
             }
             else
             {
                 oServer.StopServer();
                 oTransferServer.StopServer();
                 btStart.Text = "Start server";
+                Log.LogInfo("Stopping Server");
             }
         }
 
@@ -179,10 +207,14 @@ namespace KinectServer
                 Stopwatch counter = new Stopwatch();
                 counter.Start();
 
+                Log.LogInfo("Starting Recording");
+
                 while (!worker.CancellationPending)
                 {
                     SetStatusBarOnTimer("Recording: " + counter.Elapsed.Minutes.ToString("D2") + ":" + counter.Elapsed.Seconds.ToString("D2"), 5000);
                 }
+
+                Log.LogInfo("Stopping Recording");
 
                 oServer.SendCaptureFramesStop();
                 counter.Stop();
@@ -194,12 +226,17 @@ namespace KinectServer
             {
                 int nCaptured = 0;
 
+                Log.LogInfo("Starting Network-synced recording");
+
                 while (!worker.CancellationPending)
                 {
                     oServer.CaptureSynchronizedFrame();
                     nCaptured++;
                     SetStatusBarOnTimer("Captured frame " + (nCaptured).ToString() + ".", 5000);
+                    Log.LogDebugCapture("Captured frame " + (nCaptured).ToString());
                 }
+
+                Log.LogInfo("Stopping Network-synced recording");
             }
 
             oServer.SendAndConfirmPostRecordProcess();
@@ -211,6 +248,7 @@ namespace KinectServer
             //After recording has been terminated it is time to begin sorting the frames.
             if (oServer.bTempHwSyncEnabled)
             {
+                Log.LogInfo("Starting to synchronize recording");
                 SetStatusBarOnTimer("Synchronizing recording. This could take some time", 5000);
                 syncWorker.RunWorkerAsync();
             }
@@ -218,6 +256,7 @@ namespace KinectServer
             //If sync wasn't enabled, we go straight to saving the files
             else
             {
+                Log.LogInfo("Synchronisation not needed, skipping");
                 SetStatusBarOnTimer("Recording completed!", 2000);
                 StartSaving();
             }
@@ -232,6 +271,7 @@ namespace KinectServer
             {
                 if (!oServer.GetTimestampLists())
                 {
+                    Log.LogError("Could not get Timestamp List. Saved recording is unsychronized!");
                     SetStatusBarOnTimer("Could not get Timestamp List. Saved recording is unsychronized!", 5000);
                 }
 
@@ -239,6 +279,7 @@ namespace KinectServer
                 {
                     if (!oServer.CreatePostSyncList())
                     {
+                        Log.LogError("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
                         SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!", 5000);
                     }
 
@@ -246,11 +287,13 @@ namespace KinectServer
                     {
                         if (!oServer.ReorderSyncFramesOnClient())
                         {
+                            Log.LogError("Could not reorganize files for sync on at least one device!");
                             SetStatusBarOnTimer("Could not reorganize files for sync on at least one device!", 5000);
                         }
 
                         else
                         {
+                            Log.LogInfo("Sync successfull!");
                             SetStatusBarOnTimer("Sync sucessfull", 5000);
                             synced = true;
                         }
@@ -275,6 +318,8 @@ namespace KinectServer
         //Opens the live view window
         private void OpenGLWorker_DoWork(object sender, DoWorkEventArgs e)
         {
+            Log.LogInfo("Live View started");
+
             bLiveViewRunning = true;
             oOpenGLWindow = new OpenGLWindow();
 
@@ -293,6 +338,7 @@ namespace KinectServer
 
         private void OpenGLWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            Log.LogInfo("Live view stopped");
             bLiveViewRunning = false;
             updateWorker.CancelAsync();
         }
@@ -316,6 +362,9 @@ namespace KinectServer
 
         private void savingWorker_DoWork(object sender, DoWorkEventArgs e)
         {
+            Log.LogInfo("Start saving Pointcloud frames");
+            Log.LogInfo("Merging Pointclouds: " + oSettings.bMergeScansForSave);
+
             //Saving is downloading the frames from clients and saving them locally.
             int nFrames = 0;
 
@@ -354,6 +403,7 @@ namespace KinectServer
                 List<byte> lFrameBGR = new List<byte>();
                 List<Single> lFrameVerts = new List<Single>();
 
+                Log.LogDebugCapture("Saving frame " + (nFrames).ToString());
                 SetStatusBarOnTimer("Saving frame " + (nFrames).ToString() + ".", 5000);
                 for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
                 {
@@ -381,6 +431,7 @@ namespace KinectServer
 
         private void savingWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            Log.LogInfo("Saving complete!");
             oServer.ClearStoredFrames();
             bSaving = false;
 
@@ -389,6 +440,7 @@ namespace KinectServer
 
         private void CaptureComplete()
         {
+            Log.LogInfo("Capture has been completed!");
             //If the live view window was open, we need to restart the UpdateWorker.
             if (bLiveViewRunning)
                 RestartUpdateWorker();
@@ -415,6 +467,7 @@ namespace KinectServer
                 timer.Start();
 
                 oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
+                Log.LogDebugCapture("Getting latest frame for live view");
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.
                 lock (lAllVertices)
@@ -454,6 +507,8 @@ namespace KinectServer
                 SetStatusBarOnTimer("Not all of the devices are calibrated.", 5000);
                 return;
             }
+
+            Log.LogInfo("Start ICP refinement");
 
             //Download a frame from each client.
             List<List<float>> lAllFrameVertices = new List<List<float>>();
@@ -551,6 +606,7 @@ namespace KinectServer
 
         private void refineWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            Log.LogInfo("ICP refinement done");
             //Re-enable all of the buttons after refinement.
             btRefineCalib.Enabled = true;
             btCalibrate.Enabled = true;
@@ -563,6 +619,8 @@ namespace KinectServer
             //If we are saving frames right now, this button stops saving.
             if (bSaving)
             {
+                Log.LogInfo("User terminated frame saving");
+
                 btRecord.Enabled = false;
                 savingWorker.CancelAsync();
                 return;
@@ -582,10 +640,13 @@ namespace KinectServer
 
                     if (!oServer.CheckTempHwSyncValid())
                     {
+                        Log.LogWarning("User started recording, but temp sync hardware setup is not valid");
                         SetStatusBarOnTimer("Temporal Hardware Sync Setup not valid! Please check arrangement", 5000);
                         return;
                     }
                 }
+
+                Log.LogInfo("Starting Recording");
 
                 //Stop the update worker to reduce the network usage (provides better synchronization).
                 updateWorker.CancelAsync();
@@ -602,6 +663,7 @@ namespace KinectServer
 
                 else if (takePath == null)
                 {
+                    Log.LogError("Could not create take directory on either the server or the client, aborting recording");
                     SetStatusBarOnTimer("Error: Couldn't create take directory on either the server or the clients", 5000);
                     bRecording = false;
                     return;
@@ -617,6 +679,7 @@ namespace KinectServer
             }
             else
             {
+                Log.LogInfo("Stopping recording");
                 btRecord.Enabled = false;
                 recordingWorker.CancelAsync();
             }
@@ -625,6 +688,7 @@ namespace KinectServer
 
         private void btCalibrate_Click(object sender, EventArgs e)
         {
+            Log.LogInfo("Starting Calibration");
             oServer.Calibrate();
         }
 

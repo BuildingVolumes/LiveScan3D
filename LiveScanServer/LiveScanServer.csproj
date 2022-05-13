@@ -61,6 +61,7 @@
     <Compile Include="KinectConfigurationForm.Designer.cs">
       <DependentUpon>KinectConfigurationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Log.cs" />
     <Compile Include="MainWindowForm.cs">
       <SubType>Form</SubType>
     </Compile>

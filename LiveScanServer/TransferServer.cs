@@ -94,7 +94,7 @@ namespace KinectServer
                 }
                 catch (SocketException e)
                 {
-                    Console.WriteLine(e.ToString());
+                    Log.LogError("Error accepting TCP Client");
                 }
                 allDone.WaitOne();
             }

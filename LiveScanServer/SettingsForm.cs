@@ -105,16 +105,21 @@ namespace KinectServer
 
                 //TODO: Currently, the UI doesn't update as it stalls the thread. How can I get this to work without stalling it?
 
+                Log.LogDebug("Updating settings on clients");
+
                 if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled)
                 {
                     if (chHardwareSync.Checked)
                     {
                         chHardwareSync.Checked = oServer.EnableTemporalSync();
+                        Log.LogDebug("Hardware sync is set on by the user");
                     }
 
                     else
                     {
                         chHardwareSync.Checked = !oServer.DisableTemporalSync();
+                        Log.LogDebug("Hardware sync is set off by the user");
+
                     }
                 }
 

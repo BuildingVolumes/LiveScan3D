@@ -116,13 +116,13 @@ namespace KinectServer
         {
             if (allDeviceSyncData.Count < 2) //We need at least two clients for syncing
             {
-                Console.WriteLine("Error! At least two clients are needed for syncing!");
+                Log.LogWarning("At least two clients are needed for post syncing!");
                 return null;
             }
 
             if (!CheckForRoughTemporalCoherency(33333, allDeviceSyncData, 10))
             {
-                Console.WriteLine("Error! Timestamps don't align! Check your temporal sync setup and if all devices have the same firmware!");
+                Log.LogError("Postsync: Timestamps don't align! Check your temporal sync setup and if all devices have the same firmware!");
                 return null;
             }
 
@@ -202,9 +202,20 @@ namespace KinectServer
                 }
             }
 
+            if(Log.GetLogLevel() == Log.LogLevel.All)
+            {
+                Log.LogTrace("Saving Postsync log of all grouped frames before sorting");
+                LogGroupedFrameData(allGroupedFrames);
+            }
 
             //Sort all grouped frames by their timestamp
             allGroupedFrames.Sort((x, y) => x.minTimestamp.CompareTo(y.minTimestamp));
+
+            if (Log.GetLogLevel() == Log.LogLevel.All)
+            {
+                Log.LogTrace("Saving Postsync log of all grouped frames after sorting");
+                LogGroupedFrameData(allGroupedFrames);
+            }
 
             //Create a new List for each device, which tells it how to sync it's own frames 
             List<ClientSyncData> postSyncedData = new List<ClientSyncData>();
@@ -240,6 +251,12 @@ namespace KinectServer
                         postSyncedData[k].frames.Add(new SyncFrame(-1, k, i));
                     }
                 }
+            }
+
+            if (Log.GetLogLevel() == Log.LogLevel.All)
+            {
+                Log.LogTrace("Saving detailed Postsync log:");
+                LogSyncData(postSyncedData);
             }
 
             return postSyncedData;
@@ -293,6 +310,7 @@ namespace KinectServer
             }
 
             File.WriteAllText("PostSyncDataForClientsLog.txt", text);
+            Log.LogTrace("Saving Post Sync Log Data to: PostSyncDataForClientsLog.txt");
         }
 
         /// <summary>
@@ -316,6 +334,7 @@ namespace KinectServer
             }
 
             File.WriteAllText("PostSyncGroupedFramesLog.txt", text);
+            Log.LogTrace("Saving Post Sync Grouped Log Data to: PostSyncDataForClientsLog.txt");
         }
     }     
 }

@@ -159,6 +159,8 @@ namespace KinectServer
     {
         public static void saveToPly(string filename, List<Single> vertices, List<byte> colors, EColorMode colorMode,bool binary)
         {
+            Log.LogDebugCapture("Saving .ply frame: " + filename);
+
             int nVertices = vertices.Count / 3;
 
             FileStream fileStream = File.Open(filename, FileMode.Create);
@@ -226,6 +228,8 @@ namespace KinectServer
 
         public static void SaveExtrinsics(KinectSettings.ExtrinsicsStyle extrinsicsStyle, string filePath, List<KinectSocket> kinectSockets)
         {
+            Log.LogInfo("Saving Extrinsics to: " + filePath);
+
             switch (extrinsicsStyle)
             {
                 case KinectSettings.ExtrinsicsStyle.None:
