@@ -19,5 +19,7 @@ namespace LiveScanPlayer
         void JumpToFrame(int frameIdx);
 
         void Rewind();
+
+        void CloseReader();
     }
 }

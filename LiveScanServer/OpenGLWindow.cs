@@ -48,6 +48,7 @@ public class ViewportSettings
         markerVisibility = true;
         targetPlaybackFPS = 30;
         externalFPSCounter = -1;
+        colorMode = EColorMode.RGB;
     }
 }
 
@@ -61,7 +62,9 @@ namespace KinectServer
         VertexC4ubV3f[] VBO;
         float PointSize = 0.0f;
         ECameraMode CameraMode = ECameraMode.CAMERA_NONE;
-        float averageFPS = 60;
+        float averageFPS = 30;
+        float fpsUpdateFrequency = 0.5f;
+        float fpsUpdateCounter = 0;
 
         static float KEYBOARD_MOVE_SPEED = 0.01f;
 
@@ -341,9 +344,18 @@ namespace KinectServer
         {
             if(viewportSettings.externalFPSCounter == -1)
             {
-                float smoothing = 0.2f; // larger=more smoothing
-                averageFPS = (averageFPS * smoothing) + ((float)RenderFrequency * (1.0f - smoothing));
-                this.Title = "FPS: " + (int)averageFPS;
+                //TODO: FPS frequency is pretty unreliable and should be tied to the update background worker
+
+                float smoothing = 0.8f; // larger=more smoothing
+                averageFPS = (averageFPS * smoothing) + ((float)UpdateFrequency * (1.0f - smoothing));
+
+                if (fpsUpdateCounter > fpsUpdateFrequency)
+                {
+                    this.Title = "FPS: " + (int)averageFPS;
+                    fpsUpdateCounter = 0f;
+                }
+
+                fpsUpdateCounter += (float)RenderTime;
             }
             
             else

@@ -19,11 +19,6 @@ namespace LiveScanPlayer
             binaryReader = new BinaryReader(File.Open(this.filename, FileMode.Open));
         }
 
-        ~FrameFileReaderBin()
-        {
-            binaryReader.Dispose();
-        }
-
         public int frameIdx
         {
             get
@@ -72,8 +67,12 @@ namespace LiveScanPlayer
                 for (int j = 0; j < 3; j++)
                 {
                     vertices.Add(tempVertices[3 * i + j] / 1000.0f);
-                    colors.Add(tempColors[4 * i + j]);
-                }                    
+                }
+
+                //We convert from BGR colorspace to RGB colorspace
+                colors.Add(tempColors[4 * i + 2]);
+                colors.Add(tempColors[4 * i + 1]);
+                colors.Add(tempColors[4 * i + 0]);
             }
 
             binaryReader.ReadByte();
@@ -96,6 +95,12 @@ namespace LiveScanPlayer
         {
             currentFrameIdx = 0;
             binaryReader.BaseStream.Seek(0, SeekOrigin.Begin);
+        }
+
+        public void CloseReader()
+        {
+            binaryReader.Close();
+            binaryReader.Dispose();
         }
 
         public string ReadLine()

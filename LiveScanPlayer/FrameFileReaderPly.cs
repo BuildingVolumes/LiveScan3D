@@ -90,6 +90,11 @@ namespace LiveScanPlayer
             currentFrameIdx = 0;
         }
 
+        public void CloseReader()
+        {
+            //Not needed here
+        }
+
         public string ReadLine(BinaryReader binaryReader)
         {
             StringBuilder builder = new StringBuilder();

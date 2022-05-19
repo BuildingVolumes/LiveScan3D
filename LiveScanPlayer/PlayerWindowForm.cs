@@ -20,6 +20,7 @@ namespace LiveScanPlayer
 
         BindingList<IFrameFileReader> lFrameFiles = new BindingList<IFrameFileReader>();
         bool bPlayerRunning = false;
+        bool bPaused = false;
 
         List<float> lAllVertices = new List<float>();
         List<byte> lAllColors = new List<byte>();
@@ -37,8 +38,6 @@ namespace LiveScanPlayer
         {
             InitializeComponent();
 
-            //oTransferServer.lVertices = lAllVertices;
-            //oTransferServer.lColors = lAllColors;
             viewportSettings.targetPlaybackFPS = (int)nUDFramerate.Value;
             lFrameFilesListView.Columns.Add("Current frame", 75);
             lFrameFilesListView.Columns.Add("Filename", 300);
@@ -46,7 +45,7 @@ namespace LiveScanPlayer
 
         private void PlayerWindowForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            bPlayerRunning = false;
+            StopUpdateWorker();
             //oTransferServer.StopServer();
         }
 
@@ -77,15 +76,13 @@ namespace LiveScanPlayer
 
                     var item = new ListViewItem(new[] { "0", dialog.FileNames[i] });
                     lFrameFilesListView.Items.Add(item);
-
-                    //.bin files use BGR color mode
-                    viewportSettings.colorMode = EColorMode.BGR;
                 }
             }
         }
 
         private void btnSelectPly_Click(object sender, EventArgs e)
         {
+
             OpenFileDialog dialog = new OpenFileDialog();
             dialog.Multiselect = true;
             dialog.Filter = "ply files (*.ply) |*.ply";
@@ -109,9 +106,6 @@ namespace LiveScanPlayer
 
                 var item = new ListViewItem(new[] { "0", Path.GetDirectoryName(dialog.FileNames[0]) });
                 lFrameFilesListView.Items.Add(item);
-
-                //Pointclouds use RGB color mode
-                viewportSettings.colorMode = EColorMode.RGB;
             }
         }
 
@@ -122,19 +116,28 @@ namespace LiveScanPlayer
                 if (lFrameFiles.Count == 0)
                     return;
             }
-            
 
-            bPlayerRunning = !bPlayerRunning;
+            if (bPlayerRunning && bPaused)
+            {
+                btStart.Text = "Pause";
+                bPaused = false;
+                return;
+            }
 
-            if (bPlayerRunning)
+            if (bPlayerRunning && !bPaused)
+            {
+                bPaused = true;
+                btStart.Text = "Play";
+                return;
+            }
+
+            if (!bPlayerRunning)
             {
                 updateWorker.RunWorkerAsync();
                 btStart.Text = "Pause";
-            }
-            else
-            {
-                btStart.Text = "Play";
-                eUpdateWorkerFinished.WaitOne();
+                bPlayerRunning = true;
+                bPaused = false;
+                return;
             }
         }
 
@@ -147,8 +150,11 @@ namespace LiveScanPlayer
             {
                 int idx = lFrameFilesListView.SelectedIndices[0];
                 lFrameFilesListView.Items.RemoveAt(idx);
+                lFrameFiles[idx].CloseReader();
                 lFrameFiles.RemoveAt(idx);
             }
+
+            return;
         }
 
         private void btRewind_Click(object sender, EventArgs e)
@@ -161,6 +167,8 @@ namespace LiveScanPlayer
                     lFrameFilesListView.Items[i].Text = "0";
                 }
             }
+
+            ClearAllFrames();
         }
 
         private void btShow_Click(object sender, EventArgs e)
@@ -179,51 +187,73 @@ namespace LiveScanPlayer
 
             Stopwatch stopwatch = new Stopwatch();
 
-            while (bPlayerRunning)
+            BackgroundWorker worker = (BackgroundWorker)sender;
+
+            while (!worker.CancellationPending)
             {
                 if(openGLWindow != null)
                 {
-                    if (openGLWindow.GetBufferEmpty())
+                    if (!bPaused)
                     {
-                        List<float> tempAllVertices = new List<float>();
-                        List<byte> tempAllColors = new List<byte>();
-
-                        lock (lFrameFiles)
+                        if (openGLWindow.GetBufferEmpty())
                         {
-                            for (int i = 0; i < lFrameFiles.Count; i++)
+                            List<float> tempAllVertices = new List<float>();
+                            List<byte> tempAllColors = new List<byte>();
+
+                            lock (lFrameFiles)
                             {
-                                List<float> vertices = new List<float>();
-                                List<byte> colors = new List<byte>();
-                                lFrameFiles[i].ReadFrame(vertices, colors);
+                                for (int i = 0; i < lFrameFiles.Count; i++)
+                                {
+                                    List<float> vertices = new List<float>();
+                                    List<byte> colors = new List<byte>();
+                                    lFrameFiles[i].ReadFrame(vertices, colors);
 
-                                tempAllVertices.AddRange(vertices);
-                                tempAllColors.AddRange(colors);
+                                    tempAllVertices.AddRange(vertices);
+                                    tempAllColors.AddRange(colors);
+                                }
                             }
+
+                            try
+                            {
+                                this.Invoke((MethodInvoker)delegate { this.UpdateDisplayedFrameIndices(); });
+                            }
+
+                            catch(Exception ex)
+                            {
+                                //Can happen when the windows form is closing
+                            }
+
+                            lock (lAllVertices)
+                            {
+                                lAllVertices.Clear();
+                                lAllColors.Clear();
+                                lAllVertices.AddRange(tempAllVertices);
+                                lAllColors.AddRange(tempAllColors);
+                            }
+
+                            if (chSaveFrames.Checked)
+                                SaveCurrentFrameToFile(outDir, curFrameIdx);
+
+
+                            curFrameIdx++;
+
+                            openGLWindow.SetBufferEmpty(false);
                         }
-
-                        this.Invoke((MethodInvoker)delegate { this.UpdateDisplayedFrameIndices(); });
-
-                        lock (lAllVertices)
-                        {
-                            lAllVertices.Clear();
-                            lAllColors.Clear();
-                            lAllVertices.AddRange(tempAllVertices);
-                            lAllColors.AddRange(tempAllColors);
-                        }
-
-                        if (chSaveFrames.Checked)
-                            SaveCurrentFrameToFile(outDir, curFrameIdx);
-
-
-                        curFrameIdx++;
-
-                        openGLWindow.SetBufferEmpty(false);
                     }
                 }
                              
             }
+        }
 
-            eUpdateWorkerFinished.Set();
+        private void StopUpdateWorker()
+        {
+            if (bPlayerRunning)
+            {
+                bPlayerRunning = false;
+                bPaused = false;
+                btStart.Text = "Play";
+                updateWorker.CancelAsync();
+            }
         }
 
         private void OpenGLWorker_DoWork(object sender, DoWorkEventArgs e)
@@ -273,6 +303,15 @@ namespace LiveScanPlayer
 
         }
 
+        private void ClearAllFrames()
+        {
+            lock (lAllVertices)
+            {
+                lAllVertices.Clear();
+                lAllColors.Clear();
+            }
+        }
+
         private void UpdateDisplayedFrameIndices()
         {
             lock (lFrameFiles)
@@ -312,11 +351,11 @@ namespace LiveScanPlayer
 
         private void tbBrightness_Scroll(object sender, EventArgs e)
         {
-            int brightness = tbBrightness.Value * 10;
+            int brightness = tbBrightness.Value * 7;
             brightness = Math.Min(255, brightness);
             brightness = Math.Max(0, brightness);
 
-            viewportSettings.brightness = tbBrightness.Value;
+            viewportSettings.brightness = brightness;
         }
 
         private void chShowGizmos_CheckedChanged(object sender, EventArgs e)
