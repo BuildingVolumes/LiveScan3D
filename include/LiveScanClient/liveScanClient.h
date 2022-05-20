@@ -51,6 +51,7 @@ private:
 	bool m_bConfirmPreRecordingProcess;
 	bool m_bStartPostRecordingProcess;
 	bool m_bConfirmPostRecordingProcess;
+	bool m_bSaveCalibration;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bConfirmCalibrated;
@@ -138,7 +139,6 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	bool Reinit();
 	bool InitializeCamera();
 	bool CloseCamera();
 	void SendPostSyncConfirmation(bool success);

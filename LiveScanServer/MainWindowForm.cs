@@ -272,7 +272,7 @@ namespace KinectServer
                 if (!oServer.GetTimestampLists())
                 {
                     Log.LogError("Could not get Timestamp List. Saved recording is unsychronized!");
-                    SetStatusBarOnTimer("Could not get Timestamp List. Saved recording is unsychronized!", 5000);
+                    ShowWarningWindow("Could not get Timestamp List. Saved recording is unsychronized!");
                 }
 
                 else
@@ -280,7 +280,7 @@ namespace KinectServer
                     if (!oServer.CreatePostSyncList())
                     {
                         Log.LogError("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
-                        SetStatusBarOnTimer("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!", 5000);
+                        ShowWarningWindow("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
                     }
 
                     else
@@ -288,7 +288,7 @@ namespace KinectServer
                         if (!oServer.ReorderSyncFramesOnClient())
                         {
                             Log.LogError("Could not reorganize files for sync on at least one device!");
-                            SetStatusBarOnTimer("Could not reorganize files for sync on at least one device!", 5000);
+                            ShowWarningWindow("Could not reorganize files for sync on at least one device!");
                         }
 
                         else
@@ -485,7 +485,11 @@ namespace KinectServer
                     lAllCameraPoses.AddRange(oServer.lCameraPoses);
 
                     timer.Stop();
-                    viewportSettings.externalFPSCounter = (int)(1000 / timer.ElapsedMilliseconds);
+
+                    if (timer.ElapsedMilliseconds > 0)
+                        viewportSettings.externalFPSCounter = (int)(1000 / timer.ElapsedMilliseconds);
+                    else
+                        viewportSettings.externalFPSCounter = 0;
                 }
             }
         }
@@ -504,7 +508,7 @@ namespace KinectServer
         {
             if (oServer.bAllCalibrated == false)
             {
-                SetStatusBarOnTimer("Not all of the devices are calibrated.", 5000);
+                ShowWarningWindow("Not all of the devices are calibrated");
                 return;
             }
 
@@ -626,12 +630,11 @@ namespace KinectServer
                 return;
             }
 
-            bRecording = !bRecording;
-            if (bRecording)
+            if (!bRecording)
             {
                 if (oServer.nClientCount < 1)
                 {
-                    SetStatusBarOnTimer("At least one client needs to be connected for recording.", 5000);
+                    ShowInfoWindow("At least one client needs to be connected for recording.");
                     return;
                 }
 
@@ -641,12 +644,10 @@ namespace KinectServer
                     if (!oServer.CheckTempHwSyncValid())
                     {
                         Log.LogWarning("User started recording, but temp sync hardware setup is not valid");
-                        SetStatusBarOnTimer("Temporal Hardware Sync Setup not valid! Please check arrangement", 5000);
+                        ShowWarningWindow("Temporal Hardware Sync Setup not valid! Please check cable arrangement");
                         return;
                     }
                 }
-
-                Log.LogInfo("Starting Recording");
 
                 //Stop the update worker to reduce the network usage (provides better synchronization).
                 updateWorker.CancelAsync();
@@ -664,7 +665,7 @@ namespace KinectServer
                 else if (takePath == null)
                 {
                     Log.LogError("Could not create take directory on either the server or the client, aborting recording");
-                    SetStatusBarOnTimer("Error: Couldn't create take directory on either the server or the clients", 5000);
+                    ShowWarningWindow("Error: Couldn't create take directory on either the server or the clients");
                     bRecording = false;
                     return;
                 }
@@ -672,13 +673,17 @@ namespace KinectServer
                 //Store the camera extrinsics
                 Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, takePath, oServer.GetClientSocketsCopy());
 
+                bRecording = true;
                 recordingWorker.RunWorkerAsync();
                 btRecord.Text = "Stop recording";
                 btRefineCalib.Enabled = false;
                 btCalibrate.Enabled = false;
+                Log.LogInfo("Starting Recording");
+
             }
             else
             {
+                bRecording = false;
                 Log.LogInfo("Stopping recording");
                 btRecord.Enabled = false;
                 recordingWorker.CancelAsync();
@@ -701,7 +706,7 @@ namespace KinectServer
         {
             if (oServer.nClientCount < 2)
             {
-                SetStatusBarOnTimer("To refine calibration you need at least 2 connected devices.", 5000);
+                ShowInfoWindow("To refine calibration you need at least 2 connected devices.");
                 return;
             }
 
@@ -753,6 +758,30 @@ namespace KinectServer
                 Invoke(new Action(() => { statusLabel.Text = ""; }));
             };
             oStatusBarTimer.Start();
+        }
+
+        public void ShowInfoWindow(string message)
+        {
+            Invoke(new Action(() =>
+            {
+                MessageBox.Show(message, "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }));
+        }
+
+        public void ShowWarningWindow(string message)
+        {
+            Invoke(new Action(() => 
+            {
+                MessageBox.Show(message, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }));
+        }
+
+        public void ShowErrorWindow(string message)
+        {
+            Invoke(new Action(() =>
+            {
+                MessageBox.Show(message, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }));
         }
 
         //Updates the ListBox contaning the connected clients, called by events inside KinectServer.

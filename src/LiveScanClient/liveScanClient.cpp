@@ -95,6 +95,7 @@ LiveScanClient::LiveScanClient() :
 	m_bCapturing(false),
 	m_bStartPreRecordingProcess(false),
 	m_bStartPostRecordingProcess(false),
+	m_bSaveCalibration(false),
 	m_bConnected(false),
 	m_bConfirmCaptured(false),
 	m_bConfirmCalibrated(false),
@@ -265,6 +266,12 @@ void LiveScanClient::UpdateFrame()
 		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
 		m_bRequestConfiguration = false;
 		m_bSendConfiguration = true;
+	}
+
+	if (m_bSaveCalibration)
+	{
+		calibration.SaveCalibration(configuration.serialNumber);
+		m_bSaveCalibration = false;
 	}
 
 	//Updates global settings on the device
@@ -640,7 +647,7 @@ void LiveScanClient::Calibrate()
 	if (res)
 	{
 		log.LogInfo("Calibration Successfull");
-		calibration.SaveCalibration(pCapture->serialNumber);
+		calibration.SaveCalibration(configuration.serialNumber);
 		m_bConfirmCalibrated = true;
 		m_bCalibrate = false;
 	}
@@ -1037,6 +1044,10 @@ void LiveScanClient::HandleSocket()
 
 			//so that we do not lose the next character in the stream
 			i--;
+
+			//We save the refined calibration data into a file
+			m_bSaveCalibration = true;
+
 		}
 		else if (received[i] == MSG_CLEAR_STORED_FRAMES)
 		{
@@ -1124,7 +1135,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCalibrated)
 	{
-		log.LogTrace("Sending calibration confirmed");
+		log.LogTrace("Sending calibration");
 
 		int size = (9 + 3) * sizeof(float) + sizeof(int) + 1;
 		char* buffer = new char[size];
@@ -1497,7 +1508,6 @@ void LiveScanClient::WriteIPToFile()
 
 	log.LogDebug(lastUsedIPAddress);
 }
-
 
 
 bool LiveScanClient::PostSyncPointclouds()

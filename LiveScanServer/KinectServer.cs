@@ -340,7 +340,7 @@ namespace KinectServer
 
             if (!socket.bConfigurationReceived)
             {
-                fMainWindowForm?.SetStatusBarOnTimer("Could not confirm configuration file, please check your network", 5000);
+                fMainWindowForm?.ShowWarningWindow("Could not confirm configuration file, please check your network");
                 Log.LogError("Client did not confirm that it has received configuration file");
                 return false;
             }
@@ -394,7 +394,7 @@ namespace KinectServer
                 if (clients[i].bCameraError)
                 {
                     Log.LogError("Camera close failed on a least one client");
-                    fMainWindowForm?.SetStatusBarOnTimer("Could not close a kinect. Please reconnect the client and try again:", 10000);
+                    fMainWindowForm?.ShowWarningWindow("Could not close a kinect. Please reconnect the client and try again");
                     clients[i].UpdateSocketState(" Close failed! ");
                     cameraError = true;
                 }
@@ -451,7 +451,7 @@ namespace KinectServer
                 if (clients[i].bCameraError)
                 {
                     Log.LogError("Could not initialize at least one camera on client");
-                    fMainWindowForm?.SetStatusBarOnTimer("Could not initialize a kinect. Please reconnect the client and try again:", 10000);
+                    fMainWindowForm?.ShowWarningWindow("Could not initialize a kinect. Please reconnect the client and try again");
                     clients[i].UpdateSocketState(" Initialization failed! ");
                     cameraError = true;
                 }
@@ -505,7 +505,7 @@ namespace KinectServer
             if (!CloseClient(lClientSockets))
             {
                 Log.LogError("Could not close one or more client cameras");
-                fMainWindowForm?.SetStatusBarOnTimer("Could not close one or more clients. Please try again:", 10000);
+                fMainWindowForm?.ShowWarningWindow("Could not close one or more clients. Please try again");
                 return false;
             }
 
@@ -513,7 +513,7 @@ namespace KinectServer
             if (!InitializeClient(subordinates))
             {
                 Log.LogError("Could not initialize one or more subordinate cameras");
-                fMainWindowForm?.SetStatusBarOnTimer("Could not restart one or more subordinate cameras. Please try again:", 10000);
+                fMainWindowForm?.ShowWarningWindow("Could not restart one or more subordinate cameras. Please try again");
                 return false;
             }
 
@@ -521,7 +521,7 @@ namespace KinectServer
             if (!InitializeClient(main))
             {
                 Log.LogError("Could not initalize main camera");
-                fMainWindowForm?.SetStatusBarOnTimer("Could not restart main camera. Please try again:", 10000);
+                fMainWindowForm?.ShowWarningWindow("Could not restart main camera. Please try again");
                 return false;
             }
 
@@ -577,7 +577,7 @@ namespace KinectServer
 
             else
             {
-                fMainWindowForm?.SetStatusBarOnTimer("At least two client are needed for temporal hardware sync", 5000);
+                fMainWindowForm?.ShowInfoWindow("At least two client are needed for temporal hardware sync");
                 return false;
             }
         }
@@ -644,7 +644,7 @@ namespace KinectServer
                     {
                         //If not, we show a error message
                         Log.LogError("Temporal sync cables are not propery connected");
-                        fMainWindowForm?.SetStatusBarOnTimer("Temporal Sync cables not connected properly", 5000);
+                        fMainWindowForm?.ShowWarningWindow("Temporal Sync cables not connected properly");
                         return false;
                     }
                 }
@@ -747,7 +747,7 @@ namespace KinectServer
             if (takeIndex == -1)
             {
                 Log.LogError("Error reading takes.json");
-                fMainWindowForm.SetStatusBarOnTimer("Error reading takes.json. Please check or delete file", 5000);
+                fMainWindowForm.ShowWarningWindow("Error reading takes.json. Please check or delete file");
                 return null;
             }
 
@@ -930,7 +930,7 @@ namespace KinectServer
                     if (!kinects[i].bConfigurationReceived)
                     {
                         Log.LogError("Could not get configuration from client number: " + (i+1));
-                        fMainWindowForm?.SetStatusBarOnTimer("Could not update configuration file, please check your network", 5000);
+                        fMainWindowForm?.ShowWarningWindow("Could not update configuration on one client, please check your network");
                         return false;
                     }
                 }
@@ -1231,14 +1231,16 @@ namespace KinectServer
             // Signal main thread to go ahead
             allDone.Set();
 
+            KinectSocket newClient = new KinectSocket(newSocket);
+
             //we do not want to add new clients while a frame is being requested
             lock (oFrameRequestLock)
             {
                 lock (oClientSocketLock)
                 {
                     Log.LogInfo("New client connected!");
-                    lClientSockets.Add(new KinectSocket(newSocket));
-                    lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
+                    lClientSockets.Add(newClient);
+                    newClient.eChanged += new SocketChangedHandler(SocketListChanged);
 
                     if (eSocketListChanged != null)
                     {
@@ -1247,18 +1249,15 @@ namespace KinectServer
                 }
 
                 //Sending the initial configuration and settings to the device.
-                lClientSockets[lClientSockets.Count - 1].UpdateSocketState("Configuring...");
+                newClient.UpdateSocketState("Configuring...");
 
-                if (!GetConfigurations(new List<KinectSocket>() { lClientSockets[lClientSockets.Count - 1] }))
+                if (!GetConfigurations(new List<KinectSocket>() { newClient }))
                 {
-                    DisconnectClient(lClientSockets[lClientSockets.Count - 1]);
-                    Log.LogError("New client could not be configured");
-                    fMainWindowForm.SetStatusBarOnTimer("Client couldn't be configured, please reconnect", 5000);
+                    FatalClientError("Client could not be configured, please reconnect", "Could not configure client");
                     return;
                 }
 
-                KinectConfiguration newConfig = lClientSockets[lClientSockets.Count - 1].configuration;
-
+                KinectConfiguration newConfig = newClient.configuration;
 
                 //Find a global device index that is unique
                 bool found = false;
@@ -1280,26 +1279,54 @@ namespace KinectServer
 
                 newConfig.globalDeviceIndex = (byte)uniqueIndex;
 
-                if (!SetAndConfirmConfig(lClientSockets[lClientSockets.Count - 1], newConfig))
+                if (!SetAndConfirmConfig(newClient, newConfig))
                 {
-                    DisconnectClient(lClientSockets[lClientSockets.Count - 1]);
-                    Log.LogError("New client could not be configured");
-                    fMainWindowForm.SetStatusBarOnTimer("Client couldn't be configured, please reconnect", 5000);
+                    FatalClientError("Client could not be configured, please reconnect", "Could not configure client");
                     return;
                 }
 
-                lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
+                newClient.SendSettings(oSettings);
 
-                if (bTempHwSyncEnabled)
+                bool restartAsStandalone = false;
+
+                if (!bTempHwSyncEnabled && newConfig.eSoftwareSyncState != KinectConfiguration.SyncState.Standalone)
+                    restartAsStandalone = true;
+
+                if (SetTempSyncState(bTempHwSyncEnabled))
                 {
-                    Log.LogInfo("New client connected while temporal sync was active. Restarting all clients");
-
-                    if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
+                    if (restartAsStandalone)
                     {
-                        lClientSockets[lClientSockets.Count - 1].UpdateSocketState("");
+                        if(!CloseClient(newClient) || !InitializeClient(newClient))
+                        {
+                            FatalClientError("Could not restart new client to match temporal sync settings, please reconnect", "Could not close or open new client");
+                            return;
+                        }
+                    }
+
+                    else if (bTempHwSyncEnabled)
+                    {
+                        Log.LogInfo("New client connected while temporal sync was active. Restarting all clients");
+
+                        if (RestartWithTemporalSyncPattern())
+                        {
+                            newClient.UpdateSocketState("");
+                        }
                     }
                 }
+
+                else
+                {
+                    FatalClientError("Could not send Temp Sync State on client, please reconnect", "Could not set temp sync state on new client");
+                    return;
+                }
             }
+        }
+
+        private void FatalClientError(string userMessage, string logMessage)
+        {
+            Log.LogError(logMessage);
+            DisconnectClient(lClientSockets[lClientSockets.Count - 1]);
+            fMainWindowForm.ShowWarningWindow(userMessage);
         }
 
         private void DisconnectClient(KinectSocket client)
