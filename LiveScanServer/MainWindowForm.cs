@@ -107,7 +107,7 @@ namespace KinectServer
             }
 
             oServer = new KinectServer(oSettings);
-            oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
+            oServer.eSocketListChanged += new SocketListChangedHandler(UpdateClientGridView);
             oServer.eSocketListChanged += new SocketListChangedHandler(ClientConnectionChanged);
             oServer.SetMainWindowForm(this);
             oTransferServer = new TransferServer();
@@ -116,6 +116,9 @@ namespace KinectServer
             InitializeComponent();
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
 
+            oServer.StartServer();
+            oTransferServer.StartServer();
+            Log.LogInfo("Starting Server");
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -148,27 +151,6 @@ namespace KinectServer
                         oServer.fSettingsForm.DisableHardwareSyncButton();
                     }));
                 }                
-            }
-        }
-
-        //Starts the server
-        private void btStart_Click(object sender, EventArgs e)
-        {
-            bServerRunning = !bServerRunning;
-
-            if (bServerRunning)
-            {
-                oServer.StartServer();
-                oTransferServer.StartServer();
-                btStart.Text = "Stop server";
-                Log.LogInfo("Starting Server");
-            }
-            else
-            {
-                oServer.StopServer();
-                oTransferServer.StopServer();
-                btStart.Text = "Start server";
-                Log.LogInfo("Stopping Server");
             }
         }
 
@@ -784,46 +766,63 @@ namespace KinectServer
             }));
         }
 
-        //Updates the ListBox contaning the connected clients, called by events inside KinectServer.
-        private void UpdateListView(List<KinectSocket> socketList)
+        private void UpdateClientGridView(List<KinectSocket> socketList)
         {
-            List<string> listBoxItems = new List<string>();
+            List<string[]> gridViewRows = new List<string[]>();
 
             for (int i = 0; i < socketList.Count; i++)
-                listBoxItems.Add(socketList[i].sSocketState);
+            {
+                if (socketList[i].configuration != null)
+                {
+                  gridViewRows.Add(new string[]
+                  { 
+                    socketList[i].configuration.globalDeviceIndex.ToString(),
+                    socketList[i].configuration.SerialNumber,
+                    socketList[i].GetIP(),
+                    socketList[i].bCalibrated.ToString(),
+                    socketList[i].configuration.eSoftwareSyncState.ToString()
+                  });
+                }
 
+            }
 
             // Invoke UI logic on the same thread.
-            lClientListBox.BeginInvoke(new Action(() =>
+            gvClients.BeginInvoke(new Action(() =>
             {
-                lClientListBox.DataSource = listBoxItems;
+                gvClients.Rows.Clear();
+
+                foreach (string[] row in gridViewRows)
+                {
+                    gvClients.Rows.Add(row);
+                }
+
                 UpdateSettingsButtonEnabled();
             }));
-
         }
 
         private void btKinectSettingsOpenButton_Click(object sender, EventArgs e)
         {
-            if (lClientListBox.SelectedIndex == -1)
+            if (gvClients.SelectedRows.Count < 1)
             {
                 return;
             }
             //
-            KinectConfigurationForm form = oServer.GetKinectSettingsForm(lClientListBox.SelectedIndex);
+
+            KinectConfigurationForm form = oServer.GetKinectSettingsForm(gvClients.SelectedRows[0].Index);
             if (form == null)
             {
                 form = new KinectConfigurationForm();
             }
             //
-            form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
+            form.Configure(oServer, oSettings, gvClients.SelectedRows[0].Index);
             form.Show();
-            oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
+            oServer.SetKinectSettingsForm(gvClients.SelectedRows[0].Index, form);
         }
 
         private void UpdateSettingsButtonEnabled()
         {
-            //Disable the deviceSettings button when no items are selected or no items could be selected.
-            if (lClientListBox.SelectedIndex == -1 || lClientListBox.Items.Count == 0)
+            //Disable the device Settings button when no items are selected or no items could be selected.
+            if (gvClients.Rows.Count < 1)
             {
                 btKinectSettingsOpenButton.Enabled = false;
             }
@@ -833,9 +832,6 @@ namespace KinectServer
             }
         }
 
-        private void lClientListBox_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-        }
+        
     }
 }

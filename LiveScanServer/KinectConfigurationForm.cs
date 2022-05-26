@@ -34,7 +34,7 @@ namespace KinectServer
             this.socketID = socketID;
             kinectSocket = oServer.GetKinectSocketByIndex(socketID);
             kinectIDLabel.Text = kinectSocket.sSocketState;
-            Text = "Settings For " + kinectSocket.GetEndpoint();
+            Text = "Settings For " + kinectSocket.GetIP();
 
             kinectSocket.RequestConfiguration();
             kinectSocket.configurationUpdated += UpdateFormItemsFromConfiguration;
