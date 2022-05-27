@@ -29,11 +29,9 @@ namespace KinectServer
     {
         public KinectSettings oSettings;
         public KinectServer oServer;
-
-        private Timer scrollTimer = null;
-
         bool bFormLoaded = false;
-        bool settingsChanged = false;
+        bool bSendSettingsLock = false;
+
 
         public SettingsForm()
         {
@@ -54,27 +52,10 @@ namespace KinectServer
 
             cbCompressionLevel.SelectedText = oSettings.iCompressionLevel.ToString();
 
-            chMerge.Checked = oSettings.bMergeScansForSave;
             txtICPIters.Text = oSettings.nNumICPIterations.ToString();
             txtRefinIters.Text = oSettings.nNumRefineIters.ToString();
 
-            if (oServer != null)
-                chHardwareSync.Checked = oServer.bTempHwSyncEnabled;
-            else
-                chHardwareSync.Checked = false;
-
-            chNetworkSync.Checked = oSettings.bNetworkSync;
-
-            chAutoExposureEnabled.Checked = oSettings.bAutoExposureEnabled;
-            trManualExposure.Value = oSettings.nExposureStep;
-
-            cbExtrinsicsFormat.SelectedIndex = (int)oSettings.eExtrinsicsFormat;
-
-            rExportPointcloud.Checked = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud ? true : false;
-            rExportRawFrames.Checked = !rExportPointcloud.Checked;
-
-            cbEnablePreview.Checked = oSettings.bPreviewEnabled;
-
+            cbExtrinsicsFormat.SelectedIndex = (int)oSettings.eExtrinsicsFormat;          
 
             if (oSettings.bSaveAsBinaryPLY)
             {
@@ -87,66 +68,34 @@ namespace KinectServer
                 rAsciiPly.Checked = true;
             }
 
-            lApplyWarning.Text = "";
-            btApplyAllSettings.Enabled = false;
-
             bFormLoaded = true;
         }
 
         void UpdateClients()
         {
-            if (bFormLoaded && !UpdateClientsBackgroundWorker.IsBusy)
+            if (bFormLoaded && !UpdateClientsBackgroundWorker.IsBusy && !bSendSettingsLock)
             {
                 Cursor.Current = Cursors.WaitCursor;
 
                 oServer.SendSettings();
 
-                //Check if we need to restart the cameras
-
-                //TODO: Currently, the UI doesn't update as it stalls the thread. How can I get this to work without stalling it?
-
                 Log.LogDebug("Updating settings on clients");
 
-                if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled)
-                {
-                    if (chHardwareSync.Checked)
-                    {
-                        chHardwareSync.Checked = oServer.EnableTemporalSync();
-                        Log.LogDebug("Hardware sync is set on by the user");
-                    }
-
-                    else
-                    {
-                        chHardwareSync.Checked = !oServer.DisableTemporalSync();
-                        Log.LogDebug("Hardware sync is set off by the user");
-
-                    }
-                }
-
                 Cursor.Current = Cursors.Default;
-
-                btApplyAllSettings.Enabled = false;
-                lApplyWarning.Text = "";
             }
         }
 
         void SettingsChanged()
         {
-            settingsChanged = true;
-            UpdateApplyButton();
-        }
-
-        void UpdateApplyButton()
-        {
-            if (settingsChanged)
-            {
-                btApplyAllSettings.Enabled = true;
-                lApplyWarning.Text = "Changed settings are not yet applied!";
-            }
+            UpdateClients();
         }
 
         void UpdateMarkerFields()
         {
+            //Otherwise this would trigger the textbox_text_changed event, which would lead to updating the clients
+            //multiple times in a row
+            bSendSettingsLock = true;
+
             if (lisMarkers.SelectedIndex >= 0)
             {
                 MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
@@ -176,25 +125,8 @@ namespace KinectServer
 
                 txtId.Text = "";
             }
-        }
 
-        public void SetExposureControlsToManual(bool manual)
-        {
-            chAutoExposureEnabled.Enabled = !manual;
-            trManualExposure.Enabled = manual;
-            trManualExposure.Value = -5;
-            chAutoExposureEnabled.CheckState = CheckState.Unchecked;
-        }
-
-        public void DisableHardwareSyncButton()
-        {
-            if (chHardwareSync.Checked)
-            {
-                chHardwareSync.Checked = false;
-                chNetworkSync.Enabled = true;
-                UpdateClients();
-            }
-
+            bSendSettingsLock = false;
         }
 
         private void txtMinX_TextChanged(object sender, EventArgs e)
@@ -241,11 +173,6 @@ namespace KinectServer
         private void txtRefinIters_TextChanged(object sender, EventArgs e)
         {
             Int32.TryParse(txtRefinIters.Text, out oSettings.nNumRefineIters);
-        }
-
-        private void chMerge_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bMergeScansForSave = chMerge.Checked;
         }
 
         private void btAdd_Click(object sender, EventArgs e)
@@ -396,64 +323,6 @@ namespace KinectServer
             SettingsChanged();
         }
 
-
-        private void chAutoExposureEnabled_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bAutoExposureEnabled = chAutoExposureEnabled.Checked;
-            trManualExposure.Enabled = !chAutoExposureEnabled.Checked;
-            SettingsChanged();
-        }
-
-
-        /// <summary>
-        /// When the user scrolls on the trackbar, we wait a short amount of time to check if the user has scrolled again.
-        /// This prevents the Manual Exposure to be set too often, and only sets it when the user has stopped scrolling.
-        /// Code taken from: https://stackoverflow.com/a/15687418
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void trManualExposure_Scroll(object sender, EventArgs e)
-        {
-            if (scrollTimer == null)
-            {
-                // Will tick every 500ms
-                scrollTimer = new Timer()
-                {
-                    Enabled = false,
-                    Interval = 300,
-                    Tag = (sender as TrackBar).Value
-                };
-
-                scrollTimer.Tick += (s, ea) =>
-                {
-                    // check to see if the value has changed since we last ticked
-                    if (trManualExposure.Value == (int)scrollTimer.Tag)
-                    {
-                        // scrolling has stopped so we are good to go ahead and do stuff
-                        scrollTimer.Stop();
-
-                        // Send the changed exposure to the devices
-
-                        //Clamp Exposure Step between -11 and 1
-                        int exposureStep = trManualExposure.Value;
-                        int exposureStepClamped = exposureStep < -11 ? -11 : exposureStep > 1 ? 1 : exposureStep;
-                        oSettings.nExposureStep = exposureStepClamped;
-
-                        SettingsChanged();
-
-                        scrollTimer.Dispose();
-                        scrollTimer = null;
-                    }
-                    else
-                    {
-                        // record the last value seen
-                        scrollTimer.Tag = trManualExposure.Value;
-                    }
-                };
-                scrollTimer.Start();
-            }
-        }
-
         private void SettingsForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             oServer.SetSettingsForm(null);
@@ -462,61 +331,6 @@ namespace KinectServer
         private void cbExtrinsicsFormat_SelectedIndexChanged(object sender, EventArgs e)
         {
             oSettings.eExtrinsicsFormat = (KinectSettings.ExtrinsicsStyle)cbExtrinsicsFormat.SelectedIndex;
-            SettingsChanged();
-        }
-
-        private void rExportPointcloud_CheckedChanged(object sender, EventArgs e)
-        {
-            if (rExportPointcloud.Checked)
-            {
-                oSettings.eExportMode = KinectSettings.ExportMode.Pointcloud;
-            }
-
-            if (rExportRawFrames.Checked)
-            {
-                oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
-            }
-
-            SettingsChanged();
-        }
-
-        private void btApplyAllSettings_Click(object sender, EventArgs e)
-        {
-            UpdateClients();
-        }
-
-        private void chNetworkSync_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bNetworkSync = chNetworkSync.Checked;
-
-            if (chNetworkSync.Checked)
-                chHardwareSync.Enabled = false;
-
-            else
-                chHardwareSync.Enabled = true;
-
-            SettingsChanged();
-        }
-
-        private void chHardwareSync_CheckedChanged(object sender, EventArgs e)
-        {
-            if (chHardwareSync.Checked)
-            {
-                chNetworkSync.Enabled = false;
-            }
-
-            else
-            {
-                chNetworkSync.Enabled = true;
-            }
-
-            SettingsChanged();
-
-        }
-
-        private void cbEnablePreview_CheckedChanged(object sender, EventArgs e)
-        {
-            oSettings.bPreviewEnabled = cbEnablePreview.Checked;
             SettingsChanged();
         }
     }

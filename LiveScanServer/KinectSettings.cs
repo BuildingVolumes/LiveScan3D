@@ -52,13 +52,24 @@ namespace KinectServer
 
         public KinectSettings()
         {
-            aMinBounds[0] = -5f;
-            aMinBounds[1] = -5f;
-            aMinBounds[2] = -5f;
+            aMinBounds[0] = -3f;
+            aMinBounds[1] = -3f;
+            aMinBounds[2] = -3f;
 
-            aMaxBounds[0] = 5f;
-            aMaxBounds[1] = 5f;
-            aMaxBounds[2] = 5f;
+            aMaxBounds[0] = 3f;
+            aMaxBounds[1] = 3f;
+            aMaxBounds[2] = 3f;
+
+        }
+
+        public void AddDefaultMarker()
+        {
+            if (lMarkerPoses.Count == 0)
+            {
+                MarkerPose defaultMarker = new MarkerPose();
+                defaultMarker.id = 0;
+                lMarkerPoses.Add(defaultMarker);
+            }
         }
 
         public List<byte> ToByteList()

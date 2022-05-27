@@ -14,15 +14,9 @@
 //    }
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Globalization;
-using System.Windows.Forms.Layout;
-using System.Diagnostics;
+using System.Windows.Forms;
 using OpenTK;
 using OpenTK.Graphics;
-using OpenTK.Input;
 using KinectServer;
 
 enum ECameraMode
@@ -36,8 +30,6 @@ public class ViewportSettings
     public float pointSize;
     public int brightness;
     public bool markerVisibility;
-    public int targetPlaybackFPS;
-    public int externalFPSCounter;
     public EColorMode colorMode = EColorMode.BGR;
 
 
@@ -46,32 +38,25 @@ public class ViewportSettings
         pointSize = 0;
         brightness = 0;
         markerVisibility = true;
-        targetPlaybackFPS = 30;
-        externalFPSCounter = -1;
         colorMode = EColorMode.RGB;
     }
 }
 
 namespace KinectServer
 {
-    public class OpenGLWindow : GameWindow
+    public class OpenGLWindow
     {
         int PointCount;
         int LineCount;
 
+        uint VBOHandle;
+
         VertexC4ubV3f[] VBO;
         float PointSize = 0.0f;
         ECameraMode CameraMode = ECameraMode.CAMERA_NONE;
-        float averageFPS = 30;
-        float fpsUpdateFrequency = 0.5f;
-        float fpsUpdateCounter = 0;
-
-        static float KEYBOARD_MOVE_SPEED = 0.01f;
-
-        bool IsFullscreen = false;
 
         static float MOUSE_ORBIT_SPEED = 0.30f;     // 0 = SLOWEST, 1 = FASTEST
-        static float MOUSE_DOLLY_SPEED = 0.2f;     // same as above...but much more sensitive
+        static float MOUSE_DOLLY_SPEED = 0.005f;     // same as above...but much more sensitive
         static float MOUSE_TRACK_SPEED = 0.003f;    // same as above...but much more sensitive
 
         float g_heading;
@@ -107,27 +92,6 @@ namespace KinectServer
             public static int SizeInBytes = 16;
         }
 
-        uint VBOHandle;
-
-        /// <summary>Creates a 800x600 window with the specified title.</summary>
-        public OpenGLWindow()
-            : base(800, 600, GraphicsMode.Default, "LiveScan")
-        {
-            MouseUp += new EventHandler<MouseButtonEventArgs>(OnMouseButtonUp);
-            MouseDown += new EventHandler<MouseButtonEventArgs>(OnMouseButtonDown);
-            MouseMove += new EventHandler<MouseMoveEventArgs>(OnMouseMove);
-            MouseWheel += new EventHandler<MouseWheelEventArgs>(OnMouseWheelChanged);
-
-            KeyDown += new EventHandler<KeyboardKeyEventArgs>(OnKeyDown);
-            
-            cameraPosition[0] = 0;
-            cameraPosition[1] = 0;
-            cameraPosition[2] = 1.0f;
-            targetPosition[0] = 0;
-            targetPosition[1] = 0;
-            targetPosition[2] = 0;
-        }
-
         public bool GetBufferEmpty()
         {
             return bufferEmpty;
@@ -138,66 +102,36 @@ namespace KinectServer
             bufferEmpty = empty;
         }
 
-        public void ToggleFullscreen()
+        public void OnKeyDown(object sender, KeyEventArgs e)
         {
-            if (IsFullscreen)
-            {
-                WindowBorder = WindowBorder.Resizable;
-                WindowState = WindowState.Normal;
-                ClientSize = new System.Drawing.Size(800, 600);
-                CursorVisible = true;
-            }
-            else
-            {
-                CursorVisible = false;
-                WindowBorder = WindowBorder.Hidden;
-                WindowState = WindowState.Fullscreen;
-            }
-            IsFullscreen = !IsFullscreen;
-        }
+            Keys key = e.KeyCode;
 
-        void OnKeyDown(object sender, KeyboardKeyEventArgs e)
-        {
-
-            var keyboard = e.Keyboard;
-            if (keyboard[Key.Escape])
-            {
-                Exit();
-            }
-            if (keyboard[Key.Plus])
+            if (key == Keys.Add)
             {
                 PointSize += 0.1f;
                 GL.PointSize(PointSize);
             }
-            if (keyboard[Key.Minus])
+            if (key == Keys.Subtract)
             {
                 if (PointSize != 0)
                     PointSize -= 0.1f;
                 GL.PointSize(PointSize);
             }
-            if (keyboard[Key.W])
-                cameraPosition[2] -= KEYBOARD_MOVE_SPEED;
-            if (keyboard[Key.A])
-                cameraPosition[0] -= KEYBOARD_MOVE_SPEED;
-            if (keyboard[Key.S])
-                cameraPosition[2] += KEYBOARD_MOVE_SPEED;
-            if (keyboard[Key.D])
-                cameraPosition[0] += KEYBOARD_MOVE_SPEED;
-            if (keyboard[Key.F])
-                ToggleFullscreen();
-            if (keyboard[Key.M])
+
+            if (key == Keys.M)
                 bDrawMarkings = !bDrawMarkings;
-            if (keyboard[Key.O])
+
+            if (key == Keys.O)
                 brightnessModifier = (byte)Math.Max(0, brightnessModifier - 10);
-            if (keyboard[Key.P])
+            if (key == Keys.P)
                 brightnessModifier = (byte)Math.Min(255, brightnessModifier + 10);
         }
 
-        /// <summary>Load resources here.</summary>
-        /// <param name="e">Not used.</param>
-        protected override void OnLoad(EventArgs e)
+        /// <summary>
+        /// Loads the OpenGLWindow specific resources
+        /// </summary>
+        public void Load()
         {
-            base.OnLoad(e);
 
             Version version = new Version(GL.GetString(StringName.Version).Substring(0, 3));
             Version target = new Version(1, 5);
@@ -218,7 +152,7 @@ namespace KinectServer
             // Setup VBO state
             GL.EnableClientState(EnableCap.ColorArray);
             GL.EnableClientState(EnableCap.VertexArray);
-            
+
             GL.GenBuffers(1, out VBOHandle);
 
             // Since there's only 1 VBO in the app, might aswell setup here.
@@ -229,33 +163,30 @@ namespace KinectServer
             PointCount = 0;
             LineCount = 12;
             VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
+
+            cameraPosition[0] = 0;
+            cameraPosition[1] = 0;
+            cameraPosition[2] = 1.0f;
+            targetPosition[0] = 0;
+            targetPosition[1] = 0;
+            targetPosition[2] = 0;
         }
 
-        protected override void OnUnload(EventArgs e)
+        public void Unload()
         {
             GL.DeleteBuffers(1, ref VBOHandle);
         }
 
-        /// <summary>
-        /// Called when your window is resized. Set your viewport here. It is also
-        /// a good place to set up your projection matrix (which probably changes
-        /// along when the aspect ratio of your window).
-        /// </summary>
-        /// <param name="e">Contains information on the new Width and Size of the GameWindow.</param>
-        protected override void OnResize(EventArgs e)
+        public void Resize(int width, int height)
         {
-            GL.Viewport(0, 0, Width, Height);
-
+            GL.Viewport(0, 0, width, height);
+            float aspect_ratio = Math.Max(width, 1) / (float)Math.Max(height, 1);
+            Matrix4 perpective = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspect_ratio, 1, 64);
             GL.MatrixMode(MatrixMode.Projection);
-            Matrix4 p = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, Width / (float)Height, 0.1f, 50.0f);
-            GL.LoadMatrix(ref p);
-
-            GL.MatrixMode(MatrixMode.Modelview);
-            Matrix4 mv = Matrix4.LookAt(Vector3.UnitZ, Vector3.Zero, Vector3.UnitY);
-            GL.LoadMatrix(ref mv);
+            GL.LoadMatrix(ref perpective);
         }
 
-        void OnMouseWheelChanged(object sender, MouseWheelEventArgs e)
+        public void OnMouseWheelChanged(object sender, MouseEventArgs e)
         {
             dy = e.Delta * MOUSE_DOLLY_SPEED;
 
@@ -263,13 +194,13 @@ namespace KinectServer
 
             //if (cameraPosition[2] < 0)
             //    cameraPosition[2] = 0;
-                    
+
         }
 
-        void OnMouseMove(object sender, MouseMoveEventArgs e)
+        public void OnMouseMove(object sender, MouseEventArgs e)
         {
-            MouseCurrent.X = e.Mouse.X;
-            MouseCurrent.Y = e.Mouse.Y;
+            MouseCurrent.X = e.X;
+            MouseCurrent.Y = e.Y;
 
             // Now use mouse_delta to move the camera
 
@@ -296,8 +227,8 @@ namespace KinectServer
 
                     cameraPosition[2] -= dy;
 
-                //    if (cameraPosition[2] < 0)
-                 //       cameraPosition[2] = 0;
+                    //    if (cameraPosition[2] < 0)
+                    //       cameraPosition[2] = 0;
 
                     break;
 
@@ -313,60 +244,45 @@ namespace KinectServer
 
                     break;
             }
+
             MousePrevious.X = MouseCurrent.X;
             MousePrevious.Y = MouseCurrent.Y;
         }
 
-        void OnMouseButtonUp(object sender, MouseButtonEventArgs e)
+        public void OnMouseButtonUp(object sender, MouseEventArgs e)
         {
             CameraMode = ECameraMode.CAMERA_NONE;
         }
 
-        void OnMouseButtonDown(object sender, MouseButtonEventArgs e)
+        public void OnMouseButtonDown(object sender, MouseEventArgs e)
         {
             switch (e.Button)
             {
-                case MouseButton.Left:
+                case MouseButtons.Left:
                     CameraMode = ECameraMode.CAMERA_ORBIT;
                     break;
-                case MouseButton.Middle:
+                case MouseButtons.Middle:
                     CameraMode = ECameraMode.CAMERA_DOLLY;
                     break;
-                case MouseButton.Right:
+                case MouseButtons.Right:
                     CameraMode = ECameraMode.CAMERA_TRACK;
                     break;
             }
-            MousePrevious.X = Mouse.X;
-            MousePrevious.Y = Mouse.Y;
+            MousePrevious.X = e.X;
+            MousePrevious.Y = e.Y;
         }
 
-        protected override void OnUpdateFrame(FrameEventArgs e)
+        /// <summary>
+        /// Updates all the elements that exist inside of the 3D Space
+        /// </summary>
+        public void UpdateFrame()
         {
-            if(viewportSettings.externalFPSCounter == -1)
-            {
-                //TODO: FPS frequency is pretty unreliable and should be tied to the update background worker
-
-                float smoothing = 0.8f; // larger=more smoothing
-                averageFPS = (averageFPS * smoothing) + ((float)UpdateFrequency * (1.0f - smoothing));
-
-                if (fpsUpdateCounter > fpsUpdateFrequency)
-                {
-                    this.Title = "FPS: " + (int)averageFPS;
-                    fpsUpdateCounter = 0f;
-                }
-
-                fpsUpdateCounter += (float)RenderTime;
-            }
-            
-            else
-                this.Title = "FPS: " + viewportSettings.externalFPSCounter;
-
             lock (viewportSettings)
             {
                 GL.PointSize(viewportSettings.pointSize);
                 brightnessModifier = (byte)viewportSettings.brightness;
                 bDrawMarkings = viewportSettings.markerVisibility;
-                TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
+                //TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
 
             }
 
@@ -432,12 +348,8 @@ namespace KinectServer
             }
         }
 
-        /// <summary>
-        /// Called when it is time to render the next frame. Add your rendering code here.
-        /// </summary>
-        /// <param name="e">Contains timing information.</param>
-        protected override void OnRenderFrame(FrameEventArgs e)
-        {        
+        public void RenderFrame(float angle)
+        {
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             GL.PushMatrix();
@@ -458,7 +370,9 @@ namespace KinectServer
 
             GL.PopMatrix();
 
-            SwapBuffers();
+            GL.End();
+
+            //SwapBuffers();
         }
 
         private int AddBoundingBox(int startIdx)
@@ -651,7 +565,7 @@ namespace KinectServer
         }
 
 
-        private void AddLine(int startIdx, float x0, float y0, float z0, 
+        private void AddLine(int startIdx, float x0, float y0, float z0,
             float x1, float y1, float z1)
         {
             VBO[startIdx].Position.X = x0;

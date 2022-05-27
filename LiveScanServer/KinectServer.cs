@@ -547,8 +547,8 @@ namespace KinectServer
                 oSettings.bAutoExposureEnabled = false;
                 oSettings.nExposureStep = -5;
 
-                if (fSettingsForm != null) //Reflect this change in the settings UI
-                    fSettingsForm.SetExposureControlsToManual(true);
+                //Reflect this change in the settings UI
+                fMainWindowForm.SetExposureControlsMode(true);
 
                 SendSettings(); //Send settings to update the exposure
 
@@ -566,8 +566,7 @@ namespace KinectServer
                     //Enabeling failed, we undo the Exposure Settings
                     oSettings.bAutoExposureEnabled = true;
 
-                    if (fSettingsForm != null) //Reflect this change in the settings UI
-                        fSettingsForm.SetExposureControlsToManual(false);
+                    fMainWindowForm.SetExposureControlsMode(false);
 
                     SendSettings(); //Send settings to update the exposure
 
