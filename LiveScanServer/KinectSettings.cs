@@ -48,7 +48,7 @@ namespace KinectServer
 
         public bool bNetworkSync = false;
 
-        public bool bPreviewEnabled = false;
+        public bool bPreviewEnabled = true;
 
         public KinectSettings()
         {

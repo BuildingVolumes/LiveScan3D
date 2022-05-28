@@ -341,7 +341,8 @@ namespace KinectServer
             if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
             {
                 bSaving = true;
-                btRecord.Text = "Stop saving";
+                btRecord.Text = " Stop Saving";
+                btRecord.Image = Properties.Resources.stop;
                 btRecord.Enabled = true;
                 savingWorker.RunWorkerAsync();
             }
@@ -437,7 +438,8 @@ namespace KinectServer
             RestartUpdateWorker();
 
             btRecord.Enabled = true;
-            btRecord.Text = "Start recording";
+            btRecord.Image = Properties.Resources.recording;
+            btRecord.Text = " Start Capture";
             btRefineCalib.Enabled = true;
             btCalibrate.Enabled = true;
 
@@ -666,7 +668,8 @@ namespace KinectServer
 
                 bRecording = true;
                 recordingWorker.RunWorkerAsync();
-                btRecord.Text = "Stop recording";
+                btRecord.Text = " Stop Capture";
+                btRecord.Image = Properties.Resources.stop;
                 btRefineCalib.Enabled = false;
                 btCalibrate.Enabled = false;
                 Log.LogInfo("Starting Recording");
@@ -862,12 +865,7 @@ namespace KinectServer
             if (glLiveView.ClientSize.Height == 0)
                 glLiveView.ClientSize = new System.Drawing.Size(glLiveView.ClientSize.Width, 1);
 
-            GL.Viewport(0, 0, glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
-
-            float aspect_ratio = Math.Max(glLiveView.ClientSize.Width, 1) / (float)Math.Max(glLiveView.ClientSize.Height, 1);
-            Matrix4 perpective = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspect_ratio, 1, 64);
-            GL.MatrixMode(MatrixMode.Projection);
-            GL.LoadMatrix(ref perpective);
+            oOpenGLWindow.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
         }
 
         private void glLiveView_Paint(object sender, PaintEventArgs e)
@@ -917,9 +915,7 @@ namespace KinectServer
             }));
         }
 
-
         // Settings
-
 
         private void SettingsChanged()
         {
@@ -954,26 +950,44 @@ namespace KinectServer
 
         private void chHardwareSync_Clicked(object sender, EventArgs e)
         {
-            chNetworkSync.Checked = !chHardwareSync.Checked;
+            if (chNetworkSync.Checked)
+            {
+                chNetworkSync.Checked = false;
+                oSettings.bNetworkSync = false;
+            }
+
             SettingsChanged();
         }        
 
         private void chNetworkSync_Clicked(object sender, EventArgs e)
         {
-            chHardwareSync.Checked = !chNetworkSync.Checked;
+            if (chHardwareSync.Checked)
+            {
+                chHardwareSync.Checked = false;
+            }
+
             oSettings.bNetworkSync = chNetworkSync.Checked;
             SettingsChanged();
         }
 
         private void rExposureAuto_Clicked(object sender, EventArgs e)
         {
+            if (rExposureAuto.Checked)
+            {
+                oSettings.bAutoExposureEnabled = true;
+                trManualExposure.Enabled = false;
+            }
+
             SettingsChanged();
         }
         
         private void rExposureManual_Clicked(object sender, EventArgs e)
         {
             if (rExposureManual.Checked)
+            {
+                oSettings.bAutoExposureEnabled = false;
                 trManualExposure.Enabled = true;
+            }
 
             SettingsChanged();
         }
@@ -1041,14 +1055,22 @@ namespace KinectServer
         private void rExportRaw_Clicked(object sender, EventArgs e)
         {
             if (rExportRaw.Checked)
+            {
                 chMergeScans.Enabled = false;
+                oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
+            }
+
             SettingsChanged();
         }
 
         private void rExportPointclouds_Clicked(object sender, EventArgs e)
         {
             if (rExportPointclouds.Checked)
+            {
                 chMergeScans.Enabled = true;
+                oSettings.eExportMode = KinectSettings.ExportMode.Pointcloud;
+            }
+
             SettingsChanged();
 
         }

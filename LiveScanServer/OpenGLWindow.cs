@@ -59,8 +59,8 @@ namespace KinectServer
         static float MOUSE_DOLLY_SPEED = 0.005f;     // same as above...but much more sensitive
         static float MOUSE_TRACK_SPEED = 0.003f;    // same as above...but much more sensitive
 
-        float g_heading;
-        float g_pitch;
+        float g_heading = 45;
+        float g_pitch = 35;
         float dx = 0.0f;
         float dy = 0.0f;
 
@@ -132,7 +132,6 @@ namespace KinectServer
         /// </summary>
         public void Load()
         {
-
             Version version = new Version(GL.GetString(StringName.Version).Substring(0, 3));
             Version target = new Version(1, 5);
             if (version < target)
@@ -166,7 +165,7 @@ namespace KinectServer
 
             cameraPosition[0] = 0;
             cameraPosition[1] = 0;
-            cameraPosition[2] = 1.0f;
+            cameraPosition[2] = 8.0f;
             targetPosition[0] = 0;
             targetPosition[1] = 0;
             targetPosition[2] = 0;
@@ -352,9 +351,11 @@ namespace KinectServer
         {
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            GL.PushMatrix();
-
+            Matrix4 lookat = Matrix4.LookAt(0, 0, 5, 0, 0, 0, 0, 1, 0);
             GL.MatrixMode(MatrixMode.Modelview);
+
+            GL.LoadMatrix(ref lookat);
+
             GL.Translate(-cameraPosition[0], -cameraPosition[1], -cameraPosition[2]);
             GL.Rotate(g_pitch, 1.0f, 0.0f, 0.0f);
             GL.Rotate(g_heading, 0.0f, 1.0f, 0.0f);
@@ -368,11 +369,7 @@ namespace KinectServer
             GL.DrawArrays(BeginMode.Points, 0, PointCount);
             GL.DrawArrays(BeginMode.Lines, PointCount, 2 * LineCount);
 
-            GL.PopMatrix();
-
             GL.End();
-
-            //SwapBuffers();
         }
 
         private int AddBoundingBox(int startIdx)

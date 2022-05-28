@@ -123,6 +123,12 @@
   <ItemGroup>
     <None Include="Resources\info_box.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\recording.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\stop.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
