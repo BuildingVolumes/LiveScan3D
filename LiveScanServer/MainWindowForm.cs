@@ -35,7 +35,7 @@ namespace KinectServer
         KinectServer oServer;
         TransferServer oTransferServer;
 
-        //Those three four are shared with the OpenGLWindow class and are used to exchange data with it.
+        //Those three four are shared with the OpenGL class and are used to exchange data with it.
         //Vertices from all of the sensors
         List<float> lAllVertices = new List<float>();
         //Color data from all of the sensors
@@ -45,8 +45,7 @@ namespace KinectServer
         //Viewport settings
         ViewportSettings viewportSettings = new ViewportSettings();
 
-        System.Windows.Forms.Timer _timer;
-        float _angle;
+        System.Windows.Forms.Timer tLiveViewTimer;
 
         bool bRecording = false;
         bool bSaving = false;
@@ -61,7 +60,6 @@ namespace KinectServer
 
         //The live preview
         OpenGLWindow oOpenGLWindow;
-        public event EventHandler ResizeEnd;
 
         public MainWindowForm()
         {
@@ -842,14 +840,10 @@ namespace KinectServer
             glLiveView.Paint += glLiveView_Paint;
 
             // We have to update the embedded GL window ourselves
-            _timer = new System.Windows.Forms.Timer();
-            _timer.Tick += (senderer, ea) =>
-            {
-                _angle += 0.5f;
-                Render();
-            };
-            _timer.Interval = 16;   // 60 fps
-            _timer.Start();
+            tLiveViewTimer = new System.Windows.Forms.Timer();
+            tLiveViewTimer.Tick += (senderer, ea) => {Render();};
+            tLiveViewTimer.Interval = 16;   // 60 fps
+            tLiveViewTimer.Start();
 
             glLiveView_Resize(glLiveView, EventArgs.Empty);
 
@@ -877,7 +871,7 @@ namespace KinectServer
         {
             glLiveView.MakeCurrent();
             oOpenGLWindow.UpdateFrame();
-            oOpenGLWindow.RenderFrame(_angle);
+            oOpenGLWindow.RenderFrame();
             glLiveView.SwapBuffers();
         }
 

@@ -92,16 +92,6 @@ namespace KinectServer
             public static int SizeInBytes = 16;
         }
 
-        public bool GetBufferEmpty()
-        {
-            return bufferEmpty;
-        }
-
-        public void SetBufferEmpty(bool empty)
-        {
-            bufferEmpty = empty;
-        }
-
         public void OnKeyDown(object sender, KeyEventArgs e)
         {
             Keys key = e.KeyCode;
@@ -347,7 +337,7 @@ namespace KinectServer
             }
         }
 
-        public void RenderFrame(float angle)
+        public void RenderFrame()
         {
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 

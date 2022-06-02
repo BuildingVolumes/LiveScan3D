@@ -16,20 +16,25 @@ namespace LiveScanPlayer
 {
     public partial class PlayerWindowForm : Form
     {
-        OpenGLWindow openGLWindow = null;
+        OpenGLWindow oOpenGLWindow = null;
+        System.Windows.Forms.Timer tLiveViewTimer;
+        float fTargetFPS = 30f;
+        long lActualFPS = 30;
+        float fFpsUpdateTimer;
+
+        int nMaxFrames;
+        int nCurrentFrame;
 
         BindingList<IFrameFileReader> lFrameFiles = new BindingList<IFrameFileReader>();
-        bool bPlayerRunning = false;
-        bool bPaused = false;
+
+        bool bPaused = true;
+        bool bLoop = true;
+        bool bScrollbarInUse = false;
 
         List<float> lAllVertices = new List<float>();
         List<byte> lAllColors = new List<byte>();
 
         ViewportSettings viewportSettings = new ViewportSettings();
-
-        TransferServer oTransferServer = new TransferServer();
-
-        AutoResetEvent eUpdateWorkerFinished = new AutoResetEvent(false);
 
         string lastPLYDir = String.Empty;
         string lastBINDir = String.Empty;
@@ -37,16 +42,19 @@ namespace LiveScanPlayer
         public PlayerWindowForm()
         {
             InitializeComponent();
+            OpenGLWorker.RunWorkerAsync();
+            updateWorker.RunWorkerAsync();
+            lFrameFilesListView.Columns.Add("Files:", 300);
+        }
 
-            viewportSettings.targetPlaybackFPS = (int)nUDFramerate.Value;
-            lFrameFilesListView.Columns.Add("Current frame", 75);
-            lFrameFilesListView.Columns.Add("Filename", 300);
+        private void PlayerWindowForm_Load(object sender, EventArgs e)
+        {
+
         }
 
         private void PlayerWindowForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             StopUpdateWorker();
-            //oTransferServer.StopServer();
         }
 
         private void btSelect_Click(object sender, EventArgs e)
@@ -74,10 +82,15 @@ namespace LiveScanPlayer
                 {
                     lFrameFiles.Add(new FrameFileReaderBin(dialog.FileNames[i]));
 
-                    var item = new ListViewItem(new[] { "0", dialog.FileNames[i] });
+                    var item = new ListViewItem(new[] { dialog.FileNames[i] });
                     lFrameFilesListView.Items.Add(item);
                 }
+
+                lFrameFilesListView.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
             }
+
+            nMaxFrames = GetMaxFrameCount();
+            UpdateScrollBar();
         }
 
         private void btnSelectPly_Click(object sender, EventArgs e)
@@ -104,9 +117,15 @@ namespace LiveScanPlayer
             {
                 lFrameFiles.Add(new FrameFileReaderPly(dialog.FileNames));
 
-                var item = new ListViewItem(new[] { "0", Path.GetDirectoryName(dialog.FileNames[0]) });
+                var item = new ListViewItem(new[] { Path.GetDirectoryName(dialog.FileNames[0]) });
                 lFrameFilesListView.Items.Add(item);
+
+                lFrameFilesListView.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent);
+
             }
+
+            nMaxFrames = GetMaxFrameCount();
+            UpdateScrollBar();
         }
 
         private void btStart_Click(object sender, EventArgs e)
@@ -117,26 +136,17 @@ namespace LiveScanPlayer
                     return;
             }
 
-            if (bPlayerRunning && bPaused)
+            if (bPaused)
             {
-                btStart.Text = "Pause";
+                btStart.Image = Properties.Resources.pause;
                 bPaused = false;
                 return;
             }
 
-            if (bPlayerRunning && !bPaused)
+            if (!bPaused)
             {
                 bPaused = true;
-                btStart.Text = "Play";
-                return;
-            }
-
-            if (!bPlayerRunning)
-            {
-                updateWorker.RunWorkerAsync();
-                btStart.Text = "Pause";
-                bPlayerRunning = true;
-                bPaused = false;
+                btStart.Image = Properties.Resources.Play;
                 return;
             }
         }
@@ -154,34 +164,19 @@ namespace LiveScanPlayer
                 lFrameFiles.RemoveAt(idx);
             }
 
+            nMaxFrames = GetMaxFrameCount();
+            UpdateScrollBar();
+
             return;
         }
 
         private void btRewind_Click(object sender, EventArgs e)
         {
-            lock (lFrameFiles)
-            {
-                for (int i = 0; i < lFrameFiles.Count; i++)
-                {
-                    lFrameFiles[i].Rewind();
-                    lFrameFilesListView.Items[i].Text = "0";
-                }
-            }
-
-            ClearAllFrames();
-        }
-
-        private void btShow_Click(object sender, EventArgs e)
-        {
-            if (!OpenGLWorker.IsBusy)
-            {
-                OpenGLWorker.RunWorkerAsync();
-            }
+            RewindPlayer();
         }
 
         private void updateWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            int curFrameIdx = 0;
             string outDir = "outPlayer\\";
             DirectoryInfo di = Directory.CreateDirectory(outDir);
 
@@ -189,118 +184,122 @@ namespace LiveScanPlayer
 
             BackgroundWorker worker = (BackgroundWorker)sender;
 
+            Stopwatch updateTimer = new Stopwatch();
+            updateTimer.Start();
+
+            Stopwatch fpsCountTimer = new Stopwatch();
+            fpsCountTimer.Restart();
+
             while (!worker.CancellationPending)
             {
-                if(openGLWindow != null)
+                if (oOpenGLWindow != null)
                 {
-                    if (!bPaused)
+                    if (!bPaused && !bScrollbarInUse)
                     {
-                        if (openGLWindow.GetBufferEmpty())
+                        if (updateTimer.ElapsedMilliseconds > 1000f / fTargetFPS)
                         {
-                            List<float> tempAllVertices = new List<float>();
-                            List<byte> tempAllColors = new List<byte>();
-
-                            lock (lFrameFiles)
+                            if (nCurrentFrame < nMaxFrames)
                             {
-                                for (int i = 0; i < lFrameFiles.Count; i++)
+                                updateTimer.Restart();
+
+                                List<float> tempAllVertices = new List<float>();
+                                List<byte> tempAllColors = new List<byte>();
+
+                                lock (lFrameFiles)
                                 {
-                                    List<float> vertices = new List<float>();
-                                    List<byte> colors = new List<byte>();
-                                    lFrameFiles[i].ReadFrame(vertices, colors);
+                                    for (int i = 0; i < lFrameFiles.Count; i++)
+                                    {
+                                        List<float> vertices = new List<float>();
+                                        List<byte> colors = new List<byte>();
+                                        lFrameFiles[i].ReadFrame(vertices, colors);
 
-                                    tempAllVertices.AddRange(vertices);
-                                    tempAllColors.AddRange(colors);
+                                        tempAllVertices.AddRange(vertices);
+                                        tempAllColors.AddRange(colors);
+                                    }
                                 }
+
+                                try
+                                {
+                                    this.Invoke((MethodInvoker)delegate { this.UpdateScrollBar(); });
+                                }
+
+                                catch (Exception ex)
+                                {
+                                    //Can happen when the windows form is closing
+                                }
+
+                                lock (lAllVertices)
+                                {
+                                    lAllVertices.Clear();
+                                    lAllColors.Clear();
+                                    lAllVertices.AddRange(tempAllVertices);
+                                    lAllColors.AddRange(tempAllColors);
+                                }
+
+                                if (chSaveFrames.Checked)
+                                    SaveCurrentFrameToFile(outDir, nCurrentFrame);
+
+                                nCurrentFrame++;
+
+
                             }
 
-                            try
+                            else
                             {
-                                this.Invoke((MethodInvoker)delegate { this.UpdateDisplayedFrameIndices(); });
+                                if(bLoop)
+                                    RewindPlayer();
                             }
 
-                            catch(Exception ex)
+                            if (fpsCountTimer.ElapsedMilliseconds > 0)
                             {
-                                //Can happen when the windows form is closing
+                                lActualFPS = 1000 / fpsCountTimer.ElapsedMilliseconds;
+                                this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });
+                                fFpsUpdateTimer += fpsCountTimer.ElapsedMilliseconds;
+                                fpsCountTimer.Restart();
                             }
-
-                            lock (lAllVertices)
-                            {
-                                lAllVertices.Clear();
-                                lAllColors.Clear();
-                                lAllVertices.AddRange(tempAllVertices);
-                                lAllColors.AddRange(tempAllColors);
-                            }
-
-                            if (chSaveFrames.Checked)
-                                SaveCurrentFrameToFile(outDir, curFrameIdx);
-
-
-                            curFrameIdx++;
-
-                            openGLWindow.SetBufferEmpty(false);
-                        }
+                        }           
                     }
                 }
-                             
             }
         }
 
         private void StopUpdateWorker()
         {
-            if (bPlayerRunning)
-            {
-                bPlayerRunning = false;
-                bPaused = false;
-                btStart.Text = "Play";
-                updateWorker.CancelAsync();
-            }
+            bPaused = false;
+            btStart.Image = Properties.Resources.Play;
+            updateWorker.CancelAsync();
         }
 
         private void OpenGLWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            if(openGLWindow == null)
+            if (oOpenGLWindow == null)
             {
-                openGLWindow = new OpenGLWindow();
+                oOpenGLWindow = new OpenGLWindow();
 
-                openGLWindow.VSync = OpenTK.VSyncMode.Adaptive;
-
-                openGLWindow.Closed += OpenGLWindowClosed;
-
-                openGLWindow.vertices = lAllVertices;
-                openGLWindow.colors = lAllColors;
-                openGLWindow.viewportSettings = this.viewportSettings;
-
-                openGLWindow.Run();
+                oOpenGLWindow.vertices = lAllVertices;
+                oOpenGLWindow.colors = lAllColors;
+                oOpenGLWindow.viewportSettings = this.viewportSettings;
             }
         }
 
         private void OpenGLWindowClosed(object sender, EventArgs EventArgs)
         {
-            openGLWindow = null;
+            oOpenGLWindow = null;
         }
 
-        private void lFrameFilesListView_DoubleClick(object sender, EventArgs e)
+        private void RewindPlayer()
         {
-            lFrameFilesListView.SelectedItems[0].BeginEdit();
-        }
-
-        private void lFrameFilesListView_AfterLabelEdit(object sender, LabelEditEventArgs e)
-        {
-            int fileIdx = lFrameFilesListView.SelectedIndices[0];
-            int frameIdx;
-            bool res = Int32.TryParse(e.Label, out frameIdx);
-
-            if (!res)
-            {
-                e.CancelEdit = true;
-                return;
-            }
-
             lock (lFrameFiles)
             {
-                lFrameFiles[fileIdx].JumpToFrame(frameIdx);
+                for (int i = 0; i < lFrameFiles.Count; i++)
+                {
+                    lFrameFiles[i].Rewind();
+                }
             }
 
+            nCurrentFrame = 0;
+
+            ClearAllFrames();
         }
 
         private void ClearAllFrames()
@@ -312,15 +311,20 @@ namespace LiveScanPlayer
             }
         }
 
-        private void UpdateDisplayedFrameIndices()
+        private int GetMaxFrameCount()
         {
+            int count = 0;
+
             lock (lFrameFiles)
             {
                 for (int i = 0; i < lFrameFiles.Count; i++)
                 {
-                    lFrameFilesListView.Items[i].SubItems[0].Text = lFrameFiles[i].frameIdx.ToString();
+                    if (lFrameFiles[i].totalFrames > count)
+                        count = lFrameFiles[i].totalFrames;
                 }
             }
+
+            return count;
         }
 
         private void SaveCurrentFrameToFile(string outDir, int frameIdx)
@@ -339,10 +343,7 @@ namespace LiveScanPlayer
             Utils.saveToPly(outputFilename, lVertices, lColors, viewportSettings.colorMode, true);
         }
 
-        private void PlayerWindowForm_Load(object sender, EventArgs e)
-        {
 
-        }
 
         private void tbPointsize_Scroll(object sender, EventArgs e)
         {
@@ -365,7 +366,158 @@ namespace LiveScanPlayer
 
         private void nUDFramerate_ValueChanged(object sender, EventArgs e)
         {
-            viewportSettings.targetPlaybackFPS = (int)nUDFramerate.Value;
+            fTargetFPS = (int)nUDFramerate.Value;
+        }
+
+        private void UpdateScrollBar()
+        {
+            string paddedCurrentFrame = nCurrentFrame.ToString().PadLeft(nMaxFrames.ToString().Length, '0');
+            lFrameCounter.Text = paddedCurrentFrame + "/" + nMaxFrames.ToString();
+
+
+            if (tbVideoScroll.Maximum != nMaxFrames)
+                tbVideoScroll.Maximum = nMaxFrames;
+
+            tbVideoScroll.Value = nCurrentFrame;
+        }
+
+        private void ShowFPS()
+        {
+            //Only update the FPS counter every second or so
+            if(fFpsUpdateTimer > 500)
+            {
+                lFPSCounter.Text = "FPS: " + lActualFPS.ToString();
+                fFpsUpdateTimer = 0;
+            }
+        }
+
+        private void tbVideoScroll_ValueChanged(object sender, EventArgs e)
+        {
+            lock (lFrameFiles)
+            {
+                for (int i = 0; i < lFrameFiles.Count; i++)
+                {
+                    lFrameFiles[i].JumpToFrame(tbVideoScroll.Value);
+                }
+
+                nCurrentFrame = tbVideoScroll.Value;
+            }
+
+        }
+
+        private void tbVideoScroll_MouseDown(object sender, MouseEventArgs e)
+        {
+            bScrollbarInUse = true;
+
+            float scrollElementStartPos = 8;
+            float scrollElementEndPos = tbVideoScroll.Bounds.Width - 12;
+            //As the trackbar is actually a bit smaller than the trackbar elements reported width, we need to map the mouse position to the smaller range to get an accurate position on it
+            float mousePosMappedToWidth = (float)tbVideoScroll.Bounds.Width * ((float)e.X - scrollElementStartPos) / (scrollElementEndPos - scrollElementStartPos);
+
+            float percentageClicked = ((1f / tbVideoScroll.Bounds.Width) * mousePosMappedToWidth);
+            int nTargetFrame = (int)(nMaxFrames * percentageClicked);
+
+            if (nTargetFrame < 0)
+                nTargetFrame = 0;
+
+            if (nTargetFrame > nMaxFrames)
+                nTargetFrame = nMaxFrames;
+
+
+            lock (lFrameFiles)
+            {
+                for (int i = 0; i < lFrameFiles.Count; i++)
+                {
+                    lFrameFiles[i].JumpToFrame(nTargetFrame);
+                }
+
+                nCurrentFrame = nTargetFrame;
+            }
+
+        }
+        private void tbVideoScroll_MouseUp(object sender, MouseEventArgs e)
+        {
+            bScrollbarInUse = false;
+            UpdateScrollBar();
+        }
+
+        /// <summary>
+        /// Gets called when the Live View Window is being loaded. Sets up the render intervall and events
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void glLiveView_Load(object sender, EventArgs e)
+        {
+            // Make sure that when the GLControl is resized or needs to be painted,
+            // we update our projection matrix or re-render its contents, respectively.
+            glLiveView.Resize += glLiveView_Resize;
+            glLiveView.Paint += glLiveView_Paint;
+
+            // We have to update the embedded GL window ourselves
+            tLiveViewTimer = new System.Windows.Forms.Timer();
+            tLiveViewTimer.Tick += (senderer, ea) =>
+            {
+                Render();
+            };
+            tLiveViewTimer.Interval = 8;   // 120 fps
+            tLiveViewTimer.Start();
+
+            glLiveView_Resize(glLiveView, EventArgs.Empty);
+
+            oOpenGLWindow.Load();
+        }
+
+        private void glLiveView_Resize(object sender, EventArgs e)
+        {
+            glLiveView.MakeCurrent();
+
+            if (glLiveView.ClientSize.Height == 0)
+                glLiveView.ClientSize = new System.Drawing.Size(glLiveView.ClientSize.Width, 1);
+
+            oOpenGLWindow.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
+        }
+
+        private void glLiveView_Paint(object sender, PaintEventArgs e)
+        {
+            Render();
+        }
+
+        private void Render()
+        {
+            glLiveView.MakeCurrent();
+            oOpenGLWindow.UpdateFrame();
+            oOpenGLWindow.RenderFrame();
+            glLiveView.SwapBuffers();
+        }
+
+        private void glLiveView_MouseDown(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseButtonDown(sender, e);
+        }
+
+        private void glLiveView_MouseMove(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseMove(sender, e);
+        }
+
+        private void glLiveView_MouseUp(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseButtonUp(sender, e);
+        }
+
+        private void glLiveView_Scroll(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseWheelChanged(sender, e);
+        }
+
+        private void glLiveView_KeyDown(object sender, KeyEventArgs e)
+        {
+            oOpenGLWindow.OnKeyDown(sender, e);
+        }
+
+        private void chLooping_CheckedChanged(object sender, EventArgs e)
+        {
+            bLoop = chLooping.Checked;
         }
     }
 }

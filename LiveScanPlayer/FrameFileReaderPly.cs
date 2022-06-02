@@ -13,6 +13,7 @@ namespace LiveScanPlayer
     {
         string[] filenames;
         int currentFrameIdx = 0;
+        int totalFrameCount = 0;
 
         public FrameFileReaderPly(string[] filenames)
         {
@@ -31,8 +32,19 @@ namespace LiveScanPlayer
             }
         }
 
+        public int totalFrames
+        {
+            get
+            {
+                return filenames.Length;
+            }
+        }
+
         public void ReadFrame(List<float> vertices, List<byte> colors)
         {
+            if (currentFrameIdx >= filenames.Length)
+                return;
+
             BinaryReader reader = new BinaryReader(new FileStream(filenames[currentFrameIdx], FileMode.Open));
 
             bool alpha = false;
@@ -81,8 +93,7 @@ namespace LiveScanPlayer
         public void JumpToFrame(int frameIdx)
         {
             currentFrameIdx = frameIdx;
-            if (currentFrameIdx >= filenames.Length)
-                currentFrameIdx = 0;
+
         }
 
         public void Rewind()

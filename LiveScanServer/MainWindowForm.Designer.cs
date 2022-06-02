@@ -69,6 +69,14 @@
             this.lPerformance = new System.Windows.Forms.Label();
             this.cbEnablePreview = new System.Windows.Forms.CheckBox();
             this.tooltips = new System.Windows.Forms.ToolTip(this.components);
+            this.pInfoClientPreview = new System.Windows.Forms.PictureBox();
+            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.PInfoExposure = new System.Windows.Forms.PictureBox();
+            this.pInfoNetworkSync = new System.Windows.Forms.PictureBox();
+            this.pInfoRefineCalib = new System.Windows.Forms.PictureBox();
+            this.pInfoCalibrate = new System.Windows.Forms.PictureBox();
+            this.pInfoRawFrames = new System.Windows.Forms.PictureBox();
+            this.pInfoPointclouds = new System.Windows.Forms.PictureBox();
             this.gbExposure = new System.Windows.Forms.Panel();
             this.gbFrameExport = new System.Windows.Forms.Panel();
             this.tlMainPanel = new System.Windows.Forms.TableLayoutPanel();
@@ -77,19 +85,19 @@
             this.pnClients = new System.Windows.Forms.Panel();
             this.pnSettings = new System.Windows.Forms.Panel();
             this.pnCalibration = new System.Windows.Forms.Panel();
-            this.pnCapture = new System.Windows.Forms.Panel();
-            this.pInfoClientPreview = new System.Windows.Forms.PictureBox();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
-            this.PInfoExposure = new System.Windows.Forms.PictureBox();
-            this.pInfoNetworkSync = new System.Windows.Forms.PictureBox();
-            this.pInfoRefineCalib = new System.Windows.Forms.PictureBox();
-            this.pInfoCalibrate = new System.Windows.Forms.PictureBox();
             this.btRecord = new System.Windows.Forms.Button();
-            this.pInfoRawFrames = new System.Windows.Forms.PictureBox();
-            this.pInfoPointclouds = new System.Windows.Forms.PictureBox();
+            this.pnCapture = new System.Windows.Forms.Panel();
             this.statusStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gvClients)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoClientPreview)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PInfoExposure)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoNetworkSync)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRefineCalib)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoCalibrate)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRawFrames)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoPointclouds)).BeginInit();
             this.gbExposure.SuspendLayout();
             this.gbFrameExport.SuspendLayout();
             this.tlMainPanel.SuspendLayout();
@@ -99,14 +107,6 @@
             this.pnSettings.SuspendLayout();
             this.pnCalibration.SuspendLayout();
             this.pnCapture.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoClientPreview)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.PInfoExposure)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoNetworkSync)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoRefineCalib)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoCalibrate)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoRawFrames)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoPointclouds)).BeginInit();
             this.SuspendLayout();
             // 
             // btCalibrate
@@ -497,6 +497,101 @@
             this.tooltips.IsBalloon = true;
             this.tooltips.ReshowDelay = 0;
             // 
+            // pInfoClientPreview
+            // 
+            this.pInfoClientPreview.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoClientPreview.Location = new System.Drawing.Point(285, 88);
+            this.pInfoClientPreview.Name = "pInfoClientPreview";
+            this.pInfoClientPreview.Size = new System.Drawing.Size(15, 15);
+            this.pInfoClientPreview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoClientPreview.TabIndex = 43;
+            this.pInfoClientPreview.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoClientPreview, "When disabled, clients will not show a preview picture during capture. Might incr" +
+        "ease capture performance");
+            // 
+            // pictureBox1
+            // 
+            this.pictureBox1.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pictureBox1.Location = new System.Drawing.Point(186, 28);
+            this.pictureBox1.Name = "pictureBox1";
+            this.pictureBox1.Size = new System.Drawing.Size(15, 15);
+            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pictureBox1.TabIndex = 34;
+            this.pictureBox1.TabStop = false;
+            this.tooltips.SetToolTip(this.pictureBox1, "Before activating, make sure that all Kinects are connected to the server and the" +
+        " sync cables are set up in the right order");
+            // 
+            // PInfoExposure
+            // 
+            this.PInfoExposure.Image = global::KinectServer.Properties.Resources.info_box;
+            this.PInfoExposure.Location = new System.Drawing.Point(55, 57);
+            this.PInfoExposure.Name = "PInfoExposure";
+            this.PInfoExposure.Size = new System.Drawing.Size(15, 15);
+            this.PInfoExposure.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.PInfoExposure.TabIndex = 40;
+            this.PInfoExposure.TabStop = false;
+            this.tooltips.SetToolTip(this.PInfoExposure, "Sets the exposure on all cameras. When Hardware Sync is enabled, manual mode is r" +
+        "equired");
+            // 
+            // pInfoNetworkSync
+            // 
+            this.pInfoNetworkSync.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoNetworkSync.Location = new System.Drawing.Point(310, 28);
+            this.pInfoNetworkSync.Name = "pInfoNetworkSync";
+            this.pInfoNetworkSync.Size = new System.Drawing.Size(15, 15);
+            this.pInfoNetworkSync.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoNetworkSync.TabIndex = 35;
+            this.pInfoNetworkSync.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoNetworkSync, "No special hardware configuration needed. Might give more consistent frame timing" +
+        "s between the devices, but reduces the framerate");
+            // 
+            // pInfoRefineCalib
+            // 
+            this.pInfoRefineCalib.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoRefineCalib.Location = new System.Drawing.Point(255, 26);
+            this.pInfoRefineCalib.Name = "pInfoRefineCalib";
+            this.pInfoRefineCalib.Size = new System.Drawing.Size(15, 15);
+            this.pInfoRefineCalib.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoRefineCalib.TabIndex = 24;
+            this.pInfoRefineCalib.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoRefineCalib, "Refines the calibration with an ICP algorithm. The cameras field of view needs to" +
+        " be overlapping");
+            // 
+            // pInfoCalibrate
+            // 
+            this.pInfoCalibrate.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoCalibrate.Location = new System.Drawing.Point(103, 27);
+            this.pInfoCalibrate.Name = "pInfoCalibrate";
+            this.pInfoCalibrate.Size = new System.Drawing.Size(15, 15);
+            this.pInfoCalibrate.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoCalibrate.TabIndex = 23;
+            this.pInfoCalibrate.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoCalibrate, "Calibrate all cameras spatially. At least one marker needs to be visible to all c" +
+        "ameras");
+            // 
+            // pInfoRawFrames
+            // 
+            this.pInfoRawFrames.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoRawFrames.Location = new System.Drawing.Point(92, 4);
+            this.pInfoRawFrames.Name = "pInfoRawFrames";
+            this.pInfoRawFrames.Size = new System.Drawing.Size(15, 15);
+            this.pInfoRawFrames.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoRawFrames.TabIndex = 28;
+            this.pInfoRawFrames.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoRawFrames, "Save recording as color (.jpg) and depth (.tiff) frames. Best capture performance" +
+        " and maximum quality, but requires postprocessing");
+            // 
+            // pInfoPointclouds
+            // 
+            this.pInfoPointclouds.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoPointclouds.Location = new System.Drawing.Point(278, 3);
+            this.pInfoPointclouds.Name = "pInfoPointclouds";
+            this.pInfoPointclouds.Size = new System.Drawing.Size(15, 15);
+            this.pInfoPointclouds.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoPointclouds.TabIndex = 29;
+            this.pInfoPointclouds.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoPointclouds, resources.GetString("pInfoPointclouds.ToolTip"));
+            // 
             // gbExposure
             // 
             this.gbExposure.Controls.Add(this.rExposureManual);
@@ -613,90 +708,6 @@
             this.pnCalibration.Size = new System.Drawing.Size(388, 54);
             this.pnCalibration.TabIndex = 5;
             // 
-            // pnCapture
-            // 
-            this.pnCapture.Controls.Add(this.lCaptureHeader);
-            this.pnCapture.Controls.Add(this.gbFrameExport);
-            this.pnCapture.Controls.Add(this.txtSeqName);
-            this.pnCapture.Controls.Add(this.lbSeqName);
-            this.pnCapture.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnCapture.Location = new System.Drawing.Point(3, 508);
-            this.pnCapture.Name = "pnCapture";
-            this.pnCapture.Size = new System.Drawing.Size(388, 104);
-            this.pnCapture.TabIndex = 2;
-            // 
-            // pInfoClientPreview
-            // 
-            this.pInfoClientPreview.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoClientPreview.Location = new System.Drawing.Point(285, 88);
-            this.pInfoClientPreview.Name = "pInfoClientPreview";
-            this.pInfoClientPreview.Size = new System.Drawing.Size(15, 15);
-            this.pInfoClientPreview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pInfoClientPreview.TabIndex = 43;
-            this.pInfoClientPreview.TabStop = false;
-            this.tooltips.SetToolTip(this.pInfoClientPreview, "When disabled, clients will not show a preview picture during capture. Might incr" +
-        "ease capture performance");
-            // 
-            // pictureBox1
-            // 
-            this.pictureBox1.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pictureBox1.Location = new System.Drawing.Point(186, 28);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(15, 15);
-            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pictureBox1.TabIndex = 34;
-            this.pictureBox1.TabStop = false;
-            this.tooltips.SetToolTip(this.pictureBox1, "Before activating, make sure that all Kinects are connected to the server and the" +
-        " sync cables are set up in the right order");
-            // 
-            // PInfoExposure
-            // 
-            this.PInfoExposure.Image = global::KinectServer.Properties.Resources.info_box;
-            this.PInfoExposure.Location = new System.Drawing.Point(55, 57);
-            this.PInfoExposure.Name = "PInfoExposure";
-            this.PInfoExposure.Size = new System.Drawing.Size(15, 15);
-            this.PInfoExposure.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.PInfoExposure.TabIndex = 40;
-            this.PInfoExposure.TabStop = false;
-            this.tooltips.SetToolTip(this.PInfoExposure, "Sets the exposure on all cameras. When Hardware Sync is enabled, manual mode is r" +
-        "equired");
-            // 
-            // pInfoNetworkSync
-            // 
-            this.pInfoNetworkSync.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoNetworkSync.Location = new System.Drawing.Point(310, 28);
-            this.pInfoNetworkSync.Name = "pInfoNetworkSync";
-            this.pInfoNetworkSync.Size = new System.Drawing.Size(15, 15);
-            this.pInfoNetworkSync.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pInfoNetworkSync.TabIndex = 35;
-            this.pInfoNetworkSync.TabStop = false;
-            this.tooltips.SetToolTip(this.pInfoNetworkSync, "No special hardware configuration needed. Might give more consistent frame timing" +
-        "s between the devices, but reduces the framerate");
-            // 
-            // pInfoRefineCalib
-            // 
-            this.pInfoRefineCalib.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoRefineCalib.Location = new System.Drawing.Point(255, 26);
-            this.pInfoRefineCalib.Name = "pInfoRefineCalib";
-            this.pInfoRefineCalib.Size = new System.Drawing.Size(15, 15);
-            this.pInfoRefineCalib.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pInfoRefineCalib.TabIndex = 24;
-            this.pInfoRefineCalib.TabStop = false;
-            this.tooltips.SetToolTip(this.pInfoRefineCalib, "Refines the calibration with an ICP algorithm. The cameras field of view needs to" +
-        " be overlapping");
-            // 
-            // pInfoCalibrate
-            // 
-            this.pInfoCalibrate.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoCalibrate.Location = new System.Drawing.Point(103, 27);
-            this.pInfoCalibrate.Name = "pInfoCalibrate";
-            this.pInfoCalibrate.Size = new System.Drawing.Size(15, 15);
-            this.pInfoCalibrate.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pInfoCalibrate.TabIndex = 23;
-            this.pInfoCalibrate.TabStop = false;
-            this.tooltips.SetToolTip(this.pInfoCalibrate, "Calibrate all cameras spatially. At least one marker needs to be visible to all c" +
-        "ameras");
-            // 
             // btRecord
             // 
             this.btRecord.AutoSize = true;
@@ -704,7 +715,7 @@
             this.btRecord.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btRecord.Image = global::KinectServer.Properties.Resources.recording;
             this.btRecord.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btRecord.Location = new System.Drawing.Point(3, 618);
+            this.btRecord.Location = new System.Drawing.Point(3, 619);
             this.btRecord.MinimumSize = new System.Drawing.Size(0, 30);
             this.btRecord.Name = "btRecord";
             this.btRecord.Size = new System.Drawing.Size(388, 44);
@@ -714,28 +725,17 @@
             this.btRecord.UseVisualStyleBackColor = true;
             this.btRecord.Click += new System.EventHandler(this.btRecord_Click);
             // 
-            // pInfoRawFrames
+            // pnCapture
             // 
-            this.pInfoRawFrames.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoRawFrames.Location = new System.Drawing.Point(92, 4);
-            this.pInfoRawFrames.Name = "pInfoRawFrames";
-            this.pInfoRawFrames.Size = new System.Drawing.Size(15, 15);
-            this.pInfoRawFrames.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pInfoRawFrames.TabIndex = 28;
-            this.pInfoRawFrames.TabStop = false;
-            this.tooltips.SetToolTip(this.pInfoRawFrames, "Save recording as color (.jpg) and depth (.tiff) frames. Best capture performance" +
-        " and maximum quality, but requires postprocessing");
-            // 
-            // pInfoPointclouds
-            // 
-            this.pInfoPointclouds.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoPointclouds.Location = new System.Drawing.Point(278, 3);
-            this.pInfoPointclouds.Name = "pInfoPointclouds";
-            this.pInfoPointclouds.Size = new System.Drawing.Size(15, 15);
-            this.pInfoPointclouds.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pInfoPointclouds.TabIndex = 29;
-            this.pInfoPointclouds.TabStop = false;
-            this.tooltips.SetToolTip(this.pInfoPointclouds, resources.GetString("pInfoPointclouds.ToolTip"));
+            this.pnCapture.Controls.Add(this.lCaptureHeader);
+            this.pnCapture.Controls.Add(this.gbFrameExport);
+            this.pnCapture.Controls.Add(this.txtSeqName);
+            this.pnCapture.Controls.Add(this.lbSeqName);
+            this.pnCapture.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnCapture.Location = new System.Drawing.Point(3, 509);
+            this.pnCapture.Name = "pnCapture";
+            this.pnCapture.Size = new System.Drawing.Size(388, 104);
+            this.pnCapture.TabIndex = 2;
             // 
             // MainWindowForm
             // 
@@ -753,6 +753,14 @@
             this.statusStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gvClients)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoClientPreview)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PInfoExposure)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoNetworkSync)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRefineCalib)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoCalibrate)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRawFrames)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoPointclouds)).EndInit();
             this.gbExposure.ResumeLayout(false);
             this.gbExposure.PerformLayout();
             this.gbFrameExport.ResumeLayout(false);
@@ -769,14 +777,6 @@
             this.pnCalibration.PerformLayout();
             this.pnCapture.ResumeLayout(false);
             this.pnCapture.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoClientPreview)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.PInfoExposure)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoNetworkSync)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoRefineCalib)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoCalibrate)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoRawFrames)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pInfoPointclouds)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
