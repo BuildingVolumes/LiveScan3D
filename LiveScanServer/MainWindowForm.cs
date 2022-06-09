@@ -63,11 +63,18 @@ namespace KinectServer
 
         public MainWindowForm()
         {
+            InitializeComponent();
+            OpenGLWorker.RunWorkerAsync();
+        }
+
+        private void MainWindowForm_Load(object sender, EventArgs e)
+        {
+
             //Set the logging level
             string[] cmdLineArgs = Environment.GetCommandLineArgs();
             Log.LogLevel loglevel = Log.LogLevel.Normal;
 
-            if(cmdLineArgs.Length > 1)
+            if (cmdLineArgs.Length > 1)
             {
                 if (cmdLineArgs[1] == "-none" || cmdLineArgs[0] == "-None")
                     loglevel = Log.LogLevel.None;
@@ -83,7 +90,13 @@ namespace KinectServer
 
             }
 
-            Log.StartLog(loglevel);
+            if (!Log.StartLog(loglevel))
+            {
+                ShowFatalWindowAndQuit("Could not access logging file, another Livescan Server instance is probably already open!");
+                return;
+            }
+
+
 
             //This tries to read the settings from "settings.bin", if it failes the settings stay at default values.
             try
@@ -106,15 +119,14 @@ namespace KinectServer
             oTransferServer = new TransferServer();
             oTransferServer.lVertices = lAllVertices;
             oTransferServer.lColors = lAllColors;
-            InitializeComponent();
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
             SetupButtons();
 
-            oServer.StartServer();
-            oTransferServer.StartServer();
-            OpenGLWorker.RunWorkerAsync();
-            Log.LogInfo("Starting Server");
+            if (!oServer.StartServer()) //If another Livescan Instance is already open, we terminate the app here
+                return;
 
+            oTransferServer.StartServer();
+            Log.LogInfo("Starting Server");
         }
 
         private void SetupButtons()
@@ -148,9 +160,16 @@ namespace KinectServer
             formatter.Serialize(stream, oSettings);
             stream.Close();
 
+            tLiveViewTimer.Stop();
+
             updateWorker.CancelAsync();
-            oServer.StopServer();
-            oTransferServer.StopServer();
+
+            if(oServer != null)
+                oServer.StopServer();
+            
+            if(oTransferServer != null)
+                oTransferServer.StopServer();
+            
             oOpenGLWindow.Unload();
 
             Log.LogInfo("Programm termined normally, exiting");
@@ -457,31 +476,36 @@ namespace KinectServer
                 Stopwatch timer = new Stopwatch();
                 timer.Start();
 
-                oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
-                Log.LogDebugCapture("Getting latest frame for live view");
-
-                //Update the vertex and color lists that are common between this class and the OpenGLWindow.
-                lock (lAllVertices)
+                if(oServer != null)
                 {
-                    lAllVertices.Clear();
-                    lAllColors.Clear();
-                    lAllCameraPoses.Clear();
+                    oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
+                    Log.LogDebugCapture("Getting latest frame for live view");
 
-                    for (int i = 0; i < lFramesRGB.Count; i++)
+                    //Update the vertex and color lists that are common between this class and the OpenGLWindow.
+                    lock (lAllVertices)
                     {
-                        lAllVertices.AddRange(lFramesVerts[i]);
-                        lAllColors.AddRange(lFramesRGB[i]);
+                        lAllVertices.Clear();
+                        lAllColors.Clear();
+                        lAllCameraPoses.Clear();
+
+                        for (int i = 0; i < lFramesRGB.Count; i++)
+                        {
+                            lAllVertices.AddRange(lFramesVerts[i]);
+                            lAllColors.AddRange(lFramesRGB[i]);
+                        }
+
+                        lAllCameraPoses.AddRange(oServer.lCameraPoses);
+
+                        timer.Stop();
+
+                        if (timer.ElapsedMilliseconds > 0)
+                            UpdateFPSCounter((int)(1000 / timer.ElapsedMilliseconds));
+                        else
+                            UpdateFPSCounter(0);
                     }
-
-                    lAllCameraPoses.AddRange(oServer.lCameraPoses);
-
-                    timer.Stop();
-
-                    if (timer.ElapsedMilliseconds > 0)
-                        UpdateFPSCounter((int)(1000 / timer.ElapsedMilliseconds));
-                    else
-                        UpdateFPSCounter(0);
                 }
+
+                
             }
         }
 
@@ -757,8 +781,18 @@ namespace KinectServer
         {
             Invoke(new Action(() =>
             {
-                MessageBox.Show(message, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }));
+        }
+
+        public void ShowFatalWindowAndQuit(string message)
+        {
+            Invoke(new Action(() =>
+            {
+                MessageBox.Show(message, "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+            }));
+
+            Close();
         }
 
         private void UpdateClientGridView(List<KinectSocket> socketList)
@@ -859,7 +893,8 @@ namespace KinectServer
             if (glLiveView.ClientSize.Height == 0)
                 glLiveView.ClientSize = new System.Drawing.Size(glLiveView.ClientSize.Width, 1);
 
-            oOpenGLWindow.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
+            if(oOpenGLWindow != null)
+                oOpenGLWindow.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
         }
 
         private void glLiveView_Paint(object sender, PaintEventArgs e)

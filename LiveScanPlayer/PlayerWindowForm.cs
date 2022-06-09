@@ -27,6 +27,8 @@ namespace LiveScanPlayer
 
         BindingList<IFrameFileReader> lFrameFiles = new BindingList<IFrameFileReader>();
 
+        bool bAppOpen = true;
+
         bool bPaused = true;
         bool bLoop = true;
         bool bScrollbarInUse = false;
@@ -54,6 +56,7 @@ namespace LiveScanPlayer
 
         private void PlayerWindowForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            bAppOpen = false;
             StopUpdateWorker();
         }
 
@@ -253,9 +256,12 @@ namespace LiveScanPlayer
                             if (fpsCountTimer.ElapsedMilliseconds > 0)
                             {
                                 lActualFPS = 1000 / fpsCountTimer.ElapsedMilliseconds;
-                                this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });
                                 fFpsUpdateTimer += fpsCountTimer.ElapsedMilliseconds;
                                 fpsCountTimer.Restart();
+
+                                //Otherwise backgroundworker might call this method, while the form is already closing
+                                if (bAppOpen)
+                                    this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });                                
                             }
                         }           
                     }

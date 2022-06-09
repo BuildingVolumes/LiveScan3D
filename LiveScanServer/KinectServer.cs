@@ -208,24 +208,40 @@ namespace KinectServer
             }
         }
 
-        public void StartServer()
+        public bool StartServer()
         {
             if (!bServerRunning)
             {
-                Log.LogDebug("Starting Server");
                 oServerSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
                 oServerSocket.Blocking = false;
 
                 IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 48001);
-                oServerSocket.Bind(endPoint);
-                oServerSocket.Listen(10);
+
+                try
+                {
+                    oServerSocket.Bind(endPoint);
+                    oServerSocket.Listen(10);
+                }
+
+                //Probably another server already running
+                catch(SocketException se)
+                {
+                    fMainWindowForm.ShowFatalWindowAndQuit("Another Livescan Server Instance is already running!");
+                    return false;
+                }
 
                 bServerRunning = true;
                 listeningThread = new Thread(this.ListeningWorker);
                 listeningThread.Start();
                 receivingThread = new Thread(this.ReceivingWorker);
                 receivingThread.Start();
+
+                Log.LogDebug("Starting Server");
+
+                return true;
             }
+
+            return true;
         }
 
         public void StopServer()

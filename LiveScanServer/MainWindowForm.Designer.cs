@@ -749,6 +749,7 @@
             this.Name = "MainWindowForm";
             this.Text = "LiveScanServer";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
+            this.Load += new System.EventHandler(this.MainWindowForm_Load);
             this.statusStrip1.ResumeLayout(false);
             this.statusStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gvClients)).EndInit();
