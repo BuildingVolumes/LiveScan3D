@@ -16,7 +16,7 @@ public:
 	SYNC_STATE eHardwareSyncState;
 	int nSyncOffset;
 	int nGlobalDeviceIndex;
-	static const int byteLength = 21;//Expected length of the serialized form sent over the network. 
+	static const int byteLength = 22;//Expected length of the serialized form sent over the network. 
 	bool filter_depth_map;
 	int filter_depth_map_size = 5;
 	char* ToBytes();

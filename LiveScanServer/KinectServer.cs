@@ -155,10 +155,9 @@ namespace KinectServer
             }
         }
 
-        public List<KinectSocket> GetClientSocketsCopy()
+        public List<KinectSocket> GetClientSockets()
         {
-            List<KinectSocket> sockets = new List<KinectSocket>(lClientSockets);
-            return sockets;
+            return lClientSockets;
         }
 
         public KinectSocket GetKinectSocketByIndex(int socketIndex)
@@ -490,6 +489,19 @@ namespace KinectServer
             if (CloseClient(lClientSockets))
             {
                 return InitializeClient(lClientSockets);
+            }
+
+            else
+                return false;
+        }
+
+        public bool RestartClient(KinectSocket client)
+        {
+            Log.LogInfo("Restarting client: " + client.configuration.SerialNumber);
+
+            if (CloseClient(client))
+            {
+                return InitializeClient(client);
             }
 
             else

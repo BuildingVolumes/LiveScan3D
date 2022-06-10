@@ -290,7 +290,8 @@ void LiveScanClient::UpdateFrame()
 
 	if (m_bInitializeCamera)
 	{
-		m_bCameraError != InitializeCamera();
+		bool init = InitializeCamera();
+		m_bCameraError = !init;
 		m_bInitializeCamera = false;
 		m_bConfirmCameraInitialized = true;
 	}

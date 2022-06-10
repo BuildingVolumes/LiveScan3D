@@ -131,23 +131,18 @@ namespace KinectServer
 
         private void SetupButtons()
         {
-            chMergeScans.Checked = oSettings.bMergeScansForSave;
-
             if (oServer != null)
                 chHardwareSync.Checked = oServer.bTempHwSyncEnabled;
             else
                 chHardwareSync.Checked = false;
 
+            chMergeScans.Checked = oSettings.bMergeScansForSave;
             chNetworkSync.Checked = oSettings.bNetworkSync;
-
             rExposureAuto.Checked = oSettings.bAutoExposureEnabled;
             rExposureManual.Checked = !oSettings.bAutoExposureEnabled;
-
-            trManualExposure.Value = oSettings.nExposureStep;
-
             rExportPointclouds.Checked = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud ? true : false;
             rExportRaw.Checked = !rExportPointclouds.Checked;
-
+            trManualExposure.Value = oSettings.nExposureStep;            
             cbEnablePreview.Checked = oSettings.bPreviewEnabled;
         }
 
@@ -686,7 +681,7 @@ namespace KinectServer
                 }
 
                 //Store the camera extrinsics
-                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, takePath, oServer.GetClientSocketsCopy());
+                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, takePath, oServer.GetClientSockets());
 
                 bRecording = true;
                 recordingWorker.RunWorkerAsync();
@@ -843,7 +838,7 @@ namespace KinectServer
                 form = new KinectConfigurationForm();
             }
             //
-            form.Configure(oServer, oSettings, gvClients.SelectedRows[0].Index);
+            form.Initialize(oServer, oSettings, gvClients.SelectedRows[0].Index, this);
             form.Show();
             oServer.SetKinectSettingsForm(gvClients.SelectedRows[0].Index, form);
         }

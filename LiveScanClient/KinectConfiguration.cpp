@@ -26,27 +26,20 @@
 	{
 		//update const byteLength when changing this
 		char* message = new char[byteLength];
-		//add depth mode.
-		char depthMode = (char)config.depth_mode;
-		message[0] = depthMode;
-		//add software sync_state
-		message[1] = (char)(int)eSoftwareSyncState; //Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
-		//add hardware sync_state
-		message[2] = (char)(int)eHardwareSyncState;
-		
-		//add sync_offset
-		message[3] = (char)(int)nSyncOffset;
 
-		for (int i = 4; i < serialNumberSize+4; i++) {
-			message[i] = (int)serialNumber[i - 4];//ascii->char
+		message[0] = (char)config.depth_mode;
+		message[1] = (char)config.color_format;
+		message[2] = (char)config.color_resolution;
+		message[3] = (char)(int)eSoftwareSyncState; //Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
+		message[4] = (char)(int)eHardwareSyncState;
+		message[5] = (char)(int)nSyncOffset;
+		for (int i = 6; i < serialNumberSize+6; i++) {
+			message[i] = (int)serialNumber[i - 6];//ascii->char
 		}
+		message[19] = nGlobalDeviceIndex;
+		message[20] = filter_depth_map ? 1 : 0;
+		message[21] = filter_depth_map_size;
 
-		//Global Device Index
-		message[17] = nGlobalDeviceIndex;
-		//Filter Depth Map option
-		message[18] = filter_depth_map ? 1 : 0;
-		message[19] = filter_depth_map_size;
-		//add color/resolution
 		return message;
 	}
 
@@ -54,7 +47,7 @@
 	{
 		//if length is not byteLength, throw error.
 		if (received.length() != byteLength) {
-			//error
+			//TODO: Throw error (debug only)
 		}
 
 		int i = 0;
@@ -64,6 +57,21 @@
 		//see: https://microsoft.github.io/Azure-Kinect-Sensor-SDK/master/group___enumerations_ga3507ee60c1ffe1909096e2080dd2a05d.html
 		config.depth_mode = static_cast<k4a_depth_mode_t>(depthMode);
 		i++;
+
+		//Set color format (BGRA, YUV, MJPEG)
+		int colorFormat = int(received[i]);
+		config.color_format = static_cast<k4a_image_format_t>(colorFormat);
+		i++;
+
+		int colorRes = int(received[i]);
+		config.color_resolution = static_cast<k4a_color_resolution_t>(colorRes);
+		i++;
+
+		//Certain color/depth resolutions only support 15 FPS
+		if (depthMode == 4 || colorRes == 6)
+			config.camera_fps = K4A_FRAMES_PER_SECOND_15;
+		else
+			config.camera_fps = K4A_FRAMES_PER_SECOND_30;
 
 		//set software sync_state
 		//Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
@@ -116,14 +124,12 @@
 	int KinectConfiguration::GetCameraWidth()
 	{
 		UpdateWidthAndHeight();
-
 		return m_nDepth_camera_width;
 	}
 
 	int KinectConfiguration::GetCameraHeight()
 	{
 		UpdateWidthAndHeight();
-
 		return m_nDepth_camera_height;
 	}
 
