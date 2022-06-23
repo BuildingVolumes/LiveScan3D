@@ -744,7 +744,6 @@
             this.ClientSize = new System.Drawing.Size(1048, 694);
             this.Controls.Add(this.tlMainPanel);
             this.Controls.Add(this.statusStrip1);
-            this.MaximizeBox = false;
             this.MinimumSize = new System.Drawing.Size(420, 670);
             this.Name = "MainWindowForm";
             this.Text = "LiveScanServer";

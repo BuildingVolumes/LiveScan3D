@@ -119,6 +119,8 @@ namespace KinectServer
             oTransferServer = new TransferServer();
             oTransferServer.lVertices = lAllVertices;
             oTransferServer.lColors = lAllColors;
+            lock (oOpenGLWindow.settings)
+                oOpenGLWindow.settings = oSettings;
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
             SetupButtons();
 
