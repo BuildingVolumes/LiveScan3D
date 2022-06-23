@@ -47,12 +47,13 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int 
 {
 	MarkerInfo marker;
 
-	bool res = pDetector->GetMarker(colorMat, marker);
+	bool res = pDetector->GetMarker(colorMat, marker); //Find the biggest marker in the image
 	if (!res)
 		return false;
 
 	int indexInPoses = -1;
 
+	//Check if the marker we've found is also enabled by the user
 	for (unsigned int j = 0; j < markerPoses.size(); j++)
 	{
 		if (marker.id == markerPoses[j].markerId)
@@ -67,6 +68,7 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int 
 	MarkerPose markerPose = markerPoses[indexInPoses];
 	iUsedMarkerId = markerPose.markerId;
 
+	//Get the Marker Corner coordinates in 3D camera space
 	vector<Point3f> marker3D(marker.corners.size());
 	bool success = GetMarkerCorners3D(marker3D, marker, pCameraCoordinates, cColorWidth, cColorHeight);
 
@@ -78,9 +80,12 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int 
 	marker3DSamples.push_back(marker3D);
 	nSampleCounter++;
 
+	//Get at least 20 samples (frames) of the marker coordinates, before acutally using them for calibration. 
+	//Makes marker detection more robust
 	if (nSampleCounter < nRequiredSamples)
 		return false;
 
+	//Average out the samples
 	for (size_t i = 0; i < marker3D.size(); i++)
 	{
 		marker3D[i] = Point3f();
@@ -92,6 +97,7 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int 
 		}
 	}
 
+	//Try to find out how the marker is rotated and translated in 3D space
 	Procrustes(marker, marker3D, worldT, worldR);
 
 	vector<vector<float>> Rcopy = worldR;
@@ -168,7 +174,7 @@ void Calibration::SaveCalibration(const string &serialNumber)
 
 void Calibration::Procrustes(MarkerInfo &marker, vector<Point3f> &markerInWorld, vector<float> &worldToMarkerT, vector<vector<float>> &worldToMarkerR)
 {
-	int nVertices = marker.points.size();
+	int nVertices = marker.points.size(); //nVertices = 5
 
 	Point3f markerCenterInWorld;
 	Point3f markerCenter;

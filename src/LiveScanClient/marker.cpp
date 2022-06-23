@@ -36,11 +36,12 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 {
 	vector<MarkerInfo> markers;
 	cv::Mat img2, img3;
-	cv::cvtColor(*img, img2, cv::COLOR_BGRA2GRAY);
-	cv::threshold(img2, img2, nThreshold, 255, cv::THRESH_BINARY);
+	cv::cvtColor(*img, img2, cv::COLOR_BGRA2GRAY); //First we convert the image to grayscale 
+	cv::threshold(img2, img2, nThreshold, 255, cv::THRESH_BINARY); //And then to a binary (either black or white) picture, to get the maximal contrast for the marker. This makes it easier to find it
 
 	img2.copyTo(img3);
 
+	//Now we try to find the contours, or outlines in the picture. One of them should be the marker if present. The contours are stored as points
 	vector<vector<cv::Point>> contours;	
 	cv::findContours(img3, contours, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
 
@@ -49,10 +50,10 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 		vector<cv::Point> corners;
 		double area = cv::contourArea(contours[i]);
 
-		if (area < nMinSize || area > nMaxSize)
+		if (area < nMinSize || area > nMaxSize) //We skip contours that are either too small or too large to be the marker
 			continue;
 
-		cv::approxPolyDP(contours[i], corners, sqrt(area)*dApproxPolyCoef, true);
+		cv::approxPolyDP(contours[i], corners, sqrt(area)*dApproxPolyCoef, true); //We get only the edge points of the contour
 
 		vector<cv::Point2f> cornersFloat;
 		for (unsigned int j = 0; j < corners.size(); j++)
@@ -60,15 +61,16 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 			cornersFloat.push_back(cv::Point2f((float)corners[j].x, (float)corners[j].y));
 		}
 
+		//Check if the contour is not Convex, as the marker is also not convex, check if it has 5 edge points and sort the edge points into a geometric order
 		if (!cv::isContourConvex(corners) && corners.size() == nMarkerCorners && OrderCorners(cornersFloat))
 		{	
 			bool order = true;
 
-			int code = GetCode(img2, vPts, cornersFloat);
+			int code = GetCode(img2, vPts, cornersFloat); //Reads which marker ID this marker has, based on the square pattern on it
 
 			if (code < 0)
 			{
-				reverse(cornersFloat.begin() + 1, cornersFloat.end());
+				reverse(cornersFloat.begin() + 1, cornersFloat.end()); //Is the image flipped?
 				code = GetCode(img2, vPts, cornersFloat);
 
 				if (code < 0)
@@ -92,12 +94,14 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 
 			markers.push_back(MarkerInfo(code, cornersFloat2, points3D));
 
+
+			//Draw all markers that were found in red
 			if (bDraw)
 			{
 				for (unsigned int j = 0; j < corners.size(); j++)
 				{
-					cv::circle(*img, cornersFloat[j], 2, cv::Scalar(0, 50 * j, 0), 1);
 					cv::line(*img, cornersFloat[j], cornersFloat[(j + 1) % cornersFloat.size()], cv::Scalar(0, 0, 255), 2);
+					cv::circle(*img, cornersFloat[j], 4, cv::Scalar(0, 50 * j, 0), 1);
 				}
 			}
 		}
@@ -108,6 +112,7 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 		double maxArea = 0;
 		int maxInd = 0;
 
+		//If we have multiple markers in the image, find which on is the biggest
 		for (unsigned int i = 0; i < markers.size(); i++)
 		{
 			if (GetMarkerArea(markers[i]) > maxArea)
@@ -118,6 +123,8 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 		}
 
 		marker = markers[maxInd];
+
+		//Draw the marker which we'll use for calibration (the biggest one)
 		if (bDraw)
 		{
 			for (int j = 0; j < nMarkerCorners; j++)
@@ -173,6 +180,13 @@ bool MarkerDetector::OrderCorners(vector<cv::Point2f> &corners)
 	return true;
 }
 
+/// <summary>
+/// Try to identify the pattern on the marker, which describes it's ID. 
+/// </summary>
+/// <param name="img">The image on which the marker is present</param>
+/// <param name="points">How we expect the marker outline to look like in 2D space</param>
+/// <param name="corners">The corner points of the marker as found on the input image</param>
+/// <returns></returns>
 int MarkerDetector::GetCode(cv::Mat &img, vector<cv::Point2f> points, vector<cv::Point2f> corners)
 {
 	cv::Mat H, img2;
@@ -187,6 +201,7 @@ int MarkerDetector::GetCode(cv::Mat &img, vector<cv::Point2f> points, vector<cv:
 		points[i].y = static_cast<float>((points[i].y - dMarkerFrame + 1) * 50);
 	}
 
+	//First, warp the image so that it has no perspective distortions, and is always rotated the same way
 	H = cv::findHomography(corners, points);
 	cv::warpPerspective(img, img2, H, cv::Size((int)(50 * markerInterior), (int)(50 * markerInterior)));
 
@@ -195,6 +210,8 @@ int MarkerDetector::GetCode(cv::Mat &img, vector<cv::Point2f> points, vector<cv:
 	int tot = xdiff * ydiff;
 	int vals[9];
 
+
+	//The pattern on the marker is laid out in a 9x9 grid. We check which cell of the grid is active (white)
 	cv::Mat integral;
 	cv::integral(img2, integral);
 	
@@ -217,14 +234,39 @@ int MarkerDetector::GetCode(cv::Mat &img, vector<cv::Point2f> points, vector<cv:
 		}
 	}
 
+	//The cells are now being checked for a valid pattern
 	int ones = 0;
 	int code = 0;
 	for (int i = 0; i < 4; i++)
 	{
-		if (vals[i] == vals[i + 4])
+		//Starting from the top left, a cell should not have the same activation state as the cell which is 4 cells ahead.
+		//Only the first 4 cells are actually used for the marker ID, the other cells act as a safeguard, so that we can be sure
+		//it is actually the right pattern
+
+		if (vals[i] == vals[i + 4]) 
 			return -1;
 		else if (vals[i] == 1)
 		{
+			
+			/* The code is calculated based on which cells are active.The cells have the following values :
+			
+			8 4 2
+			1 0 0
+			0 0 0
+
+			So for eample a marker with these cells active (X):
+
+			O X O
+			X X O
+			X O X
+
+			Is marker ID: 0 + 4 + 0 + + 1 + 0 + 0 + 0 + 0 + 0 = 5
+
+			Theoretically with this setup we could therefore have 16 markers
+			
+			*/
+			
+
 			code += static_cast<int>(pow(2, (double)(3 - i)));
 			ones++;
 		}

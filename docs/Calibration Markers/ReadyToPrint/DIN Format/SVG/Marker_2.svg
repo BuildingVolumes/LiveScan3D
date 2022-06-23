@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 3508 4961" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g id="Background" transform="matrix(1.40558,0,0,1.49549,175.697,306.575)">
+        <rect x="-125" y="-205" width="2496" height="3317" style="fill:white;"/>
+    </g>
+    <g id="Contour" transform="matrix(13.2458,0,0,13.9543,243.92,359.213)">
+        <path d="M0,304L0,0L228,0L228,304L114,228L0,304Z"/>
+    </g>
+    <g id="Cell-7" serif:id="Cell 7" transform="matrix(12.6297,0,0,13.9543,838.763,340.068)">
+        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
+    </g>
+    <g id="Cell-5" serif:id="Cell 5" transform="matrix(12.6297,0,0,13.9543,1395.09,-246.013)">
+        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
+    </g>
+    <g id="Cell-4" serif:id="Cell 4" transform="matrix(12.6297,0,0,13.9543,838.763,-246.013)">
+        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
+    </g>
+    <g id="Cell-2-MarkerValue-2" serif:id="Cell 2 MarkerValue 2" transform="matrix(12.6297,0,0,13.9543,1395.09,-836.069)">
+        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
+    </g>
+    <g id="CenterPoint" transform="matrix(3.94282,0,0,4.15373,-2683.9,-1982.52)">
+        <circle cx="1125.5" cy="1125.5" r="1.5" style="fill:rgb(241,0,0);"/>
+    </g>
+    <g id="CenterAlignVertical" transform="matrix(1.51002,0,0,1.59079,246.94,1099.93)">
+        <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
+    </g>
+    <g id="AlignVertical_Helper_Top" transform="matrix(1.51002,0,0,1.59079,246.94,-1522.39)">
+        <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
+    </g>
+    <g id="AlignVertical_Helper_Bottom" transform="matrix(1.51002,0,0,1.59079,247.163,3291.79)">
+        <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
+    </g>
+    <g id="CenterAlignHorizontal" transform="matrix(9.24619e-17,1.59079,-1.51002,9.74077e-17,3268.48,1104.7)">
+        <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
+    </g>
+    <g id="AlignHorizontal_Helper_Left" transform="matrix(9.24619e-17,1.59079,-1.51002,9.74077e-17,1584.01,1104.89)">
+        <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
+    </g>
+    <g id="AlignHorizontal_Helper_Right" transform="matrix(9.24619e-17,1.59079,-1.51002,9.74077e-17,4952.96,1104.89)">
+        <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
+    </g>
+</svg>
