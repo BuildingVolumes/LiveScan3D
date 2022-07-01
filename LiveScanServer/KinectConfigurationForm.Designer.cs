@@ -127,7 +127,17 @@ namespace KinectServer
             // 
             // nDepthFilterSize
             // 
+            this.nDepthFilterSize.Increment = new decimal(new int[] {
+            2,
+            0,
+            0,
+            0});
             this.nDepthFilterSize.Location = new System.Drawing.Point(31, 159);
+            this.nDepthFilterSize.Maximum = new decimal(new int[] {
+            51,
+            0,
+            0,
+            0});
             this.nDepthFilterSize.Minimum = new decimal(new int[] {
             1,
             0,

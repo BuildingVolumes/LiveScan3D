@@ -301,6 +301,7 @@
             this.gvClients.MultiSelect = false;
             this.gvClients.Name = "gvClients";
             this.gvClients.ReadOnly = true;
+            this.gvClients.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.gvClients.Size = new System.Drawing.Size(385, 164);
             this.gvClients.TabIndex = 25;
             // 

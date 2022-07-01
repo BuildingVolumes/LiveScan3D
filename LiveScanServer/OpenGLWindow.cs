@@ -170,7 +170,7 @@ namespace KinectServer
         {
             GL.Viewport(0, 0, width, height);
             float aspect_ratio = Math.Max(width, 1) / (float)Math.Max(height, 1);
-            Matrix4 perpective = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspect_ratio, 1, 64);
+            Matrix4 perpective = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspect_ratio, 0.01f, 64);
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadMatrix(ref perpective);
         }
