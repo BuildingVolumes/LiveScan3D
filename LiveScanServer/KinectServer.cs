@@ -155,10 +155,9 @@ namespace KinectServer
             }
         }
 
-        public List<KinectSocket> GetClientSocketsCopy()
+        public List<KinectSocket> GetClientSockets()
         {
-            List<KinectSocket> sockets = new List<KinectSocket>(lClientSockets);
-            return sockets;
+            return lClientSockets;
         }
 
         public KinectSocket GetKinectSocketByIndex(int socketIndex)
@@ -208,24 +207,40 @@ namespace KinectServer
             }
         }
 
-        public void StartServer()
+        public bool StartServer()
         {
             if (!bServerRunning)
             {
-                Log.LogDebug("Starting Server");
                 oServerSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
                 oServerSocket.Blocking = false;
 
                 IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 48001);
-                oServerSocket.Bind(endPoint);
-                oServerSocket.Listen(10);
+
+                try
+                {
+                    oServerSocket.Bind(endPoint);
+                    oServerSocket.Listen(10);
+                }
+
+                //Probably another server already running
+                catch(SocketException se)
+                {
+                    fMainWindowForm.ShowFatalWindowAndQuit("Another Livescan Server Instance is already running!");
+                    return false;
+                }
 
                 bServerRunning = true;
                 listeningThread = new Thread(this.ListeningWorker);
                 listeningThread.Start();
                 receivingThread = new Thread(this.ReceivingWorker);
                 receivingThread.Start();
+
+                Log.LogDebug("Starting Server");
+
+                return true;
             }
+
+            return true;
         }
 
         public void StopServer()
@@ -480,6 +495,19 @@ namespace KinectServer
                 return false;
         }
 
+        public bool RestartClient(KinectSocket client)
+        {
+            Log.LogInfo("Restarting client: " + client.configuration.SerialNumber);
+
+            if (CloseClient(client))
+            {
+                return InitializeClient(client);
+            }
+
+            else
+                return false;
+        }
+
         /// <summary>
         /// Restarts all clients in a specific order that allows temporal sync to work.
         /// (Restarts all subs first, and then the master)
@@ -547,8 +575,8 @@ namespace KinectServer
                 oSettings.bAutoExposureEnabled = false;
                 oSettings.nExposureStep = -5;
 
-                if (fSettingsForm != null) //Reflect this change in the settings UI
-                    fSettingsForm.SetExposureControlsToManual(true);
+                //Reflect this change in the settings UI
+                fMainWindowForm.SetExposureControlsMode(true);
 
                 SendSettings(); //Send settings to update the exposure
 
@@ -566,8 +594,7 @@ namespace KinectServer
                     //Enabeling failed, we undo the Exposure Settings
                     oSettings.bAutoExposureEnabled = true;
 
-                    if (fSettingsForm != null) //Reflect this change in the settings UI
-                        fSettingsForm.SetExposureControlsToManual(false);
+                    fMainWindowForm.SetExposureControlsMode(false);
 
                     SendSettings(); //Send settings to update the exposure
 

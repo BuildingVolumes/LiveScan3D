@@ -290,7 +290,8 @@ void LiveScanClient::UpdateFrame()
 
 	if (m_bInitializeCamera)
 	{
-		m_bCameraError != InitializeCamera();
+		bool init = InitializeCamera();
+		m_bCameraError = !init;
 		m_bInitializeCamera = false;
 		m_bConfirmCameraInitialized = true;
 	}
@@ -635,7 +636,7 @@ void LiveScanClient::SavePointcloudFrame(uint64_t timeStamp)
 void LiveScanClient::Calibrate()
 {
 
-	log.LogInfo("Start Calibration process");
+	log.LogCaptureDebug("Start Calibration process");
 
 	Point3f* pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 	pCapture->PointCloudImageToPoint3f(pCameraCoordinates);
@@ -653,7 +654,7 @@ void LiveScanClient::Calibrate()
 	}
 
 	else
-		log.LogInfo("Calibration unsuccessfull");
+		log.LogCaptureDebug("Calibration unsuccessfull");
 
 }
 

@@ -23,24 +23,38 @@ namespace KinectServer
         static StreamWriter streamWriter;
 
 
-        public static void StartLog(LogLevel loglevel)
+        public static bool StartLog(LogLevel loglevel)
         {
 #if DEBUG
-            if(loglevel > LogLevel.Debug)
+            if (loglevel > LogLevel.Debug)
                 loglevel = LogLevel.Debug;
 #endif
 
             CloseLog();
 
             logLevel = loglevel;
-            fileStream = new FileStream(logFilePath, FileMode.Create);
-            streamWriter = new StreamWriter(fileStream);
+
+            if (logLevel == LogLevel.None)
+                return true;
+
+            try
+            {
+                fileStream = new FileStream(logFilePath, FileMode.Create);
+                streamWriter = new StreamWriter(fileStream);
+            }
+
+            catch(Exception e)
+            {
+                return false;
+            }
+
             streamWriter.AutoFlush = true;
 
             if (logLevel <= LogLevel.Debug)
                 AllocConsole();
 
             LogInfo("Logging Started");
+            return true;
         }
 
         public static void CloseLog()
@@ -66,7 +80,16 @@ namespace KinectServer
                 if(streamWriter != null)
                 {
                     string newLine = "[" +DateTime.Now.ToString("HH:mm:ss") + "] " + level + ": " + message;
-                    streamWriter.WriteLine(newLine);
+
+                    try
+                    {
+                        streamWriter.WriteLine(newLine);
+                    }
+
+                    //We can't write, but hey, no way to log this soooo...just keep the app running
+                    catch (Exception e)
+                    {}
+
 
                     if (logLevel <= LogLevel.Debug)
                         Console.WriteLine(newLine);

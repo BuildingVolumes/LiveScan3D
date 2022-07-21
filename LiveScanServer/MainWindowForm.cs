@@ -16,22 +16,13 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
 using System.Windows.Forms;
-using System.Globalization;
 using System.Runtime.Serialization;
-
 using System.IO;
-using System.Net;
-using System.Net.Sockets;
-using System.Timers;
-
 using System.Diagnostics;
+using OpenTK;
+using OpenTK.Graphics;
 
 
 namespace KinectServer
@@ -44,7 +35,7 @@ namespace KinectServer
         KinectServer oServer;
         TransferServer oTransferServer;
 
-        //Those three four are shared with the OpenGLWindow class and are used to exchange data with it.
+        //Those three four are shared with the OpenGL class and are used to exchange data with it.
         //Vertices from all of the sensors
         List<float> lAllVertices = new List<float>();
         //Color data from all of the sensors
@@ -54,28 +45,36 @@ namespace KinectServer
         //Viewport settings
         ViewportSettings viewportSettings = new ViewportSettings();
 
-        bool bServerRunning = false;
+        System.Windows.Forms.Timer tLiveViewTimer;
+
         bool bRecording = false;
         bool bSaving = false;
-
-        //Live view open or not
-        bool bLiveViewRunning = false;
 
         System.Timers.Timer oStatusBarTimer = new System.Timers.Timer();
 
         KinectSettings oSettings = new KinectSettings();
 
-        //The live view window class
+
+        //Settings
+        private System.Windows.Forms.Timer scrollTimer = null;
+
+        //The live preview
         OpenGLWindow oOpenGLWindow;
-        public event EventHandler ResizeEnd;
 
         public MainWindowForm()
         {
+            InitializeComponent();
+            OpenGLWorker.RunWorkerAsync();
+        }
+
+        private void MainWindowForm_Load(object sender, EventArgs e)
+        {
+
             //Set the logging level
             string[] cmdLineArgs = Environment.GetCommandLineArgs();
             Log.LogLevel loglevel = Log.LogLevel.Normal;
 
-            if(cmdLineArgs.Length > 1)
+            if (cmdLineArgs.Length > 1)
             {
                 if (cmdLineArgs[1] == "-none" || cmdLineArgs[0] == "-None")
                     loglevel = Log.LogLevel.None;
@@ -91,7 +90,13 @@ namespace KinectServer
 
             }
 
-            Log.StartLog(loglevel);
+            if (!Log.StartLog(loglevel))
+            {
+                ShowFatalWindowAndQuit("Could not access logging file, another Livescan Server instance is probably already open!");
+                return;
+            }
+
+
 
             //This tries to read the settings from "settings.bin", if it failes the settings stay at default values.
             try
@@ -106,16 +111,41 @@ namespace KinectServer
                 Log.LogWarning("Could not read settings. Reverting to default settings");
             }
 
+            oSettings.AddDefaultMarker();
             oServer = new KinectServer(oSettings);
-            oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
+            oServer.eSocketListChanged += new SocketListChangedHandler(UpdateClientGridView);
             oServer.eSocketListChanged += new SocketListChangedHandler(ClientConnectionChanged);
             oServer.SetMainWindowForm(this);
             oTransferServer = new TransferServer();
             oTransferServer.lVertices = lAllVertices;
             oTransferServer.lColors = lAllColors;
-            InitializeComponent();
+            lock (oOpenGLWindow.settings)
+                oOpenGLWindow.settings = oSettings;
             UpdateSettingsButtonEnabled();//will disable settings button with no devices connected.
+            SetupButtons();
 
+            if (!oServer.StartServer()) //If another Livescan Instance is already open, we terminate the app here
+                return;
+
+            oTransferServer.StartServer();
+            Log.LogInfo("Starting Server");
+        }
+
+        private void SetupButtons()
+        {
+            if (oServer != null)
+                chHardwareSync.Checked = oServer.bTempHwSyncEnabled;
+            else
+                chHardwareSync.Checked = false;
+
+            chMergeScans.Checked = oSettings.bMergeScansForSave;
+            chNetworkSync.Checked = oSettings.bNetworkSync;
+            rExposureAuto.Checked = oSettings.bAutoExposureEnabled;
+            rExposureManual.Checked = !oSettings.bAutoExposureEnabled;
+            rExportPointclouds.Checked = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud ? true : false;
+            rExportRaw.Checked = !rExportPointclouds.Checked;
+            trManualExposure.Value = oSettings.nExposureStep;            
+            cbEnablePreview.Checked = oSettings.bPreviewEnabled;
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -127,8 +157,17 @@ namespace KinectServer
             formatter.Serialize(stream, oSettings);
             stream.Close();
 
-            oServer.StopServer();
-            oTransferServer.StopServer();
+            tLiveViewTimer.Stop();
+
+            updateWorker.CancelAsync();
+
+            if(oServer != null)
+                oServer.StopServer();
+            
+            if(oTransferServer != null)
+                oTransferServer.StopServer();
+            
+            oOpenGLWindow.Unload();
 
             Log.LogInfo("Programm termined normally, exiting");
             Log.CloseLog();
@@ -140,35 +179,7 @@ namespace KinectServer
             if(socketList.Count == 0)
             {
                 oServer.bTempHwSyncEnabled = false;
-
-                if(oServer.fSettingsForm != null)
-                {
-                    oServer.fSettingsForm.BeginInvoke(new Action(() =>
-                    {
-                        oServer.fSettingsForm.DisableHardwareSyncButton();
-                    }));
-                }                
-            }
-        }
-
-        //Starts the server
-        private void btStart_Click(object sender, EventArgs e)
-        {
-            bServerRunning = !bServerRunning;
-
-            if (bServerRunning)
-            {
-                oServer.StartServer();
-                oTransferServer.StartServer();
-                btStart.Text = "Stop server";
-                Log.LogInfo("Starting Server");
-            }
-            else
-            {
-                oServer.StopServer();
-                oTransferServer.StopServer();
-                btStart.Text = "Start server";
-                Log.LogInfo("Stopping Server");
+                chHardwareSync.Checked = false;
             }
         }
 
@@ -320,7 +331,6 @@ namespace KinectServer
         {
             Log.LogInfo("Live View started");
 
-            bLiveViewRunning = true;
             oOpenGLWindow = new OpenGLWindow();
 
             //The variables below are shared between this class and the OpenGLWindow.
@@ -333,14 +343,10 @@ namespace KinectServer
                 oOpenGLWindow.viewportSettings = viewportSettings;
                 oOpenGLWindow.viewportSettings.colorMode = EColorMode.BGR;
             }
-            oOpenGLWindow.Run();
         }
 
         private void OpenGLWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            Log.LogInfo("Live view stopped");
-            bLiveViewRunning = false;
-            updateWorker.CancelAsync();
         }
 
         private void StartSaving()
@@ -349,7 +355,8 @@ namespace KinectServer
             if (oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud)
             {
                 bSaving = true;
-                btRecord.Text = "Stop saving";
+                btRecord.Text = " Stop Saving";
+                btRecord.Image = Properties.Resources.stop;
                 btRecord.Enabled = true;
                 savingWorker.RunWorkerAsync();
             }
@@ -441,12 +448,12 @@ namespace KinectServer
         private void CaptureComplete()
         {
             Log.LogInfo("Capture has been completed!");
-            //If the live view window was open, we need to restart the UpdateWorker.
-            if (bLiveViewRunning)
-                RestartUpdateWorker();
+
+            RestartUpdateWorker();
 
             btRecord.Enabled = true;
-            btRecord.Text = "Start recording";
+            btRecord.Image = Properties.Resources.recording;
+            btRecord.Text = " Start Capture";
             btRefineCalib.Enabled = true;
             btCalibrate.Enabled = true;
 
@@ -466,31 +473,36 @@ namespace KinectServer
                 Stopwatch timer = new Stopwatch();
                 timer.Start();
 
-                oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
-                Log.LogDebugCapture("Getting latest frame for live view");
-
-                //Update the vertex and color lists that are common between this class and the OpenGLWindow.
-                lock (lAllVertices)
+                if(oServer != null)
                 {
-                    lAllVertices.Clear();
-                    lAllColors.Clear();
-                    lAllCameraPoses.Clear();
+                    oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
+                    Log.LogDebugCapture("Getting latest frame for live view");
 
-                    for (int i = 0; i < lFramesRGB.Count; i++)
+                    //Update the vertex and color lists that are common between this class and the OpenGLWindow.
+                    lock (lAllVertices)
                     {
-                        lAllVertices.AddRange(lFramesVerts[i]);
-                        lAllColors.AddRange(lFramesRGB[i]);
+                        lAllVertices.Clear();
+                        lAllColors.Clear();
+                        lAllCameraPoses.Clear();
+
+                        for (int i = 0; i < lFramesRGB.Count; i++)
+                        {
+                            lAllVertices.AddRange(lFramesVerts[i]);
+                            lAllColors.AddRange(lFramesRGB[i]);
+                        }
+
+                        lAllCameraPoses.AddRange(oServer.lCameraPoses);
+
+                        timer.Stop();
+
+                        if (timer.ElapsedMilliseconds > 0)
+                            UpdateFPSCounter((int)(1000 / timer.ElapsedMilliseconds));
+                        else
+                            UpdateFPSCounter(0);
                     }
-
-                    lAllCameraPoses.AddRange(oServer.lCameraPoses);
-
-                    timer.Stop();
-
-                    if (timer.ElapsedMilliseconds > 0)
-                        viewportSettings.externalFPSCounter = (int)(1000 / timer.ElapsedMilliseconds);
-                    else
-                        viewportSettings.externalFPSCounter = 0;
                 }
+
+                
             }
         }
 
@@ -671,11 +683,12 @@ namespace KinectServer
                 }
 
                 //Store the camera extrinsics
-                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, takePath, oServer.GetClientSocketsCopy());
+                Utils.SaveExtrinsics(oSettings.eExtrinsicsFormat, takePath, oServer.GetClientSockets());
 
                 bRecording = true;
                 recordingWorker.RunWorkerAsync();
-                btRecord.Text = "Stop recording";
+                btRecord.Text = " Stop Capture";
+                btRecord.Image = Properties.Resources.stop;
                 btRefineCalib.Enabled = false;
                 btCalibrate.Enabled = false;
                 Log.LogInfo("Starting Recording");
@@ -728,21 +741,6 @@ namespace KinectServer
                 updateWorker.RunWorkerAsync();
         }
 
-        private void btShowLive_Click(object sender, EventArgs e)
-        {
-            //Opens the live view window if it is not open yet.
-            if (!OpenGLWorker.IsBusy)
-                OpenGLWorker.RunWorkerAsync();
-
-            if(!bRecording)
-                RestartUpdateWorker();
-        }
-
-        public void SetLiveButtonActive(bool active)
-        {
-            btShowLive.Enabled = active;
-        }
-
         public void SetStatusBarOnTimer(string message, int milliseconds)
         {
             //Thread save change of UI Element
@@ -780,50 +778,77 @@ namespace KinectServer
         {
             Invoke(new Action(() =>
             {
-                MessageBox.Show(message, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }));
         }
 
-        //Updates the ListBox contaning the connected clients, called by events inside KinectServer.
-        private void UpdateListView(List<KinectSocket> socketList)
+        public void ShowFatalWindowAndQuit(string message)
         {
-            List<string> listBoxItems = new List<string>();
-
-            for (int i = 0; i < socketList.Count; i++)
-                listBoxItems.Add(socketList[i].sSocketState);
-
-
-            // Invoke UI logic on the same thread.
-            lClientListBox.BeginInvoke(new Action(() =>
+            Invoke(new Action(() =>
             {
-                lClientListBox.DataSource = listBoxItems;
-                UpdateSettingsButtonEnabled();
+                MessageBox.Show(message, "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Stop);
             }));
 
+            Close();
+        }
+
+        private void UpdateClientGridView(List<KinectSocket> socketList)
+        {
+            List<string[]> gridViewRows = new List<string[]>();
+
+            for (int i = 0; i < socketList.Count; i++)
+            {
+                if (socketList[i].configuration != null)
+                {
+                  gridViewRows.Add(new string[]
+                  { 
+                    socketList[i].configuration.globalDeviceIndex.ToString(),
+                    socketList[i].configuration.SerialNumber,
+                    socketList[i].GetIP(),
+                    socketList[i].bCalibrated.ToString(),
+                    socketList[i].configuration.eSoftwareSyncState.ToString()
+                  });
+                }
+
+            }
+
+            // Invoke UI logic on the same thread.
+            gvClients.BeginInvoke(new Action(() =>
+            {
+                gvClients.Rows.Clear();
+
+                foreach (string[] row in gridViewRows)
+                {
+                    gvClients.Rows.Add(row);
+                }
+
+                UpdateSettingsButtonEnabled();
+            }));
         }
 
         private void btKinectSettingsOpenButton_Click(object sender, EventArgs e)
         {
-            if (lClientListBox.SelectedIndex == -1)
+            if (gvClients.SelectedRows.Count < 1)
             {
                 return;
             }
             //
-            KinectConfigurationForm form = oServer.GetKinectSettingsForm(lClientListBox.SelectedIndex);
+
+            KinectConfigurationForm form = oServer.GetKinectSettingsForm(gvClients.SelectedRows[0].Index);
             if (form == null)
             {
                 form = new KinectConfigurationForm();
             }
             //
-            form.Configure(oServer, oSettings, lClientListBox.SelectedIndex);
+            form.Initialize(oServer, oSettings, gvClients.SelectedRows[0].Index, this);
             form.Show();
-            oServer.SetKinectSettingsForm(lClientListBox.SelectedIndex, form);
+            oServer.SetKinectSettingsForm(gvClients.SelectedRows[0].Index, form);
         }
 
         private void UpdateSettingsButtonEnabled()
         {
-            //Disable the deviceSettings button when no items are selected or no items could be selected.
-            if (lClientListBox.SelectedIndex == -1 || lClientListBox.Items.Count == 0)
+            //Disable the device Settings button when no items are selected or no items could be selected.
+            if (gvClients.Rows.Count < 1)
             {
                 btKinectSettingsOpenButton.Enabled = false;
             }
@@ -833,9 +858,254 @@ namespace KinectServer
             }
         }
 
-        private void lClientListBox_SelectedIndexChanged(object sender, EventArgs e)
+        /// <summary>
+        /// Gets called when the Live View Window is being loaded. Sets up the render intervall and events
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void glLiveView_Load(object sender, EventArgs e)
         {
+            // Make sure that when the GLControl is resized or needs to be painted,
+            // we update our projection matrix or re-render its contents, respectively.
+            glLiveView.Resize += glLiveView_Resize;
+            glLiveView.Paint += glLiveView_Paint;
+
+            // We have to update the embedded GL window ourselves
+            tLiveViewTimer = new System.Windows.Forms.Timer();
+            tLiveViewTimer.Tick += (senderer, ea) => {Render();};
+            tLiveViewTimer.Interval = 16;   // 60 fps
+            tLiveViewTimer.Start();
+
+            glLiveView_Resize(glLiveView, EventArgs.Empty);
+
+            oOpenGLWindow.Load();
+
+            RestartUpdateWorker();
+        }
+
+        private void glLiveView_Resize(object sender, EventArgs e)
+        {
+            glLiveView.MakeCurrent();
+
+            if (glLiveView.ClientSize.Height == 0)
+                glLiveView.ClientSize = new System.Drawing.Size(glLiveView.ClientSize.Width, 1);
+
+            if(oOpenGLWindow != null)
+                oOpenGLWindow.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
+        }
+
+        private void glLiveView_Paint(object sender, PaintEventArgs e)
+        {
+            Render();
+        }
+
+        private void Render()
+        {
+            glLiveView.MakeCurrent();
+            oOpenGLWindow.UpdateFrame();
+            oOpenGLWindow.RenderFrame();
+            glLiveView.SwapBuffers();
+        }
+
+        private void glLiveView_MouseDown(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseButtonDown(sender, e);
+        }
+
+        private void glLiveView_MouseMove(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseMove(sender, e);
+        }
+
+        private void glLiveView_MouseUp(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseButtonUp(sender, e);
+        }
+
+        private void glLiveView_Scroll(object sender, MouseEventArgs e)
+        {
+            oOpenGLWindow.OnMouseWheelChanged(sender, e);
+        }
+
+        private void glLiveView_KeyDown(object sender, KeyEventArgs e)
+        {
+            oOpenGLWindow.OnKeyDown(sender, e);
+        }
+
+        private void UpdateFPSCounter(int fps)
+        {
+            // Invoke UI logic on the same thread.
+            lFPS.BeginInvoke(new Action(() =>
+            {
+                lFPS.Text = fps.ToString() + " FPS";
+            }));
+        }
+
+        // Settings
+
+        private void SettingsChanged()
+        {
+            Cursor.Current = Cursors.WaitCursor;
+
+            oServer.SendSettings();
+
+            //Check if we need to restart the cameras
+
+            //TODO: Currently, the UI doesn't update as it stalls the thread. How can I get this to work without stalling it?
+
+            Log.LogDebug("Updating settings on clients");
+
+            if (chHardwareSync.Checked != oServer.bTempHwSyncEnabled)
+            {
+                if (chHardwareSync.Checked)
+                {
+                    chHardwareSync.Checked = oServer.EnableTemporalSync();
+                    Log.LogDebug("Hardware sync is set on by the user");
+                }
+
+                else
+                {
+                    chHardwareSync.Checked = !oServer.DisableTemporalSync();
+                    Log.LogDebug("Hardware sync is set off by the user");
+
+                }
+            }
+
+            Cursor.Current = Cursors.Default;
+        }
+
+        private void chHardwareSync_Clicked(object sender, EventArgs e)
+        {
+            if (chNetworkSync.Checked)
+            {
+                chNetworkSync.Checked = false;
+                oSettings.bNetworkSync = false;
+            }
+
+            SettingsChanged();
+        }        
+
+        private void chNetworkSync_Clicked(object sender, EventArgs e)
+        {
+            if (chHardwareSync.Checked)
+            {
+                chHardwareSync.Checked = false;
+            }
+
+            oSettings.bNetworkSync = chNetworkSync.Checked;
+            SettingsChanged();
+        }
+
+        private void rExposureAuto_Clicked(object sender, EventArgs e)
+        {
+            if (rExposureAuto.Checked)
+            {
+                oSettings.bAutoExposureEnabled = true;
+                trManualExposure.Enabled = false;
+            }
+
+            SettingsChanged();
+        }
+        
+        private void rExposureManual_Clicked(object sender, EventArgs e)
+        {
+            if (rExposureManual.Checked)
+            {
+                oSettings.bAutoExposureEnabled = false;
+                trManualExposure.Enabled = true;
+            }
+
+            SettingsChanged();
+        }
+
+        public void SetExposureControlsMode(bool manual)
+        {
+            rExposureAuto.Checked = !manual;
+            rExposureManual.Checked = manual;
+            trManualExposure.Enabled = manual;
+        }
+
+        /// <summary>
+        /// When the user scrolls on the trackbar, we wait a short amount of time to check if the user has scrolled again.
+        /// This prevents the Manual Exposure to be set too often, and only sets it when the user has stopped scrolling.
+        /// Code taken from: https://stackoverflow.com/a/15687418
+        /// </summary>
+        private void trManualExposure_Scroll(object sender, EventArgs e)
+        {
+            if (scrollTimer == null)
+            {
+                // Will tick every 500ms
+                scrollTimer = new System.Windows.Forms.Timer()
+                {
+                    Enabled = false,
+                    Interval = 300,
+                    Tag = (sender as TrackBar).Value
+                };
+
+                scrollTimer.Tick += (s, ea) =>
+                {
+                    // check to see if the value has changed since we last ticked
+                    if (trManualExposure.Value == (int)scrollTimer.Tag)
+                    {
+                        // scrolling has stopped so we are good to go ahead and do stuff
+                        scrollTimer.Stop();
+
+                        // Send the changed exposure to the devices
+
+                        //Clamp Exposure Step between -11 and 1
+                        int exposureStep = trManualExposure.Value;
+                        int exposureStepClamped = exposureStep < -11 ? -11 : exposureStep > 1 ? 1 : exposureStep;
+                        oSettings.nExposureStep = exposureStepClamped;
+
+                        SettingsChanged();
+
+                        scrollTimer.Dispose();
+                        scrollTimer = null;
+                    }
+                    else
+                    {
+                        // record the last value seen
+                        scrollTimer.Tag = trManualExposure.Value;
+                    }
+                };
+                scrollTimer.Start();
+            }
+        }
+
+        private void cbEnablePreview_Clicked(object sender, EventArgs e)
+        {
+            oSettings.bPreviewEnabled = cbEnablePreview.Checked;
+            SettingsChanged();
+        }
+
+        private void rExportRaw_Clicked(object sender, EventArgs e)
+        {
+            if (rExportRaw.Checked)
+            {
+                chMergeScans.Enabled = false;
+                oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
+            }
+
+            SettingsChanged();
+        }
+
+        private void rExportPointclouds_Clicked(object sender, EventArgs e)
+        {
+            if (rExportPointclouds.Checked)
+            {
+                chMergeScans.Enabled = true;
+                oSettings.eExportMode = KinectSettings.ExportMode.Pointcloud;
+            }
+
+            SettingsChanged();
 
         }
+
+        private void chMergeScans_CheckedChanged(object sender, EventArgs e)
+        {
+            oSettings.bMergeScansForSave = chMergeScans.Checked;
+            SettingsChanged();
+        }
+
     }
 }

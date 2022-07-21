@@ -44,42 +44,5 @@ namespace KinectServer
 		MSG_CONFIRM_POSTSYNCED,
 		MSG_CONFIRM_POST_RECORD_PROCESS,
 		MSG_CONFIRM_PRE_RECORD_PROCESS
-	};
-
-	public struct DepthModeConfiguration
-	{
-		public string depthModeName;
-		public string depthModeDetails;
-		public byte value;//The value that gets sent across the network. It must align with the index of the enum documented in the kinect SDK here: https://microsoft.github.io/Azure-Kinect-Sensor-SDK/master/group___enumerations_ga3507ee60c1ffe1909096e2080dd2a05d.html
-		public override string ToString()
-		{
-			return depthModeName;
-		}
-		public static DepthModeConfiguration[] DefaultDepthModes = {
-
-			new DepthModeConfiguration()
-			{
-				depthModeName = "1024 WFOV Unbinned",
-				depthModeDetails = "Depth captured at 1024x1024. Passive IR is also captured at 1024x1024.",
-				value = 4
-			},
-			new DepthModeConfiguration()
-			{
-				depthModeName = "512 WFOV 2x2 Binned",
-				depthModeDetails = "Depth captured at 512x512. Passive IR is also captured at 512x512.",
-				value = 3
-			},new DepthModeConfiguration()
-			{
-				depthModeName = "640 NFOV Unbinned",
-				depthModeDetails = "Depth captured at 640x576. Passive IR is also captured at 640x576.",
-				value = 2
-			},new DepthModeConfiguration()
-			{
-				depthModeName = "320 NFOV 2x2 Binned",
-				depthModeDetails = "Depth captured at 320x288. Passive IR is also captured at 320x288.",
-				value = 1
-			}
-		};
-	}
-	
+	};	
 }

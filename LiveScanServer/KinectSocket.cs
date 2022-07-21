@@ -529,9 +529,10 @@ namespace KinectServer
             eChanged?.Invoke();
         }
 
-        public string GetEndpoint()
+        public string GetIP()
         {
-            return oSocket.RemoteEndPoint.ToString();
+            System.Net.IPEndPoint remoteIpEndPoint = oSocket.RemoteEndPoint as System.Net.IPEndPoint;
+            return remoteIpEndPoint.Address.MapToIPv4().ToString();
         }
 
         public void DisconnectSocket()

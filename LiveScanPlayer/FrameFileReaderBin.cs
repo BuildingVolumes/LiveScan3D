@@ -11,12 +11,15 @@ namespace LiveScanPlayer
     {
         BinaryReader binaryReader;
         int currentFrameIdx = 0;
+        int totalFrameCount = 0;
         string filename;
+
 
         public FrameFileReaderBin(string filename)
         {
             this.filename = filename;
             binaryReader = new BinaryReader(File.Open(this.filename, FileMode.Open));
+            GetTotalFrameCount();
         }
 
         public int frameIdx
@@ -31,10 +34,18 @@ namespace LiveScanPlayer
             }
         }
 
+        public int totalFrames
+        {
+            get
+            {
+                return totalFrameCount;
+            }
+        }
+
         public void ReadFrame(List<float> vertices, List<byte> colors)
         {
-            if (binaryReader.BaseStream.Position == binaryReader.BaseStream.Length)
-                Rewind();
+            if (binaryReader.BaseStream.Position >= binaryReader.BaseStream.Length)
+                return;
 
             string[] lineParts = ReadLine().Split(' ');
             int nPoints = Int32.Parse(lineParts[1]);
@@ -52,8 +63,6 @@ namespace LiveScanPlayer
 
             if (frameData.Length < bytesPerPoint * nPoints)
             {
-                Rewind();
-                ReadFrame(vertices, colors);
                 return;
             }
 
@@ -80,21 +89,76 @@ namespace LiveScanPlayer
             currentFrameIdx++;
         }
 
-        public void JumpToFrame(int frameIdx)
+        /// <summary>
+        /// Skips the current frame in the binaryReader. Returns false when end of file has been reached
+        /// </summary>
+        /// <returns></returns>
+        private bool SkipFrame()
         {
-            Rewind();
-            for (int i = 0; i < frameIdx; i++)
+            if (binaryReader.BaseStream.Position >= binaryReader.BaseStream.Length)
+                return false;
+
+            string[] lineParts = ReadLine().Split(' ');
+            int nPoints = Int32.Parse(lineParts[1]);
+            lineParts = ReadLine().Split(' ');
+
+            int bytesPerVertexPoint = 3 * sizeof(short);
+            int bytesPerColorPoint = 4 * sizeof(byte);
+            int bytesPerPoint = bytesPerVertexPoint + bytesPerColorPoint;
+
+            if (binaryReader.BaseStream.Position + (bytesPerPoint * nPoints) > binaryReader.BaseStream.Length)
+                return false;
+
+            binaryReader.BaseStream.Seek(bytesPerPoint * nPoints + 1, SeekOrigin.Current);
+
+            currentFrameIdx++;
+
+            return true;
+        }
+
+        public void JumpToFrame(int targetFrame)
+        {
+            int skipFrameCount = targetFrame;
+
+            if (targetFrame == currentFrameIdx)
+                return;
+
+            //Atm we can only jump forward in time, so if the target frame is behind our current frame we need rewind and start from the beginning
+            if (targetFrame < currentFrameIdx)
+                Rewind();
+
+            else
+                skipFrameCount = targetFrame - currentFrameIdx;
+
+            for (int i = 0; i < skipFrameCount; i++)
             {
-                List<float> vertices = new List<float>();
-                List<byte> colors = new List<byte>();
-                ReadFrame(vertices, colors);
+                SkipFrame();
             }
+
         }
 
         public void Rewind()
         {
             currentFrameIdx = 0;
             binaryReader.BaseStream.Seek(0, SeekOrigin.Begin);
+        }
+
+        private void GetTotalFrameCount()
+        {
+            long StreamPosition = binaryReader.BaseStream.Position;
+
+            Rewind();
+
+            int count = 0;
+
+            while (SkipFrame())
+            {
+                count++;
+            }
+
+            totalFrameCount = count;
+
+            binaryReader.BaseStream.Seek(StreamPosition, SeekOrigin.Begin);
         }
 
         public void CloseReader()

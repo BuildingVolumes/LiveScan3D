@@ -12,29 +12,30 @@ namespace KinectServer
 {
     public partial class KinectConfigurationForm : Form
     {
-        public KinectServer oServer;
-        public KinectSettings oSettings;
-        public int socketID;
+        MainWindowForm fMainWindowForm;
+        KinectServer oServer;
+        KinectSettings oSettings;
+        int socketID;
         
-        public KinectSocket kinectSocket;
-        private KinectConfiguration displayedConfiguration;
-        private DepthModeConfiguration SelectedDepthMode => (DepthModeConfiguration)lDepthModeListBox.SelectedItem;
-
+        KinectSocket kinectSocket;
+        KinectConfiguration displayedConfiguration;
        
         public KinectConfigurationForm()
         {
             InitializeComponent();
-            CreateDepthModesList();
+            CreateDepthResList();
+            CreateColorResList();
         }
 
-        public void Configure(KinectServer kServer, KinectSettings kSettings, int socketID)
+        public void Initialize(KinectServer kServer, KinectSettings kSettings, int socketID, MainWindowForm winForm)
         {
+            fMainWindowForm = winForm;
             oServer = kServer;
             oSettings = kSettings;
             this.socketID = socketID;
             kinectSocket = oServer.GetKinectSocketByIndex(socketID);
-            kinectIDLabel.Text = kinectSocket.sSocketState;
-            Text = "Settings For " + kinectSocket.GetEndpoint();
+            this.Text = "Settings for device: ";
+            this.Update();
 
             kinectSocket.RequestConfiguration();
             kinectSocket.configurationUpdated += UpdateFormItemsFromConfiguration;
@@ -44,51 +45,110 @@ namespace KinectServer
         private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
             // Invoke UI logic on the same thread.
-            kinectIDLabel.BeginInvoke(
+            this.BeginInvoke(
                 new Action(() =>
                 {
                     displayedConfiguration = kc;
-                    kinectIDLabel.Text = kc.SerialNumber;
+                    this.Text = "Settings for device: " + kc.SerialNumber;
+                    this.Update(); 
                     cbFilterDepthMap.Checked = kc.FilterDepthMap;
-                    tbFilterDepthMapSize.Text = kc.FilterDepthMapSize.ToString();
-                    tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
+                    nDepthFilterSize.Value = kc.FilterDepthMapSize;
                     
                     //Disable changing depth map filtering if we are in raw frames mode.
                     //Depth filtering only works in point cloud mode.
                     SetDepthFilterBoxActive(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud);
 
-                    int d = (int)kc.eDepthMode;
-                    foreach (DepthModeConfiguration item in lDepthModeListBox.Items)
-                    {
-                        if (item.value == d)
-                        {
-                            lDepthModeListBox.SelectedItem = item;
-                            break;
-                        }
-                    }
+                    lbDepthRes.SelectedIndex = (int)kc.eDepthRes - 1;
+                    lbColorRes.SelectedIndex = (int)kc.eColorRes - 1;
                 }
         ));
         }
 
-        private void CreateDepthModesList()
+        private void CreateDepthResList()
         {
-            lDepthModeListBox.Items.Clear();
-            //Add the items pre-defined in ServerUtils
-            foreach(var dmc in DepthModeConfiguration.DefaultDepthModes)
+            string[] depthModes = new string[]
             {
-                lDepthModeListBox.Items.Add(dmc);
+                "NFOV 320 x 288",
+                "NFOV 640 x 576",
+                "WFOV 512 x 512",
+                "WFOV 1024 x 1024 (15 FPS)"
+            };
+
+
+            lbDepthRes.Items.Clear();
+            lbDepthRes.Items.AddRange(depthModes);
+        }
+
+        private void CreateColorResList()
+        {
+            string[] colorModes = new string[]
+            {
+                "1280 x 720 (16:9)",
+                "1920 x 1080 (16:9)",
+                "2560 x 1440 (16:9)",
+                "2048 x 1536 (4:3)",
+                "3840 x 2160 (16:9)",
+                "4096 x 3072 (4:3, 15 FPS)"
+            };
+
+
+            lbColorRes.Items.Clear();
+            lbColorRes.Items.AddRange(colorModes);
+        }
+
+        private void btApply_Click(object sender, EventArgs e)
+        {
+            Log.LogDebug("User changed configuration for device: " + kinectSocket.configuration.SerialNumber);
+
+            if(oServer.SetAndConfirmConfig(kinectSocket, displayedConfiguration))
+            {
+                if (oServer.bTempHwSyncEnabled)
+                    oServer.RestartWithTemporalSyncPattern();
+
+                else
+                    oServer.RestartClient(kinectSocket);
+            }       
+        }
+
+        private void btApplyAll_Click(object sender, EventArgs e)
+        {
+            Log.LogDebug("User changed configuration all devices");
+
+            //Every config might contain individual settings, so we can't just apply one config to all 
+
+            oServer.GetConfigurations(oServer.GetClientSockets());
+
+            List<KinectSocket> sockets = oServer.GetClientSockets();
+            bool socketError = false;
+
+            foreach (KinectSocket socket in sockets)
+            {
+                socket.configuration.eDepthRes = displayedConfiguration.eDepthRes;
+                socket.configuration.eColorRes = displayedConfiguration.eColorRes;
+                socket.configuration.FilterDepthMap = displayedConfiguration.FilterDepthMap;
+                socket.configuration.FilterDepthMapSize = displayedConfiguration.FilterDepthMapSize;
+                if (!oServer.SetAndConfirmConfig(socket, socket.configuration))
+                    socketError = true;
+            }
+
+            if (!socketError)
+            {
+                if (oServer.bTempHwSyncEnabled)
+                    oServer.RestartWithTemporalSyncPattern();
+
+                else
+                    oServer.RestartAllClients();
             }
         }
 
-        private void UpdateButton_Click(object sender, EventArgs e)
+        private void lbDepthRes_SelectedIndexChanged(object sender, EventArgs e)
         {
-            oServer.SetAndConfirmConfig(kinectSocket, displayedConfiguration);
+            displayedConfiguration.eDepthRes = (KinectConfiguration.depthResolution)lbDepthRes.SelectedIndex + 1;
         }
 
-        private void ListBox1_SelectedIndexChanged(object sender, EventArgs e)
+        private void lbColorRes_SelectedIndexChanged(object sender, EventArgs e)
         {
-            lbDepthModeDetaulsLabel.Text = SelectedDepthMode.depthModeDetails;
-            displayedConfiguration.eDepthMode = (KinectConfiguration.depthMode)SelectedDepthMode.value;
+            displayedConfiguration.eColorRes = (KinectConfiguration.colorResolution)lbColorRes.SelectedIndex + 1;
         }
 
         private void KinectSettingsForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -100,26 +160,19 @@ namespace KinectServer
         private void cbFilterDepthMap_CheckedChanged(object sender, EventArgs e)
         {
             displayedConfiguration.FilterDepthMap = cbFilterDepthMap.Checked;
-            tbFilterDepthMapSize.Enabled = displayedConfiguration.FilterDepthMap;
         }
 
-        private void tbFilterDepthMapSize_TextChanged(object sender, EventArgs e)
+        private void nDepthFilterSize_ValueChanged(object sender, EventArgs e)
         {
-            if (int.TryParse(tbFilterDepthMapSize.Text, out int result)) {
-                displayedConfiguration.FilterDepthMapSize = result;
-            }
-        }
+            int size = (int)nDepthFilterSize.Value;
 
-        private void tbFilterDepthMapSize_Validating(object sender, CancelEventArgs e)
-        {
-            if (int.TryParse(tbFilterDepthMapSize.Text, out int result))
+            if (size % 2 == 0)
             {
-                if (result != 0 && result % 2 == 0)
-                {
-                    result--;
-                }
-                tbFilterDepthMapSize.Text = result.ToString();
+                size--;
             }
+
+            nDepthFilterSize.Value = (decimal)size;
+            displayedConfiguration.FilterDepthMapSize = size;
         }
 
         /// <summary>
@@ -128,7 +181,8 @@ namespace KinectServer
         internal void SetDepthFilterBoxActive(bool enabled)
         {
             cbFilterDepthMap.Enabled = enabled;
-            tbFilterDepthMapSize.Enabled = enabled;
+            nDepthFilterSize.Enabled = enabled;
         }
+
     }
 }

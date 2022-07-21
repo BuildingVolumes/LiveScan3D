@@ -14,6 +14,8 @@ namespace LiveScanPlayer
             set;
         }
 
+        int totalFrames { get; } 
+
         void ReadFrame(List<float> vertices, List<byte> colors);
 
         void JumpToFrame(int frameIdx);

@@ -27,12 +27,12 @@
     <ClInclude Include="..\include\LiveScanClient\imageRenderer.h" />
     <ClInclude Include="..\include\LiveScanClient\iMarker.h" />
     <ClInclude Include="..\include\LiveScanClient\liveScanClient.h" />
+    <ClInclude Include="..\include\LiveScanClient\Log.h" />
     <ClInclude Include="..\include\LiveScanClient\marker.h" />
     <ClInclude Include="..\include\LiveScanClient\utils.h" />
     <ClInclude Include="..\include\nanoflann.h" />
     <ClInclude Include="..\include\socketCS.h" />
     <ClInclude Include="KinectConfiguration.h" />
-    <ClInclude Include="Log.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
@@ -45,11 +45,11 @@
     <ClCompile Include="..\src\LiveScanClient\imageRenderer.cpp" />
     <ClCompile Include="..\src\LiveScanClient\iMarker.cpp" />
     <ClCompile Include="..\src\LiveScanClient\liveScanClient.cpp" />
+    <ClCompile Include="..\src\LiveScanClient\Log.cpp" />
     <ClCompile Include="..\src\LiveScanClient\marker.cpp" />
     <ClCompile Include="..\src\LiveScanClient\utils.cpp" />
     <ClCompile Include="..\src\socketCS.cpp" />
     <ClCompile Include="KinectConfiguration.cpp" />
-    <ClCompile Include="Log.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LiveScanClient.rc" />
