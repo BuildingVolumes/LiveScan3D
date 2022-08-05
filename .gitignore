@@ -195,9 +195,12 @@ FakesAssemblies/
 # Visual Studio 6 workspace options file
 *.opt
 bin
-LiveScanClient/lastIP.txt
 out/*
 recording*.bin
 takes.json
 settings.bin
-/LiveScanClient/
+LiveScanClient/lastIP.txt
+/LiveScanClient/Debug/
+/LiveScanClient/external/
+/LiveScanClient/x64/
+/LiveScanClient/*.txt
