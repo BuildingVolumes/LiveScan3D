@@ -50,8 +50,8 @@
     <ClCompile Include="..\src\LiveScanClient\liveScanClient.cpp" />
     <ClCompile Include="..\src\LiveScanClient\Log.cpp" />
     <ClCompile Include="..\src\LiveScanClient\marker.cpp" />
+    <ClCompile Include="..\src\LiveScanClient\socketCS.cpp" />
     <ClCompile Include="..\src\LiveScanClient\utils.cpp" />
-    <ClCompile Include="..\src\socketCS.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LiveScanClient.rc" />

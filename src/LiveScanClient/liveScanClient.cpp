@@ -48,6 +48,7 @@ int APIENTRY wWinMain(
 	szArgList = CommandLineToArgvW(GetCommandLine(), &argCount);
 
 	Log::LOGLEVEL loglevel = Log::LOGLEVEL_INFO;
+	int virtualClient = 0;
 
 	if (argCount > 1)
 	{
@@ -61,17 +62,28 @@ int APIENTRY wWinMain(
 			loglevel = Log::LOGLEVEL_ALL;
 	}
 
-	if (argCount >= 6)
+	if (argCount > 2)
+	{
+		//If this client should be instantiated as virtual client for testing purposes (0 = false, 1 = true)
+	}
+
+	if (argCount >= 7)
 	{
 		// assume window width, height, x, y
-		g_winWidth = _wtoi(szArgList[2]);
-		g_winHeight = _wtoi(szArgList[3]);
-		g_winX = _wtoi(szArgList[4]);
-		g_winY = _wtoi(szArgList[5]);
-		if (argCount >= 7) g_connectToServerImmediately = _wtoi(szArgList[6]);
+		g_winWidth = _wtoi(szArgList[3]);
+		g_winHeight = _wtoi(szArgList[4]);
+		g_winX = _wtoi(szArgList[5]);
+		g_winY = _wtoi(szArgList[6]);
+
+		if (argCount >= 8) 
+			g_connectToServerImmediately = _wtoi(szArgList[7]);
 	}
 
 	LiveScanClient application;
+
+	if (virtualClient = 1)
+		application.m_bVirtualDevice = true;
+
 	application.Run(hInstance, nShowCmd, loglevel);
 }
 
@@ -89,6 +101,7 @@ LiveScanClient::LiveScanClient() :
 	m_pDepthInColorSpace(NULL),
 	log(log.Get()),
 	m_loglevel(Log::LOGLEVEL_INFO),
+	m_bVirtualDevice(false),
 	m_bCalibrate(false),
 	m_bCaptureFrames(false),
 	m_bCaptureSingleFrame(false),
@@ -118,8 +131,6 @@ LiveScanClient::LiveScanClient() :
 	m_tOldFrameTime(0)
 
 {
-	pCapture = new AzureKinectCapture();
-
 	LARGE_INTEGER qpf = { 0 };
 	if (QueryPerformanceFrequency(&qpf))
 	{
@@ -230,6 +241,14 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL logleve
 	// HOGUE
 	if (g_connectToServerImmediately) Connect();
 
+	if (m_bVirtualDevice)
+	{
+		pCapture = new AzureKinectCaptureVirtual();
+		pCapture->SetManualDeviceIndex(0);
+	}
+
+	else
+		pCapture = new AzureKinectCapture();
 
 	// Main message loop
 	while (WM_QUIT != msg.message)
@@ -525,16 +544,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		bool res = pCapture->Initialize(configuration);
 		if (res)
 		{
-			bool openConsole = false;
-			if (m_loglevel >= Log::LOGLEVEL_DEBUG)
-			{
-				openConsole = true;
-			}
-
-			bool logging = log.StartLog(pCapture->serialNumber, m_loglevel, openConsole);
-			if (!logging)
-				SetStatusMessage(L"Log file could not be created!", 10000, true);
-
+			if(log.StartLog(pCapture->serialNumber, m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG));
+				SetStatusMessage(L"Error: Log file could not be created!", 10000, true);
 
 			log.LogInfo("Device could be opened successfully");
 
@@ -548,7 +559,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		}
 		else
 		{
-			SetStatusMessage(L"Capture device failed to initialize!", 10000, true);
+			if (log.StartLog("unknown", m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG));
+				SetStatusMessage(L"Error: Log file and device could not be initialized!", 10000, true);
 		}
 
 		ReadIPFromFile();

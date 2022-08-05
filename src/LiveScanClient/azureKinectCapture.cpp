@@ -436,3 +436,6 @@ uint64_t AzureKinectCapture::GetTimeStamp()
 	return currentTimeStamp;
 }
 
+//Not used, but must be defined as required in ICapture
+void AzureKinectCapture::SetManualDeviceIndex(int index) {};
+

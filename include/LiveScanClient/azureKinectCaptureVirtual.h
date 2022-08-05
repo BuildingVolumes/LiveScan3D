@@ -19,6 +19,7 @@ public:
 	//~AzureKinectCaptureVirtual();
 
 	bool Initialize(KinectConfiguration& configuration) override;
+	void SetManualDeviceIndex(int index) override;
 	bool AquireRawFrame() override;
 	
 	bool Close() override;
@@ -29,7 +30,6 @@ public:
 	bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) override;
 	void SetConfiguration(KinectConfiguration& configuration);
 
-	void SetVirtualDeviceIndex(int index);
 	bool LoadColorImagesfromDisk();
 	bool LoadDepthImagesfromDisk();
 
@@ -38,6 +38,8 @@ private:
 
 	//Here the settings for the individual Virtual Devices are stored.
 	//The settings are chosen to cover as many settings as possible
+
+	int virtualDeviceIndex;
 
 	k4a_device_configuration_t virtualK4AConfigs[4] =
 	{
@@ -59,20 +61,12 @@ private:
 
 	k4a_calibration_t virtualCalibration;
 
-	std::string virtualCalibrationPaths[4] =
-	{
-		"/test/virtualdevice1/calibration1.json",
-		"/test/virtualdevice2/calibration2.json",
-		"/test/virtualdevice3/calibration3.json",
-		"/test/virtualdevice4/calibration4.json"
-	};
-
 	std::string virtualIntrinsicsPaths[4] =
 	{
-		"/test/virtualdevice1/intrinsics1.json",
-		"/test/virtualdevice1/intrinsics2.json",
-		"/test/virtualdevice1/intrinsics3.json",
-		"/test/virtualdevice1/intrinsics4.json"
+		"resources/test/virtualdevice1/intrinsics.json",
+		"resources/test/virtualdevice2/intrinsics.json",
+		"resources/test/virtualdevice3/intrinsics.json",
+		"resources/test/virtualdevice4/intrinsics.json"
 	};
 
 	std::vector<k4a_image_t> virtualColorImageSequence;
@@ -80,20 +74,20 @@ private:
 
 	std::string virtualColorImagePaths[4] =
 	{
-		"/test/virtualdevice1/colorimagedata/",
-		"/test/virtualdevice2/colorimagedata/",
-		"/test/virtualdevice3/colorimagedata/",
-		"/test/virtualdevice4/colorimagedata/",
+		"resources/test/virtualdevice1/colorImages/",
+		"resources/test/virtualdevice2/colorImages/",
+		"resources/test/virtualdevice3/colorImages/",
+		"resources/test/virtualdevice4/colorImages/",
 	};
 
 	std::vector<k4a_image_t> virtualDepthImageSequence;
 
 	std::string virtualDepthImagePaths[4] =
 	{
-		"/test/virtualdevice1/depthimagedata/",
-		"/test/virtualdevice2/depthimagedata/",
-		"/test/virtualdevice3/depthimagedata/",
-		"/test/virtualdevice4/depthimagedata/",
+		"resources/test/virtualdevice1/depthImages/",
+		"resources/test/virtualdevice2/depthImages/",
+		"resources/test/virtualdevice3/depthImages/",
+		"resources/test/virtualdevice4/depthImages/",
 	};
 
 	std::chrono::system_clock::time_point deviceStartTime;

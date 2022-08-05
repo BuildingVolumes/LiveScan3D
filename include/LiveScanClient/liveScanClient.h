@@ -20,6 +20,7 @@
 #include "calibration.h"
 //#include "utils.h"
 #include "azureKinectCapture.h"
+#include "azureKinectCaptureVirtual.h"
 #include "frameFileWriterReader.h"
 #include "Log.h"
 #include <thread>
@@ -37,13 +38,15 @@ public:
     int                     Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL loglevel);
 	void					Connect(); // HOGUE
 	bool m_bSocketThread;
+	bool m_bVirtualDevice;
+
 private:
 	Calibration calibration;
 
-	bool m_bCalibrate;
 
 	ICapture *pCapture;
 
+	bool m_bCalibrate;
 	bool m_bCaptureFrames;
 	bool m_bCaptureSingleFrame;
 	bool m_bCapturing;

@@ -7,9 +7,10 @@
 // while developing and testing new features
 
 
-void AzureKinectCaptureVirtual::SetVirtualDeviceIndex(int index)
+void AzureKinectCaptureVirtual::SetManualDeviceIndex(int index)
 {
 	localDeviceIndex = index;
+	virtualDeviceIndex = index % 4;
 }
 
 bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
@@ -24,12 +25,11 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 	}
 
 	//Load the calibration from disk
-	size_t calibrationSize;
 	k4a_calibration_t calibration;
 
 	if (GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize))
 	{
-		k4a_calibration_get_from_raw((char*)calibrationBuffer.data(), calibrationSize, this->configuration.config.depth_mode, this->configuration.config.color_resolution, &calibration);
+		k4a_calibration_get_from_raw((char*)calibrationBuffer.data(), nCalibrationSize, this->configuration.config.depth_mode, this->configuration.config.color_resolution, &calibration);
 		transformation = k4a_transformation_create(&calibration);
 	}
 
@@ -39,13 +39,13 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 		return bInitialized;
 	}
 
-	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk()); 
+	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk())
 	{
 		log.LogFatal("Cannot open virtual device as images can't be loaded from the disk!");
 		return bInitialized;
 	}
 
-	if (!virtualColorImageSequence.size() != virtualDepthImageSequence.size());
+	if (virtualColorImageSequence.size() != virtualDepthImageSequence.size())
 	{
 		log.LogFatal("The amount of the virtual color and depth images need to be the same!");
 		return bInitialized;
@@ -84,7 +84,7 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 /// <param name="configuration"></param>
 void AzureKinectCaptureVirtual::SetConfiguration(KinectConfiguration& configuration)
 {
-	this->configuration = virtualConfigs[localDeviceIndex];
+	this->configuration = virtualConfigs[virtualDeviceIndex];
 	this->configuration.nGlobalDeviceIndex = configuration.nGlobalDeviceIndex;
 	this->configuration.filter_depth_map = configuration.filter_depth_map;
 	this->configuration.filter_depth_map_size = configuration.filter_depth_map_size;
@@ -133,20 +133,15 @@ bool AzureKinectCaptureVirtual::AquireRawFrame()
 		return false;
 	}
 
-	//We get the time that has passed since the startup, to simulate timestamp behaviour
-	std::chrono::system_clock::time_point nowTime = std::chrono::system_clock::now();
-	long timeSinceStartMS = std::chrono::duration_cast<std::chrono::milliseconds>(deviceStartTime - nowTime).count();
-
-	//We round to 30fps accurracy, to get a more accurate simulated timestamp (33000ms step)
-	long framesPassed = timeSinceStartMS / 33000;
-	long timeStamp = framesPassed * 33000;
+	long timeStamp = GetTimeStamp();
+	long framesPassed = timeStamp / 33;
 
 	int imageSequenceIndex = framesPassed % virtualColorImageSequence.size();
 
 	colorImageMJPG = virtualColorImageSequence[imageSequenceIndex];
 	depthImage16Int = virtualDepthImageSequence[imageSequenceIndex];
 
-	currentTimeStamp = timeStamp;
+	currentTimeStamp = timeStamp * 33000; //currentTimeStamp has picosecond resolution
 
 	return true;
 
@@ -178,13 +173,13 @@ bool AzureKinectCaptureVirtual::LoadColorImagesfromDisk()
 	}
 
 	bool imagefound = true;
-	int imageIndex = 0;
+	int imageIndex = 1;
 
 	while (imagefound)
 	{
-		std::string imagePath = virtualColorImagePaths[localDeviceIndex];
-		imagePath += "color";
-		imagePath += imageIndex;
+		std::string imagePath = virtualColorImagePaths[virtualDeviceIndex];
+		imagePath += "Color_";
+		imagePath += std::to_string(imageIndex);
 		imagePath += ".jpg";
 
 		int imageSize;
@@ -206,8 +201,14 @@ bool AzureKinectCaptureVirtual::LoadColorImagesfromDisk()
 			//We can't directly create a k4a_image_t with unstructured JPEG data, so we need to provide it from a buffer that is stored seperatly
 			virtualColorImagesBuffer.push_back((uint8_t*)imageRaw);
 
-			if(localDeviceIndex == 0)
-				k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_COLOR_MJPG, 0, 0, 0, virtualColorImagesBuffer[virtualColorImagesBuffer.size() - 1], imageSize, NULL, NULL, &newImage);
+			if(virtualDeviceIndex == 0)
+				k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_COLOR_MJPG, 1280, 720, 0, virtualColorImagesBuffer[virtualColorImagesBuffer.size() - 1], imageSize, NULL, NULL, &newImage);
+			if (virtualDeviceIndex == 1)
+				k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_COLOR_MJPG, 1920, 1080, 0, virtualColorImagesBuffer[virtualColorImagesBuffer.size() - 1], imageSize, NULL, NULL, &newImage);
+			if (virtualDeviceIndex == 2)
+				k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_COLOR_MJPG, 2560, 1440, 0, virtualColorImagesBuffer[virtualColorImagesBuffer.size() - 1], imageSize, NULL, NULL, &newImage);
+			if (virtualDeviceIndex == 3)
+				k4a_image_create_from_buffer(K4A_IMAGE_FORMAT_COLOR_MJPG, 2048, 1536, 0, virtualColorImagesBuffer[virtualColorImagesBuffer.size() - 1], imageSize, NULL, NULL, &newImage);
 
 			virtualColorImageSequence.push_back(newImage);
 			imageIndex++;
@@ -224,9 +225,9 @@ bool AzureKinectCaptureVirtual::LoadColorImagesfromDisk()
 			else
 				imagefound = false;
 		}
-
-		return true;
 	}
+
+	return true;
 }
 
 bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
@@ -237,18 +238,16 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 			k4a_image_release(virtualDepthImageSequence[i]);
 	}
 
-	virtualDepthImageSequence.clear();
-
-	
+	virtualDepthImageSequence.clear();	
 
 	bool imagefound = true;
-	int imageIndex = 0;
+	int imageIndex = 1;
 
 	while (imagefound)
 	{
-		std::string imagePath = virtualDepthImagePaths[localDeviceIndex];
-		imagePath += "depth";
-		imagePath += imageIndex;
+		std::string imagePath = virtualDepthImagePaths[virtualDeviceIndex];
+		imagePath += "Depth_";
+		imagePath += std::to_string(imageIndex);
 		imagePath += ".tiff";		
 
 		k4a_image_t newImage;
@@ -274,9 +273,10 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 			else
 				imagefound = false;
 		}
-
-		return true;
 	}
+
+	return true;
+
 }
 
 //Setting the exposure is not yet simulated
@@ -289,7 +289,7 @@ void AzureKinectCaptureVirtual::SetExposureState(bool enableAutoExposure, int ex
 }
 
 //Here we simply return the sync jack state that has been predetermined in the header file
-int AzureKinectCapture::GetSyncJackState() 
+int AzureKinectCaptureVirtual::GetSyncJackState() 
 {
 	if (configuration.eHardwareSyncState == Main)
 		return 0;
@@ -301,7 +301,7 @@ int AzureKinectCapture::GetSyncJackState()
 
 bool AzureKinectCaptureVirtual::GetIntrinsicsJSON(std::vector<uint8_t>& calibrationBuffer, size_t& calibrationSize)
 {
-	std::ifstream calibrationFile(virtualCalibrationPaths[localDeviceIndex], std::ios::in | std::ios::binary | std::ios::ate);
+	std::ifstream calibrationFile(virtualIntrinsicsPaths[virtualDeviceIndex], std::ios::in | std::ios::binary | std::ios::ate);
 	if (calibrationFile.is_open())
 	{
 		calibrationSize = calibrationFile.tellg();
@@ -318,7 +318,18 @@ bool AzureKinectCaptureVirtual::GetIntrinsicsJSON(std::vector<uint8_t>& calibrat
 	}
 
 	else
-		return false
+		return false;
 }
 
+uint64_t AzureKinectCaptureVirtual::GetTimeStamp()
+{
+	//We get the time that has passed since the startup, to simulate timestamp behaviour
+	std::chrono::system_clock::time_point nowTime = std::chrono::system_clock::now();
+	long timeSinceStartMS = std::chrono::duration_cast<std::chrono::milliseconds>(nowTime - deviceStartTime).count();
+
+	//We round to 30fps accurracy, to get a more accurate simulated timestamp (in 33000ms steps)
+	long framesPassed = timeSinceStartMS / 33;
+	long timeStamp = framesPassed * 33;
+	return timeStamp;
+}
 

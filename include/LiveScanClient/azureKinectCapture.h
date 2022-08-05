@@ -18,6 +18,7 @@ public:
 	~AzureKinectCapture();
 
 	virtual bool Initialize(KinectConfiguration& configuration);
+	virtual void SetManualDeviceIndex(int index);
 	virtual bool AquireRawFrame();
 	void DecodeRawColor();
 	void DownscaleColorImgToDepthImgSize();
