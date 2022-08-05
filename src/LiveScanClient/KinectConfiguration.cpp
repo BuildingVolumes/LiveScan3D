@@ -22,6 +22,19 @@
 		InitializeDefaults();
 	}
 
+	KinectConfiguration::KinectConfiguration(std::string serialNo, k4a_device_configuration_t conf, SYNC_STATE softwareSyncState, SYNC_STATE hardwareSyncState, int syncOffset,
+		int globalDeviceIndex, bool filterDepth, int filterDepthSize)
+	{
+		serialNumber = serialNo;
+		config = conf;
+		eSoftwareSyncState = softwareSyncState;
+		eHardwareSyncState = hardwareSyncState;
+		nSyncOffset = syncOffset;
+		nGlobalDeviceIndex = globalDeviceIndex;
+		filter_depth_map = filterDepth;
+		filter_depth_map_size = filterDepthSize;
+	}
+
 	char* KinectConfiguration::ToBytes()
 	{
 		//update const byteLength when changing this

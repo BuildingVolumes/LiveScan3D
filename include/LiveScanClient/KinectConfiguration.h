@@ -10,6 +10,8 @@
 struct KinectConfiguration {
 public:
 	KinectConfiguration();
+	KinectConfiguration(std::string serialNo, k4a_device_configuration_t conf, SYNC_STATE softwareSyncState, SYNC_STATE hardwareSyncState, int syncOffset, 
+		int globalDeviceIndex, bool filterDepth, int filterDepthSize);
 	std::string serialNumber;
 	k4a_device_configuration_t config;
 	SYNC_STATE eSoftwareSyncState;

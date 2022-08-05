@@ -20,36 +20,38 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\LiveScanClient\azureKinectCapture.h" />
+    <ClInclude Include="..\include\LiveScanClient\azureKinectCaptureVirtual.h" />
     <ClInclude Include="..\include\LiveScanClient\calibration.h" />
     <ClInclude Include="..\include\LiveScanClient\filter.h" />
     <ClInclude Include="..\include\LiveScanClient\frameFileWriterReader.h" />
     <ClInclude Include="..\include\LiveScanClient\iCapture.h" />
     <ClInclude Include="..\include\LiveScanClient\imageRenderer.h" />
     <ClInclude Include="..\include\LiveScanClient\iMarker.h" />
+    <ClInclude Include="..\include\LiveScanClient\KinectConfiguration.h" />
     <ClInclude Include="..\include\LiveScanClient\liveScanClient.h" />
     <ClInclude Include="..\include\LiveScanClient\Log.h" />
     <ClInclude Include="..\include\LiveScanClient\marker.h" />
     <ClInclude Include="..\include\LiveScanClient\utils.h" />
     <ClInclude Include="..\include\nanoflann.h" />
     <ClInclude Include="..\include\socketCS.h" />
-    <ClInclude Include="KinectConfiguration.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\LiveScanClient\azureKinectCapture.cpp" />
+    <ClCompile Include="..\src\LiveScanClient\azureKinectCaptureVirtual.cpp" />
     <ClCompile Include="..\src\LiveScanClient\calibration.cpp" />
     <ClCompile Include="..\src\LiveScanClient\filter.cpp" />
     <ClCompile Include="..\src\LiveScanClient\frameFileWriterReader.cpp" />
     <ClCompile Include="..\src\LiveScanClient\iCapture.cpp" />
     <ClCompile Include="..\src\LiveScanClient\imageRenderer.cpp" />
     <ClCompile Include="..\src\LiveScanClient\iMarker.cpp" />
+    <ClCompile Include="..\src\LiveScanClient\KinectConfiguration.cpp" />
     <ClCompile Include="..\src\LiveScanClient\liveScanClient.cpp" />
     <ClCompile Include="..\src\LiveScanClient\Log.cpp" />
     <ClCompile Include="..\src\LiveScanClient\marker.cpp" />
     <ClCompile Include="..\src\LiveScanClient\utils.cpp" />
     <ClCompile Include="..\src\socketCS.cpp" />
-    <ClCompile Include="KinectConfiguration.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LiveScanClient.rc" />
