@@ -200,4 +200,4 @@ out/*
 recording*.bin
 takes.json
 settings.bin
-LiveScanClient/
+/LiveScanClient/
