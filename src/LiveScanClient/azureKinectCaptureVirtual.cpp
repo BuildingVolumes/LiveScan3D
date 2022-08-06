@@ -39,18 +39,6 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 		return bInitialized;
 	}
 
-	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk())
-	{
-		log.LogFatal("Cannot open virtual device as images can't be loaded from the disk!");
-		return bInitialized;
-	}
-
-	if (virtualColorImageSequence.size() != virtualDepthImageSequence.size())
-	{
-		log.LogFatal("The amount of the virtual color and depth images need to be the same!");
-		return bInitialized;
-	}
-
 	//Create the downscaled image
 	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetCameraHeight();
 	colorImageDownscaledWidth = calibration.color_camera_calibration.resolution_width / rescaleRatio;
@@ -69,6 +57,18 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 	SetConfiguration(configuration);
 	serialNumber = this->configuration.serialNumber;
 
+	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk())
+	{
+		log.LogFatal("Cannot open virtual device as images can't be loaded from the disk!");
+		return bInitialized;
+	}
+
+	if (virtualColorImageSequence.size() != virtualDepthImageSequence.size())
+	{
+		log.LogFatal("The amount of the virtual color and depth images need to be the same!");
+		return bInitialized;
+	}
+
 	deviceStartTime = std::chrono::system_clock::now();
 
 	log.LogInfo("Virtual Device Initialization successful!");
@@ -85,7 +85,6 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 void AzureKinectCaptureVirtual::SetConfiguration(KinectConfiguration& configuration)
 {
 	this->configuration = configuration;
-
 	std::string serialNumber = "000000000000";
 	serialNumber += std::to_string(localDeviceIndex);
 	this->configuration.SetSerialNumber(serialNumber);

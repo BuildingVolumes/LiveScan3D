@@ -546,7 +546,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		bool res = pCapture->Initialize(configuration);
 		if (res)
 		{
-			if(log.StartLog(pCapture->serialNumber, m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG));
+			if(!log.StartLog(pCapture->serialNumber, m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG))
 				SetStatusMessage(L"Error: Log file could not be created!", 10000, true);
 
 			log.LogInfo("Device could be opened successfully");
@@ -561,7 +561,7 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		}
 		else
 		{
-			if (log.StartLog("unknown", m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG));
+			if (!log.StartLog("unknown", m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG))
 				SetStatusMessage(L"Error: Log file and device could not be initialized!", 10000, true);
 		}
 
