@@ -219,6 +219,15 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL logleve
 
 	m_loglevel = loglevel;
 
+	if (m_bVirtualDevice)
+	{
+		pCapture = new AzureKinectCaptureVirtual();
+		pCapture->SetManualDeviceIndex(0);
+	}
+
+	else
+		pCapture = new AzureKinectCapture();
+
 	if (!RegisterClassW(&wc))
 	{
 		return 0;
@@ -241,14 +250,7 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL logleve
 	// HOGUE
 	if (g_connectToServerImmediately) Connect();
 
-	if (m_bVirtualDevice)
-	{
-		pCapture = new AzureKinectCaptureVirtual();
-		pCapture->SetManualDeviceIndex(0);
-	}
-
-	else
-		pCapture = new AzureKinectCapture();
+	
 
 	// Main message loop
 	while (WM_QUIT != msg.message)
