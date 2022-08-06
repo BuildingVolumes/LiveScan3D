@@ -1469,14 +1469,17 @@ void LiveScanClient::ShowFPS()
 {
 	if (m_hWnd)
 	{
+		m_nFrameCounter++;
+
 		long difference = std::chrono::duration_cast<std::chrono::milliseconds>(m_tFrameTime - m_tOldFrameTime).count();
-		m_fAverageFPS += (difference - m_fAverageFPS) * 0.3f;
-		float fps = 1000 / m_fAverageFPS;
+		float currentFps = 1000 / difference;
+
+		m_fAverageFPS += (currentFps - m_fAverageFPS) / m_nFrameCounter;
 
 		WCHAR szStatusMessage[64];
-		StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L" FPS = %0.2f", fps);
+		StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L" FPS = %0.0f", m_fAverageFPS);
 
-		SetStatusMessage(szStatusMessage, 1000, false);
+		SetStatusMessage(szStatusMessage, 1, false);
 	}
 }
 
