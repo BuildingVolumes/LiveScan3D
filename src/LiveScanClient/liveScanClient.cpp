@@ -78,7 +78,6 @@ int APIENTRY wWinMain(
 LiveScanClient::LiveScanClient() :
 	m_hWnd(NULL),
 	m_nLastCounter(0),
-	m_nFramesSinceUpdate(0),
 	m_fFreq(0),
 	m_nNextStatusTime(0LL),
 	m_pD2DFactory(NULL),
@@ -115,7 +114,11 @@ LiveScanClient::LiveScanClient() :
 	m_eCaptureMode(CM_POINTCLOUD),
 	m_nFrameIndex(0),
 	m_tFrameTime(0),
-	m_tOldFrameTime(0)
+	m_tOldFrameTime(0),
+	m_fAverageFPS(30.0),
+	m_nFPSFrameCounter(0),
+	m_nFPSUpdateCounter(0)
+
 
 {
 	pCapture = new AzureKinectCapture();
@@ -1468,17 +1471,29 @@ void LiveScanClient::ShowFPS()
 {
 	if (m_hWnd)
 	{
-		m_nFrameCounter++;
 
 		long difference = std::chrono::duration_cast<std::chrono::milliseconds>(m_tFrameTime - m_tOldFrameTime).count();
-		float currentFps = 1000 / difference;
 
-		m_fAverageFPS += (currentFps - m_fAverageFPS) / m_nFrameCounter;
+		if(difference > 0)
+			m_nFPSUpdateCounter += difference;	
 
-		WCHAR szStatusMessage[64];
-		StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L" FPS = %0.0f", m_fAverageFPS);
+		m_nFPSFrameCounter++;
 
-		SetStatusMessage(szStatusMessage, 1, false);
+		//We show the FPS every second
+		if (m_nFPSUpdateCounter > 1000)
+		{
+			//Calculate a moving average of the FPS, so it isn't all over the place
+			float alpha = 0.2f;
+			m_fAverageFPS = alpha * m_fAverageFPS + (1.0f - alpha) * m_nFPSFrameCounter;
+
+			WCHAR szStatusMessage[64];
+			StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L" FPS = %0.0f", m_fAverageFPS);
+
+			SetStatusMessage(szStatusMessage, 1000, false);
+
+			m_nFPSFrameCounter = 0;
+			m_nFPSUpdateCounter = 0;			
+		}
 	}
 }
 

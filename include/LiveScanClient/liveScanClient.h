@@ -104,9 +104,9 @@ private:
     INT64 m_nLastCounter;
     double m_fFreq;
     INT64 m_nNextStatusTime;
-    DWORD m_nFramesSinceUpdate;
 	float m_fAverageFPS;
-	int m_nFrameCounter;
+	int m_nFPSFrameCounter;
+	long m_nFPSUpdateCounter = 0;
 	Log& log;
 	Log::LOGLEVEL m_loglevel;
 
