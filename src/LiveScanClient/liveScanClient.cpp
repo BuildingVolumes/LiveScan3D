@@ -331,13 +331,12 @@ void LiveScanClient::UpdateFrame()
 		m_bPostSyncedListReceived = false;
 		bool success = true;
 
-		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG)
+		if (m_eCaptureMode == CAPTURE_MODE::CM_RAW)
 			success = PostSyncRawFrames();
 
 
-		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
+		if (m_eCaptureMode == CAPTURE_MODE::CM_RAW)
 			success = PostSyncPointclouds();
-
 
 		SendPostSyncConfirmation(success);
 	}
@@ -1576,9 +1575,7 @@ bool LiveScanClient::PostSyncPointclouds()
 
 bool LiveScanClient::PostSyncRawFrames()
 {
-
 	log.LogDebug("Starting Post Sync for Raw frames");
-
 
 	bool success = true;
 	k4a_image_t emptyDepthFrame;
