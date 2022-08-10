@@ -133,31 +133,48 @@ namespace LiveScanPlayer
 
         private void btStart_Click(object sender, EventArgs e)
         {
+            if (bPaused)
+                Play();
+
+            else
+                Pause();
+        }
+
+        private void Play()
+        {
             lock (lFrameFiles)
             {
                 if (lFrameFiles.Count == 0)
                     return;
             }
 
-            if (bPaused)
+            btStart.Image = Properties.Resources.pause;
+            bPaused = false;
+            return;
+        }
+
+        private void Pause()
+        {
+            lock (lFrameFiles)
             {
-                btStart.Image = Properties.Resources.pause;
-                bPaused = false;
-                return;
+                if (lFrameFiles.Count == 0)
+                    return;
             }
 
-            if (!bPaused)
-            {
-                bPaused = true;
-                btStart.Image = Properties.Resources.Play;
-                return;
-            }
+            bPaused = true;
+            btStart.Image = Properties.Resources.Play;
+            return;
         }
 
         private void btRemove_Click(object sender, EventArgs e)
         {
             if (lFrameFilesListView.SelectedIndices.Count == 0)
                 return;
+            
+            RewindPlayer();
+            ClearAllFrames();
+            Pause();
+
 
             lock (lFrameFiles)
             {
@@ -249,7 +266,7 @@ namespace LiveScanPlayer
 
                             else
                             {
-                                if(bLoop)
+                                if (bLoop)
                                     RewindPlayer();
                             }
 
@@ -261,9 +278,9 @@ namespace LiveScanPlayer
 
                                 //Otherwise backgroundworker might call this method, while the form is already closing
                                 if (bAppOpen)
-                                    this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });                                
+                                    this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });
                             }
-                        }           
+                        }
                     }
                 }
             }
@@ -390,7 +407,7 @@ namespace LiveScanPlayer
         private void ShowFPS()
         {
             //Only update the FPS counter every second or so
-            if(fFpsUpdateTimer > 500)
+            if (fFpsUpdateTimer > 500)
             {
                 lFPSCounter.Text = "FPS: " + lActualFPS.ToString();
                 fFpsUpdateTimer = 0;
