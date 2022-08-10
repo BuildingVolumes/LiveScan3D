@@ -36,7 +36,9 @@ namespace KinectServer
         public bool bSaveAsBinaryPLY = true;
 
         public bool bAutoExposureEnabled = true;
-        public int nExposureStep = -8;
+        public int nExposureStep = -5;
+        public bool bAutoWhiteBalanceEnabled = false;
+        public int nKelvin = 8;
 
         public enum ExportMode { Pointcloud = 0, RawFrames = 1}
         public ExportMode eExportMode = ExportMode.Pointcloud;
@@ -108,9 +110,18 @@ namespace KinectServer
             else
                 lData.Add(0);
 
-
             bTemp = BitConverter.GetBytes(nExposureStep);
             lData.AddRange(bTemp);
+
+
+            if (bAutoWhiteBalanceEnabled)
+                lData.Add(1);
+            else
+                lData.Add(0);
+
+            bTemp = BitConverter.GetBytes(nKelvin);
+            lData.AddRange(bTemp);
+
 
             bTemp = BitConverter.GetBytes((int)eExportMode);
             lData.AddRange(bTemp);

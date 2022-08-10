@@ -76,6 +76,9 @@ private:
 	bool m_bAutoExposureEnabled;
 	int m_nExposureStep;
 
+	bool m_bAutoWhiteBalanceEnabled;
+	int m_nKelvin;
+
 	std::chrono::milliseconds m_tFrameTime;
 	std::chrono::milliseconds m_tOldFrameTime;
 

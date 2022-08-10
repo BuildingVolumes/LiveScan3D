@@ -29,6 +29,7 @@ public:
 	int GetSyncJackState();
 	uint64_t GetTimeStamp();
 	void SetExposureState(bool enableAutoExposure, int exposureStep);
+	void SetWhiteBalanceState(bool enableAutoBalance, int kelvin);
 	bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
 	void SetConfiguration(KinectConfiguration& configuration);
 
@@ -52,6 +53,8 @@ private:
 	int restartAttempts = 0;
 	bool autoExposureEnabled = true;
 	int exposureTimeStep = 0;
+	bool autoWhiteBalanceEnabled = true;
+	int kelvin = 5000;
 
 	KinectConfiguration configuration;
 	tjhandle turboJpeg;

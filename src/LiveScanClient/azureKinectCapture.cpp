@@ -375,6 +375,31 @@ void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureS
 	}
 }
 
+void AzureKinectCapture::SetWhiteBalanceState(bool enableAutoBalance, int kelvinValue)
+{
+	std::ostringstream ss;
+	ss << "Setting White Balance. Auto White Balance Enabled: " << enableAutoBalance << " , Kelvin (if manual): " << kelvin;
+	log.LogDebug(ss.str());
+
+	if (bInitialized)
+	{
+		if (enableAutoBalance)
+		{
+			k4a_device_set_color_control(kinectSensor, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
+			autoWhiteBalanceEnabled = true;
+		}
+
+		else
+		{
+			//Kelvin comes in as a value between 5-18, we map it to a range of 2500-9000
+			int kelvin = kelvinValue * 500;
+			k4a_device_set_color_control(kinectSensor, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, kelvin);
+			autoWhiteBalanceEnabled = false;
+			this->kelvin = kelvin;
+		}
+	}
+}
+
 
 /// <summary>
 /// Determines if this camera is configured as a Master, Subordinate or Standalone. 

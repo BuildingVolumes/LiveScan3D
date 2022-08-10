@@ -281,6 +281,7 @@ void LiveScanClient::UpdateFrame()
 	if (m_bUpdateSettings)
 	{
 		pCapture->SetExposureState(m_bAutoExposureEnabled, m_nExposureStep);
+		pCapture->SetWhiteBalanceState(m_bAutoWhiteBalanceEnabled, m_nKelvin);
 		m_bUpdateSettings = false;
 	}
 
@@ -952,6 +953,12 @@ void LiveScanClient::HandleSocket()
 			i++;
 
 			m_nExposureStep = *(int*)(received.c_str() + i);
+			i += sizeof(int);
+
+			m_bAutoWhiteBalanceEnabled = (received[i] != 0);
+			i++;
+
+			m_nKelvin = *(int*)(received.c_str() + i);
 			i += sizeof(int);
 
 			int exportFormat = *(int*)(received.c_str() + i);

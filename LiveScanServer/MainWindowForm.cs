@@ -56,7 +56,8 @@ namespace KinectServer
 
 
         //Settings
-        private System.Windows.Forms.Timer scrollTimer = null;
+        private System.Windows.Forms.Timer scrollTimerExposure = null;
+        private System.Windows.Forms.Timer scrollTimerWhiteBalance = null;
 
         //The live preview
         OpenGLWindow oOpenGLWindow;
@@ -97,18 +98,28 @@ namespace KinectServer
             }
 
 
-
+            Stream settingsStream = null;
             //This tries to read the settings from "settings.bin", if it failes the settings stay at default values.
             try
             {
                 IFormatter formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                Stream stream = new FileStream("settings.bin", FileMode.Open, FileAccess.Read);
-                oSettings = (KinectSettings)formatter.Deserialize(stream);
-                stream.Close();
+                settingsStream = new FileStream("settings.bin", FileMode.Open, FileAccess.Read);
+                oSettings = (KinectSettings)formatter.Deserialize(settingsStream);
+
+                //Set settings that should not be loaded from the save
+                oSettings.bAutoExposureEnabled = false;
+                oSettings.nExposureStep = -5;
+
+                settingsStream.Dispose();
+
+
             }
             catch (Exception)
             {
                 Log.LogWarning("Could not read settings. Reverting to default settings");
+
+                if(settingsStream != null)
+                    settingsStream.Dispose();
             }
 
             oSettings.AddDefaultMarker();
@@ -140,11 +151,14 @@ namespace KinectServer
 
             chMergeScans.Checked = oSettings.bMergeScansForSave;
             chNetworkSync.Checked = oSettings.bNetworkSync;
-            rExposureAuto.Checked = oSettings.bAutoExposureEnabled;
-            rExposureManual.Checked = !oSettings.bAutoExposureEnabled;
+            rExposureAuto.Checked = true;
+            rExposureManual.Checked = false;
+            rWhiteBalanceAuto.Checked = oSettings.bAutoWhiteBalanceEnabled;
+            rWhiteBalanceManual.Checked = !oSettings.bAutoWhiteBalanceEnabled;
             rExportPointclouds.Checked = oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud ? true : false;
             rExportRaw.Checked = !rExportPointclouds.Checked;
-            trManualExposure.Value = oSettings.nExposureStep;            
+            trManualExposure.Value = oSettings.nExposureStep;
+            trWhiteBalance.Value = oSettings.nKelvin;
             cbEnablePreview.Checked = oSettings.bPreviewEnabled;
         }
 
@@ -1018,11 +1032,28 @@ namespace KinectServer
             SettingsChanged();
         }
 
-        public void SetExposureControlsMode(bool manual)
+        public void LockExposureForSync(bool locked)
         {
-            rExposureAuto.Checked = !manual;
-            rExposureManual.Checked = manual;
-            trManualExposure.Enabled = manual;
+            if (locked)
+            {
+                rExposureAuto.Enabled = false;
+                rExposureManual.Enabled = false;
+                rExposureManual.Checked = true;
+                rExposureAuto.Checked = false;
+                trManualExposure.Enabled = true;
+                trManualExposure.Value = -5;
+            }
+
+            else
+            {
+                rExposureAuto.Enabled = true;
+                rExposureManual.Enabled = true;
+                rExposureManual.Checked = true;
+                rExposureAuto.Checked = false;
+                trManualExposure.Enabled = true;
+            }
+
+            
         }
 
         /// <summary>
@@ -1032,23 +1063,23 @@ namespace KinectServer
         /// </summary>
         private void trManualExposure_Scroll(object sender, EventArgs e)
         {
-            if (scrollTimer == null)
+            if (scrollTimerExposure == null)
             {
                 // Will tick every 500ms
-                scrollTimer = new System.Windows.Forms.Timer()
+                scrollTimerExposure = new System.Windows.Forms.Timer()
                 {
                     Enabled = false,
                     Interval = 300,
                     Tag = (sender as TrackBar).Value
                 };
 
-                scrollTimer.Tick += (s, ea) =>
+                scrollTimerExposure.Tick += (s, ea) =>
                 {
                     // check to see if the value has changed since we last ticked
-                    if (trManualExposure.Value == (int)scrollTimer.Tag)
+                    if (trManualExposure.Value == (int)scrollTimerExposure.Tag)
                     {
                         // scrolling has stopped so we are good to go ahead and do stuff
-                        scrollTimer.Stop();
+                        scrollTimerExposure.Stop();
 
                         // Send the changed exposure to the devices
 
@@ -1059,16 +1090,16 @@ namespace KinectServer
 
                         SettingsChanged();
 
-                        scrollTimer.Dispose();
-                        scrollTimer = null;
+                        scrollTimerExposure.Dispose();
+                        scrollTimerExposure = null;
                     }
                     else
                     {
                         // record the last value seen
-                        scrollTimer.Tag = trManualExposure.Value;
+                        scrollTimerExposure.Tag = trManualExposure.Value;
                     }
                 };
-                scrollTimer.Start();
+                scrollTimerExposure.Start();
             }
         }
 
@@ -1107,5 +1138,63 @@ namespace KinectServer
             SettingsChanged();
         }
 
+        private void tbWhiteBalance_Scroll(object sender, EventArgs e)
+        {
+            if (scrollTimerWhiteBalance == null)
+            {
+                // Will tick every 500ms
+                scrollTimerWhiteBalance = new System.Windows.Forms.Timer()
+                {
+                    Enabled = false,
+                    Interval = 300,
+                    Tag = (sender as TrackBar).Value
+                };
+
+                scrollTimerWhiteBalance.Tick += (s, ea) =>
+                {
+                    // check to see if the value has changed since we last ticked
+                    if (trWhiteBalance.Value == (int)scrollTimerWhiteBalance.Tag)
+                    {
+                        // scrolling has stopped so we are good to go ahead and do stuff
+                        scrollTimerWhiteBalance.Stop();
+
+                        oSettings.nKelvin = trWhiteBalance.Value;
+
+                        SettingsChanged();
+
+                        scrollTimerWhiteBalance.Dispose();
+                        scrollTimerWhiteBalance = null;
+                    }
+                    else
+                    {
+                        // record the last value seen
+                        scrollTimerWhiteBalance.Tag = trWhiteBalance.Value;
+                    }
+                };
+                scrollTimerWhiteBalance.Start();
+            }
+        }
+
+        private void rWhiteBalanceAuto_CheckedChanged(object sender, EventArgs e)
+        {
+            if (rWhiteBalanceAuto.Checked)
+            {
+                oSettings.bAutoWhiteBalanceEnabled = true;
+                trWhiteBalance.Enabled = false;
+            }
+
+            SettingsChanged();
+        }
+
+        private void rWhiteBalanceManual_CheckedChanged(object sender, EventArgs e)
+        {
+            if (rWhiteBalanceManual.Checked)
+            {
+                oSettings.bAutoWhiteBalanceEnabled = false;
+                trWhiteBalance.Enabled = true;
+            }
+
+            SettingsChanged();
+        }
     }
 }
