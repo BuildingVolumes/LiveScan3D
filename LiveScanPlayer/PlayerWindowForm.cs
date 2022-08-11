@@ -214,7 +214,7 @@ namespace LiveScanPlayer
             {
                 if (oOpenGLWindow != null)
                 {
-                    if (!bPaused && !bScrollbarInUse)
+                    if (!bScrollbarInUse)
                     {
                         if (updateTimer.ElapsedMilliseconds > 1000f / fTargetFPS)
                         {
@@ -222,21 +222,30 @@ namespace LiveScanPlayer
                             {
                                 updateTimer.Restart();
 
-                                List<float> tempAllVertices = new List<float>();
-                                List<byte> tempAllColors = new List<byte>();
-
-                                lock (lFrameFiles)
+                                if (!bPaused)
                                 {
-                                    for (int i = 0; i < lFrameFiles.Count; i++)
+                                    lock (lAllVertices)
                                     {
-                                        List<float> vertices = new List<float>();
-                                        List<byte> colors = new List<byte>();
-                                        lFrameFiles[i].ReadFrame(vertices, colors);
+                                        lAllVertices.Clear();
+                                        lAllColors.Clear();
 
-                                        tempAllVertices.AddRange(vertices);
-                                        tempAllColors.AddRange(colors);
-                                    }
-                                }
+                                        lock (lFrameFiles)
+                                        {
+                                            for (int i = 0; i < lFrameFiles.Count; i++)
+                                            {
+                                                List<float> vertices = new List<float>();
+                                                List<byte> colors = new List<byte>();
+                                                lFrameFiles[i].ReadFrame(lAllVertices, lAllColors);
+                                            }
+                                        }
+
+                                        if (chSaveFrames.Checked)
+                                            SaveCurrentFrameToFile(outDir, nCurrentFrame);
+
+                                        nCurrentFrame++;
+                                        Console.WriteLine(nCurrentFrame);
+                                    }                                    
+                                }                                
 
                                 try
                                 {
@@ -246,28 +255,18 @@ namespace LiveScanPlayer
                                 catch (Exception ex)
                                 {
                                     //Can happen when the windows form is closing
-                                }
-
-                                lock (lAllVertices)
-                                {
-                                    lAllVertices.Clear();
-                                    lAllColors.Clear();
-                                    lAllVertices.AddRange(tempAllVertices);
-                                    lAllColors.AddRange(tempAllColors);
-                                }
-
-                                if (chSaveFrames.Checked)
-                                    SaveCurrentFrameToFile(outDir, nCurrentFrame);
-
-                                nCurrentFrame++;
-
-
+                                }                             
                             }
 
                             else
                             {
                                 if (bLoop)
                                     RewindPlayer();
+                                else
+                                {
+                                    Pause();
+                                    RewindPlayer();
+                                }
                             }
 
                             if (fpsCountTimer.ElapsedMilliseconds > 0)
@@ -314,6 +313,11 @@ namespace LiveScanPlayer
         {
             lock (lFrameFiles)
             {
+                if(lFrameFiles.Count == 0)
+                {
+                    return;
+                }
+
                 for (int i = 0; i < lFrameFiles.Count; i++)
                 {
                     lFrameFiles[i].Rewind();
