@@ -170,14 +170,16 @@ namespace LiveScanPlayer
         {
             if (lFrameFilesListView.SelectedIndices.Count == 0)
                 return;
-            
-            RewindPlayer();
-            ClearAllFrames();
-            Pause();
-
 
             lock (lFrameFiles)
             {
+                if (lFrameFiles.Count == 1)
+                {
+                    RewindPlayer();
+                    ClearAllFrames();
+                    Pause();
+                }
+
                 int idx = lFrameFilesListView.SelectedIndices[0];
                 lFrameFilesListView.Items.RemoveAt(idx);
                 lFrameFiles[idx].CloseReader();
@@ -277,7 +279,14 @@ namespace LiveScanPlayer
 
                                 //Otherwise backgroundworker might call this method, while the form is already closing
                                 if (bAppOpen)
-                                    this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });
+                                {
+                                    try
+                                    {
+                                        this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });
+                                    }
+
+                                    catch (Exception ex) { }//Can happen when form is closing
+                                }
                             }
                         }
                     }
@@ -367,7 +376,7 @@ namespace LiveScanPlayer
             }
 
             string outputFilename = outDir + frameIdx.ToString().PadLeft(5, '0') + ".ply";
-            Utils.saveToPly(outputFilename, lVertices, lColors, viewportSettings.colorMode, true);
+            Utils.saveToPly(outputFilename, lVertices, lColors, viewportSettings.colorMode, false);
         }
 
 
