@@ -59,6 +59,7 @@ public:
 	virtual int GetSyncJackState() = 0;
 	virtual uint64_t GetTimeStamp() = 0;
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep) = 0;
+	virtual void SetWhiteBalanceState(bool enableAutoWhiteBalance, int kelvin) = 0;
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) = 0;
 	virtual void SetConfiguration(KinectConfiguration& configuration) = 0;
 

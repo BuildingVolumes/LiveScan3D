@@ -32,6 +32,7 @@ public:
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep);
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
 	virtual void SetConfiguration(KinectConfiguration& configuration);
+	virtual void SetWhiteBalanceState(bool enableAutoBalance, int kelvin);
 
 protected:
 	k4a_device_t kinectSensor = NULL;
@@ -53,6 +54,8 @@ protected:
 	int restartAttempts = 0;
 	bool autoExposureEnabled = true;
 	int exposureTimeStep = 0;
+	bool autoWhiteBalanceEnabled = true;
+	int kelvin = 5000;
 
 	KinectConfiguration configuration;
 	tjhandle turboJpeg;

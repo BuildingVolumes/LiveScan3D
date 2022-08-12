@@ -194,7 +194,7 @@ namespace KinectServer
                             
 
                     else if (colorMode == EColorMode.RGB)
-                        for (int k = 0; k > 3; k++)
+                        for (int k = 0; k < 3; k++)
                         {
                             byte temp = colors[j * 3 + k];
                             binaryWriter.Write(temp);
@@ -214,9 +214,8 @@ namespace KinectServer
                             s += colors[j * 3 + k].ToString(CultureInfo.InvariantCulture) + " ";
 
                     if (colorMode == EColorMode.RGB)
-                        for (int k = 0; k > 3; k++)
+                        for (int k = 0; k < 3; k++)
                             s += colors[j * 3 + k].ToString(CultureInfo.InvariantCulture) + " ";
-
 
                     streamWriter.WriteLine(s);
                 }

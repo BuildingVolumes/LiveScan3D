@@ -90,7 +90,6 @@ int APIENTRY wWinMain(
 LiveScanClient::LiveScanClient() :
 	m_hWnd(NULL),
 	m_nLastCounter(0),
-	m_nFramesSinceUpdate(0),
 	m_fFreq(0),
 	m_nNextStatusTime(0LL),
 	m_pD2DFactory(NULL),
@@ -128,7 +127,11 @@ LiveScanClient::LiveScanClient() :
 	m_eCaptureMode(CM_POINTCLOUD),
 	m_nFrameIndex(0),
 	m_tFrameTime(0),
-	m_tOldFrameTime(0)
+	m_tOldFrameTime(0),
+	m_fAverageFPS(30.0),
+	m_nFPSFrameCounter(0),
+	m_nFPSUpdateCounter(0)
+
 
 {
 	LARGE_INTEGER qpf = { 0 };
@@ -299,6 +302,7 @@ void LiveScanClient::UpdateFrame()
 	if (m_bUpdateSettings)
 	{
 		pCapture->SetExposureState(m_bAutoExposureEnabled, m_nExposureStep);
+		pCapture->SetWhiteBalanceState(m_bAutoWhiteBalanceEnabled, m_nKelvin);
 		m_bUpdateSettings = false;
 	}
 
@@ -352,13 +356,12 @@ void LiveScanClient::UpdateFrame()
 		m_bPostSyncedListReceived = false;
 		bool success = true;
 
-		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_MJPG)
+		if (m_eCaptureMode == CAPTURE_MODE::CM_RAW)
 			success = PostSyncRawFrames();
 
 
-		if (configuration.config.color_format == K4A_IMAGE_FORMAT_COLOR_BGRA32)
+		if (m_eCaptureMode == CAPTURE_MODE::CM_RAW)
 			success = PostSyncPointclouds();
-
 
 		SendPostSyncConfirmation(success);
 	}
@@ -966,6 +969,12 @@ void LiveScanClient::HandleSocket()
 			m_nExposureStep = *(int*)(received.c_str() + i);
 			i += sizeof(int);
 
+			m_bAutoWhiteBalanceEnabled = (received[i] != 0);
+			i++;
+
+			m_nKelvin = *(int*)(received.c_str() + i);
+			i += sizeof(int);
+
 			int exportFormat = *(int*)(received.c_str() + i);
 			i += sizeof(int);
 
@@ -1483,14 +1492,29 @@ void LiveScanClient::ShowFPS()
 {
 	if (m_hWnd)
 	{
+
 		long difference = std::chrono::duration_cast<std::chrono::milliseconds>(m_tFrameTime - m_tOldFrameTime).count();
-		m_fAverageFPS += (difference - m_fAverageFPS) * 0.3f;
-		float fps = 1000 / m_fAverageFPS;
 
-		WCHAR szStatusMessage[64];
-		StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L" FPS = %0.2f", fps);
+		if(difference > 0)
+			m_nFPSUpdateCounter += difference;	
 
-		SetStatusMessage(szStatusMessage, 1000, false);
+		m_nFPSFrameCounter++;
+
+		//We show the FPS every second
+		if (m_nFPSUpdateCounter > 1000)
+		{
+			//Calculate a moving average of the FPS, so it isn't all over the place
+			float alpha = 0.2f;
+			m_fAverageFPS = alpha * m_fAverageFPS + (1.0f - alpha) * m_nFPSFrameCounter;
+
+			WCHAR szStatusMessage[64];
+			StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L" FPS = %0.0f", m_fAverageFPS);
+
+			SetStatusMessage(szStatusMessage, 1000, false);
+
+			m_nFPSFrameCounter = 0;
+			m_nFPSUpdateCounter = 0;			
+		}
 	}
 }
 
@@ -1587,9 +1611,7 @@ bool LiveScanClient::PostSyncPointclouds()
 
 bool LiveScanClient::PostSyncRawFrames()
 {
-
 	log.LogDebug("Starting Post Sync for Raw frames");
-
 
 	bool success = true;
 	k4a_image_t emptyDepthFrame;

@@ -133,25 +133,37 @@ namespace LiveScanPlayer
 
         private void btStart_Click(object sender, EventArgs e)
         {
+            if (bPaused)
+                Play();
+
+            else
+                Pause();
+        }
+
+        private void Play()
+        {
             lock (lFrameFiles)
             {
                 if (lFrameFiles.Count == 0)
                     return;
             }
 
-            if (bPaused)
+            btStart.Image = Properties.Resources.pause;
+            bPaused = false;
+            return;
+        }
+
+        private void Pause()
+        {
+            lock (lFrameFiles)
             {
-                btStart.Image = Properties.Resources.pause;
-                bPaused = false;
-                return;
+                if (lFrameFiles.Count == 0)
+                    return;
             }
 
-            if (!bPaused)
-            {
-                bPaused = true;
-                btStart.Image = Properties.Resources.Play;
-                return;
-            }
+            bPaused = true;
+            btStart.Image = Properties.Resources.Play;
+            return;
         }
 
         private void btRemove_Click(object sender, EventArgs e)
@@ -161,6 +173,13 @@ namespace LiveScanPlayer
 
             lock (lFrameFiles)
             {
+                if (lFrameFiles.Count == 1)
+                {
+                    RewindPlayer();
+                    ClearAllFrames();
+                    Pause();
+                }
+
                 int idx = lFrameFilesListView.SelectedIndices[0];
                 lFrameFilesListView.Items.RemoveAt(idx);
                 lFrameFiles[idx].CloseReader();
@@ -197,7 +216,7 @@ namespace LiveScanPlayer
             {
                 if (oOpenGLWindow != null)
                 {
-                    if (!bPaused && !bScrollbarInUse)
+                    if (!bScrollbarInUse)
                     {
                         if (updateTimer.ElapsedMilliseconds > 1000f / fTargetFPS)
                         {
@@ -205,21 +224,30 @@ namespace LiveScanPlayer
                             {
                                 updateTimer.Restart();
 
-                                List<float> tempAllVertices = new List<float>();
-                                List<byte> tempAllColors = new List<byte>();
-
-                                lock (lFrameFiles)
+                                if (!bPaused)
                                 {
-                                    for (int i = 0; i < lFrameFiles.Count; i++)
+                                    lock (lAllVertices)
                                     {
-                                        List<float> vertices = new List<float>();
-                                        List<byte> colors = new List<byte>();
-                                        lFrameFiles[i].ReadFrame(vertices, colors);
+                                        lAllVertices.Clear();
+                                        lAllColors.Clear();
 
-                                        tempAllVertices.AddRange(vertices);
-                                        tempAllColors.AddRange(colors);
-                                    }
-                                }
+                                        lock (lFrameFiles)
+                                        {
+                                            for (int i = 0; i < lFrameFiles.Count; i++)
+                                            {
+                                                List<float> vertices = new List<float>();
+                                                List<byte> colors = new List<byte>();
+                                                lFrameFiles[i].ReadFrame(lAllVertices, lAllColors);
+                                            }
+                                        }
+
+                                        if (chSaveFrames.Checked)
+                                            SaveCurrentFrameToFile(outDir, nCurrentFrame);
+
+                                        nCurrentFrame++;
+                                        Console.WriteLine(nCurrentFrame);
+                                    }                                    
+                                }                                
 
                                 try
                                 {
@@ -229,28 +257,18 @@ namespace LiveScanPlayer
                                 catch (Exception ex)
                                 {
                                     //Can happen when the windows form is closing
-                                }
-
-                                lock (lAllVertices)
-                                {
-                                    lAllVertices.Clear();
-                                    lAllColors.Clear();
-                                    lAllVertices.AddRange(tempAllVertices);
-                                    lAllColors.AddRange(tempAllColors);
-                                }
-
-                                if (chSaveFrames.Checked)
-                                    SaveCurrentFrameToFile(outDir, nCurrentFrame);
-
-                                nCurrentFrame++;
-
-
+                                }                             
                             }
 
                             else
                             {
-                                if(bLoop)
+                                if (bLoop)
                                     RewindPlayer();
+                                else
+                                {
+                                    Pause();
+                                    RewindPlayer();
+                                }
                             }
 
                             if (fpsCountTimer.ElapsedMilliseconds > 0)
@@ -261,9 +279,16 @@ namespace LiveScanPlayer
 
                                 //Otherwise backgroundworker might call this method, while the form is already closing
                                 if (bAppOpen)
-                                    this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });                                
+                                {
+                                    try
+                                    {
+                                        this.Invoke((MethodInvoker)delegate { this.ShowFPS(); });
+                                    }
+
+                                    catch (Exception ex) { }//Can happen when form is closing
+                                }
                             }
-                        }           
+                        }
                     }
                 }
             }
@@ -297,6 +322,11 @@ namespace LiveScanPlayer
         {
             lock (lFrameFiles)
             {
+                if(lFrameFiles.Count == 0)
+                {
+                    return;
+                }
+
                 for (int i = 0; i < lFrameFiles.Count; i++)
                 {
                     lFrameFiles[i].Rewind();
@@ -346,7 +376,7 @@ namespace LiveScanPlayer
             }
 
             string outputFilename = outDir + frameIdx.ToString().PadLeft(5, '0') + ".ply";
-            Utils.saveToPly(outputFilename, lVertices, lColors, viewportSettings.colorMode, true);
+            Utils.saveToPly(outputFilename, lVertices, lColors, viewportSettings.colorMode, false);
         }
 
 
@@ -390,7 +420,7 @@ namespace LiveScanPlayer
         private void ShowFPS()
         {
             //Only update the FPS counter every second or so
-            if(fFpsUpdateTimer > 500)
+            if (fFpsUpdateTimer > 500)
             {
                 lFPSCounter.Text = "FPS: " + lActualFPS.ToString();
                 fFpsUpdateTimer = 0;

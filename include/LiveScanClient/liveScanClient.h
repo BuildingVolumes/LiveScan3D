@@ -79,6 +79,9 @@ private:
 	bool m_bAutoExposureEnabled;
 	int m_nExposureStep;
 
+	bool m_bAutoWhiteBalanceEnabled;
+	int m_nKelvin;
+
 	std::chrono::milliseconds m_tFrameTime;
 	std::chrono::milliseconds m_tOldFrameTime;
 
@@ -107,9 +110,9 @@ private:
     INT64 m_nLastCounter;
     double m_fFreq;
     INT64 m_nNextStatusTime;
-    DWORD m_nFramesSinceUpdate;
-	int frameRecordCounter;
 	float m_fAverageFPS;
+	int m_nFPSFrameCounter;
+	long m_nFPSUpdateCounter = 0;
 	Log& log;
 	Log::LOGLEVEL m_loglevel;
 

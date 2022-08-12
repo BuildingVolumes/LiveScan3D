@@ -576,7 +576,7 @@ namespace KinectServer
                 oSettings.nExposureStep = -5;
 
                 //Reflect this change in the settings UI
-                fMainWindowForm.SetExposureControlsMode(true);
+                fMainWindowForm.LockExposureForSync(true);
 
                 SendSettings(); //Send settings to update the exposure
 
@@ -589,12 +589,14 @@ namespace KinectServer
 
                 else
                 {
+                    fMainWindowForm?.ShowErrorWindow("Enabling Hardware Synchronisation failed!");
+
                     Log.LogInfo("Enabling Hardware Sync failed");
 
                     //Enabeling failed, we undo the Exposure Settings
                     oSettings.bAutoExposureEnabled = true;
 
-                    fMainWindowForm.SetExposureControlsMode(false);
+                    fMainWindowForm.LockExposureForSync(false);
 
                     SendSettings(); //Send settings to update the exposure
 
@@ -613,6 +615,10 @@ namespace KinectServer
         {
             Log.LogInfo("Disabling Hardware Sync");
 
+            fMainWindowForm.LockExposureForSync(false);
+
+            SendSettings(); //Send settings to update the exposure
+
             if (SetTempSyncState(false) && RestartAllClients())
             {
                 Log.LogInfo("Disabling Hardware Sync successfull");
@@ -622,6 +628,7 @@ namespace KinectServer
 
             else
             {
+                fMainWindowForm?.ShowErrorWindow("Disabling Hardware Synchronisation failed!");
                 Log.LogInfo("Disabling Hardware Sync failed");
                 return false;
             }

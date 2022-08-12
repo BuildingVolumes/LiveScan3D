@@ -78,13 +78,13 @@ namespace LiveScanPlayer
                     vertices.Add(tempVertices[3 * i + j] / 1000.0f);
                 }
 
-                //We convert from BGR colorspace to RGB colorspace
-                colors.Add(tempColors[4 * i + 2]);
-                colors.Add(tempColors[4 * i + 1]);
                 colors.Add(tempColors[4 * i + 0]);
+                colors.Add(tempColors[4 * i + 1]);
+                colors.Add(tempColors[4 * i + 2]);
             }
 
-            binaryReader.ReadByte();
+            if(binaryReader.BaseStream.Position < binaryReader.BaseStream.Length)
+                binaryReader.ReadByte();
 
             currentFrameIdx++;
         }
