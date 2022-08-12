@@ -70,6 +70,7 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 	}
 
 	deviceStartTime = std::chrono::system_clock::now();
+	lastFrameTimeus = 0;
 
 	log.LogInfo("Virtual Device Initialization successful!");
 	bInitialized = true;
@@ -84,10 +85,10 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 /// <param name="configuration"></param>
 void AzureKinectCaptureVirtual::SetConfiguration(KinectConfiguration& configuration)
 {
-	this->configuration = configuration;
 	std::string serialNumber = "000000000000";
-	serialNumber += std::to_string(localDeviceIndex);
-	this->configuration.SetSerialNumber(serialNumber);
+	serialNumber += std::to_string(localDeviceIndex + 1);
+	configuration.SetSerialNumber(serialNumber);
+	this->configuration = configuration;
 }
 
 bool AzureKinectCaptureVirtual::Close()
