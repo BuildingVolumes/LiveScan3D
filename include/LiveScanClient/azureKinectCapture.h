@@ -17,23 +17,24 @@ public:
 	AzureKinectCapture();
 	~AzureKinectCapture();
 
-	bool Initialize(KinectConfiguration& configuration);
-	bool AquireRawFrame();
+	virtual bool Initialize(KinectConfiguration& configuration);
+	virtual void SetManualDeviceIndex(int index);
+	virtual bool AquireRawFrame();
 	void DecodeRawColor();
 	void DownscaleColorImgToDepthImgSize();
 	void MapDepthToColor();
 	void GeneratePointcloud();
 	void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints);
-	bool Close();	
+	virtual bool Close();	
 
-	int GetSyncJackState();
-	uint64_t GetTimeStamp();
-	void SetExposureState(bool enableAutoExposure, int exposureStep);
-	void SetWhiteBalanceState(bool enableAutoBalance, int kelvin);
-	bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
-	void SetConfiguration(KinectConfiguration& configuration);
+	virtual int GetSyncJackState();
+	virtual uint64_t GetTimeStamp();
+	virtual void SetExposureState(bool enableAutoExposure, int exposureStep);
+	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
+	virtual void SetConfiguration(KinectConfiguration& configuration);
+	virtual void SetWhiteBalanceState(bool enableAutoBalance, int kelvin);
 
-private:
+protected:
 	k4a_device_t kinectSensor = NULL;
 	int32_t captureTimeoutMs = 1000;
 	k4a_image_t depthImageInColor = NULL;

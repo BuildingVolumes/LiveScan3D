@@ -57,17 +57,17 @@
     <ClInclude Include="..\include\LiveScanClient\azureKinectCapture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="KinectConfiguration.h">
+    <ClInclude Include="..\include\LiveScanClient\Log.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Log.h">
+    <ClInclude Include="..\include\LiveScanClient\azureKinectCaptureVirtual.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\LiveScanClient\KinectConfiguration.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\socketCS.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\LiveScanClient\calibration.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -98,10 +98,16 @@
     <ClCompile Include="..\src\LiveScanClient\azureKinectCapture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="KinectConfiguration.cpp">
+    <ClCompile Include="..\src\LiveScanClient\Log.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Log.cpp">
+    <ClCompile Include="..\src\LiveScanClient\azureKinectCaptureVirtual.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\LiveScanClient\KinectConfiguration.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\LiveScanClient\socketCS.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

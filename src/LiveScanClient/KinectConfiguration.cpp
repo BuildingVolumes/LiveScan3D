@@ -10,8 +10,10 @@
 	SYNC_STATE eHardwareSyncState;
 	int nSyncOffset;
 	int nGlobalDeviceIndex;
-	int m_nDepth_camera_width;
-	int m_nDepth_camera_height;
+	int m_nDepthCameraWidth;
+	int m_nDepthCameraHeight;
+	int m_nColorCameraHeight;
+	int m_nColorCameraWidth;
 	bool filter_depth_map;
 	int filter_depth_map_size = 5;
 	const byte serialNumberSize = 13;
@@ -20,6 +22,19 @@
 	{
 		serialNumber = "0000000000000";
 		InitializeDefaults();
+	}
+
+	KinectConfiguration::KinectConfiguration(std::string serialNo, k4a_device_configuration_t conf, SYNC_STATE softwareSyncState, SYNC_STATE hardwareSyncState, int syncOffset,
+		int globalDeviceIndex, bool filterDepth, int filterDepthSize)
+	{
+		serialNumber = serialNo;
+		config = conf;
+		eSoftwareSyncState = softwareSyncState;
+		eHardwareSyncState = hardwareSyncState;
+		nSyncOffset = syncOffset;
+		nGlobalDeviceIndex = globalDeviceIndex;
+		filter_depth_map = filterDepth;
+		filter_depth_map_size = filterDepthSize;
 	}
 
 	char* KinectConfiguration::ToBytes()
@@ -121,45 +136,85 @@
 		filter_depth_map_size = 5;
 	}
 
-	int KinectConfiguration::GetCameraWidth()
+	int KinectConfiguration::GetDepthCameraWidth()
 	{
 		UpdateWidthAndHeight();
-		return m_nDepth_camera_width;
+		return m_nDepthCameraWidth;
 	}
 
-	int KinectConfiguration::GetCameraHeight()
+	int KinectConfiguration::GetDepthCameraHeight()
 	{
 		UpdateWidthAndHeight();
-		return m_nDepth_camera_height;
+		return m_nDepthCameraHeight;
 	}
 
-	//No way to get the depth pixel values from the SDK at the moment, so this is hardcoded
+	int KinectConfiguration::GetColorCameraWidth()
+	{
+		UpdateWidthAndHeight();
+		return m_nColorCameraWidth;
+	}
+
+	int KinectConfiguration::GetColorCameraHeight()
+	{
+		UpdateWidthAndHeight();
+		return m_nColorCameraHeight;
+
+	}
+
+	//No way to get the colr/depth pixel values from the SDK at the moment, so this is hardcoded
 	void KinectConfiguration::UpdateWidthAndHeight()
 	{
 		switch (config.depth_mode)
 		{
-		case K4A_DEPTH_MODE_NFOV_UNBINNED:
-			m_nDepth_camera_width = 640;
-			m_nDepth_camera_height = 576;
-			break;
+			case K4A_DEPTH_MODE_NFOV_UNBINNED:
+				m_nDepthCameraWidth = 640;
+				m_nDepthCameraHeight = 576;
+				break;
 
-		case K4A_DEPTH_MODE_NFOV_2X2BINNED:
-			m_nDepth_camera_width = 320;
-			m_nDepth_camera_height = 288;
-			break;
+			case K4A_DEPTH_MODE_NFOV_2X2BINNED:
+				m_nDepthCameraWidth = 320;
+				m_nDepthCameraHeight = 288;
+				break;
 
-		case K4A_DEPTH_MODE_WFOV_UNBINNED:
-			m_nDepth_camera_width = 1024;
-			m_nDepth_camera_height = 1024;
-			break;
+			case K4A_DEPTH_MODE_WFOV_UNBINNED:
+				m_nDepthCameraWidth = 1024;
+				m_nDepthCameraHeight = 1024;
+				break;
 
-		case K4A_DEPTH_MODE_WFOV_2X2BINNED:
-			m_nDepth_camera_width = 512;
-			m_nDepth_camera_height = 512;
-			break;
+			case K4A_DEPTH_MODE_WFOV_2X2BINNED:
+				m_nDepthCameraWidth = 512;
+				m_nDepthCameraHeight = 512;
+				break;
+			default:
+				break;
+		}
 
-		default:
-			break;
+		switch (config.color_resolution)
+		{
+			case K4A_COLOR_RESOLUTION_720P:
+				m_nColorCameraWidth = 1280;
+				m_nColorCameraHeight = 720;
+				break;
+			case K4A_COLOR_RESOLUTION_1080P:
+				m_nColorCameraWidth = 1920;
+				m_nColorCameraHeight = 1080;
+				break;
+			case K4A_COLOR_RESOLUTION_1440P:
+				m_nColorCameraWidth = 2560;
+				m_nColorCameraHeight = 1440;
+				break;
+			case K4A_COLOR_RESOLUTION_2160P:
+				m_nColorCameraWidth = 3840;
+				m_nColorCameraHeight = 2160;
+				break;
+			case K4A_COLOR_RESOLUTION_1536P:
+				m_nColorCameraWidth = 2048;
+				m_nColorCameraHeight = 1536;
+				break;
+			case K4A_COLOR_RESOLUTION_3072P:
+				m_nColorCameraWidth = 4096;
+				m_nColorCameraHeight = 3072;
+				break;
 		}
 	}
 

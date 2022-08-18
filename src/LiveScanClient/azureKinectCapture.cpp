@@ -20,7 +20,9 @@ AzureKinectCapture::~AzureKinectCapture()
 	k4a_image_release(colorImageDownscaled);
 	k4a_transformation_destroy(transformation);
 	k4a_device_close(kinectSensor);
-	tjDestroy(turboJpeg);
+
+	if(turboJpeg)
+		tjDestroy(turboJpeg);
 }
 
 /// <summary>
@@ -122,7 +124,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	//We can however scale the color image to the depth images size beforehand, to reduce proccesing power. 
 
 	//We calculate the minimum size that the color Image can be, while preserving its aspect ration
-	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetCameraHeight();
+	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetDepthCameraHeight();
 	colorImageDownscaledWidth = calibration.color_camera_calibration.resolution_width / rescaleRatio;
 	colorImageDownscaledHeight = calibration.color_camera_calibration.resolution_height / rescaleRatio;
 
@@ -460,4 +462,7 @@ uint64_t AzureKinectCapture::GetTimeStamp()
 	//std::cout << "Getting timestamp at: " << currentTimeStamp << std::endl;
 	return currentTimeStamp;
 }
+
+//Not used, but must be defined as required in ICapture
+void AzureKinectCapture::SetManualDeviceIndex(int index) {};
 

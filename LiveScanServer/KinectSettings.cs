@@ -122,7 +122,6 @@ namespace KinectServer
             bTemp = BitConverter.GetBytes(nKelvin);
             lData.AddRange(bTemp);
 
-
             bTemp = BitConverter.GetBytes((int)eExportMode);
             lData.AddRange(bTemp);
 
