@@ -37,7 +37,6 @@ ICapture::~ICapture()
 	if (pBodyIndex != NULL)
 	{
 		delete[] pBodyIndex;
-		pBodyIndex = NULL;
 	}
 
 	colorBGR.release();

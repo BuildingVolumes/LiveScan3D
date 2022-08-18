@@ -15,43 +15,36 @@
 class AzureKinectCaptureVirtual : public AzureKinectCapture
 {
 public:
-	//AzureKinectCaptureVirtual();
-	//~AzureKinectCaptureVirtual();
+	AzureKinectCaptureVirtual();
+	~AzureKinectCaptureVirtual();
 
+	int GetAndLockDeviceIndex();
+	void DeleteIndexLockFile();
 	bool Initialize(KinectConfiguration& configuration) override;
-	void SetManualDeviceIndex(int index) override;
-	bool AquireRawFrame() override;
-	
+	bool AquireRawFrame() override;	
 	bool Close() override;
-
 	int GetSyncJackState() override;
 	uint64_t GetTimeStamp() override;
 	void SetExposureState(bool enableAutoExposure, int exposureStep) override;
+	void SetWhiteBalanceState(bool enableAutoBalance, int kelvinValue) override;
 	bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) override;
 	void SetConfiguration(KinectConfiguration& configuration);
-
 	bool LoadColorImagesfromDisk();
 	bool LoadDepthImagesfromDisk();
 
 
 private:
 
-	//Here the settings for the individual Virtual Devices are stored.
-	//The settings are chosen to cover as many settings as possible
+	k4a_calibration_t m_VirtualCalibration;
+	std::string m_sVirtualIntrinsicsPath = "resources/testdata/virtualdevice/intrinsics.json";
 
-	int virtualDeviceIndex;
+	std::vector<k4a_image_t> m_vVirtualColorImageSequence;
+	std::vector<uint8_t*> m_vVirtualColorImagesBuffer;
 
-	k4a_calibration_t virtualCalibration;
+	std::vector<k4a_image_t> m_vVirtualDepthImageSequence;
 
-	std::string virtualIntrinsicsPath = "resources/test/intrinsics.json";
-
-	std::vector<k4a_image_t> virtualColorImageSequence;
-	std::vector<uint8_t*> virtualColorImagesBuffer;
-
-	std::vector<k4a_image_t> virtualDepthImageSequence;
-
-	std::chrono::system_clock::time_point deviceStartTime;
-	long lastFrameTimeus;
+	std::chrono::system_clock::time_point m_DeviceStartTime;
+	long m_lLastFrameTimeus;
 };
 
 

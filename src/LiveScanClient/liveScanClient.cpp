@@ -81,7 +81,7 @@ int APIENTRY wWinMain(
 
 	LiveScanClient application;
 
-	if (virtualClient = 1)
+	if (virtualClient == 1)
 		application.m_bVirtualDevice = true;
 
 	application.Run(hInstance, nShowCmd, loglevel);
@@ -222,10 +222,14 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL logleve
 
 	m_loglevel = loglevel;
 
+	//For build convinience, we can build a seperate .exe with virtual device always enabled
+#if _VIRTUAL_DEVICE
+	m_bVirtualDevice = true;
+#endif
+
 	if (m_bVirtualDevice)
 	{
 		pCapture = new AzureKinectCaptureVirtual();
-		pCapture->SetManualDeviceIndex(0);
 	}
 
 	else
@@ -564,8 +568,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 		}
 		else
 		{
-			if (!log.StartLog("unknown", m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG))
-				SetStatusMessage(L"Error: Log file and device could not be initialized!", 10000, true);
+			log.StartLog("unknown", m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG);
+			SetStatusMessage(L"Error: Device could not be initialized!", 10000, true);
 		}
 
 		ReadIPFromFile();
@@ -604,11 +608,11 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 	}
 				// If the titlebar X is clicked, destroy app
 	case WM_CLOSE:
-		pCapture->Close();
-		WriteIPToFile();
 		DestroyWindow(hWnd);
 		break;
 	case WM_DESTROY:
+		pCapture->Close();
+		WriteIPToFile();
 		// Quit the main message pump
 		PostQuitMessage(0);
 		break;

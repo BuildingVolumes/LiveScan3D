@@ -42,7 +42,7 @@ class ICapture
 {
 public:
 	ICapture();
-	~ICapture();
+	virtual ~ICapture();
 
 	virtual bool Initialize(KinectConfiguration& configuration) = 0;
 	virtual void SetManualDeviceIndex(int index) = 0; //Only used for testing devices for now

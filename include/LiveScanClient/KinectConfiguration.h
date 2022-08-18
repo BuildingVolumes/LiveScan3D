@@ -25,8 +25,10 @@ public:
 	void SetFromBytes(std::string bytes);
 
 	void InitializeDefaults();
-	int GetCameraWidth();
-	int GetCameraHeight();
+	int GetDepthCameraWidth();
+	int GetDepthCameraHeight();
+	int GetColorCameraWidth();
+	int GetColorCameraHeight();
 	void UpdateWidthAndHeight();
 	void SetDepthMode(k4a_depth_mode_t depthMode);
 	void SetSerialNumber(std::string serialNumber);
