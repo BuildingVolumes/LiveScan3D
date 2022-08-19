@@ -1441,14 +1441,14 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 				temp.Y += calibration.worldT[1];
 				temp.Z += calibration.worldT[2];
 				temp = RotatePoint(temp, calibration.worldR);
+			}
 
-				if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]
-					|| temp.Y < m_vBounds[1] || temp.Y > m_vBounds[4]
-					|| temp.Z < m_vBounds[2] || temp.Z > m_vBounds[5])
-				{
-					allVertices[vertexIndex] = invalidPoint;
-					continue;
-				}
+			if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]
+				|| temp.Y < m_vBounds[1] || temp.Y > m_vBounds[4]
+				|| temp.Z < m_vBounds[2] || temp.Z > m_vBounds[5])
+			{
+				allVertices[vertexIndex] = invalidPoint;
+				continue;
 			}
 
 			allVertices[vertexIndex] = temp;
