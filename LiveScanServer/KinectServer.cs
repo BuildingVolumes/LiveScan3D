@@ -1287,7 +1287,7 @@ namespace KinectServer
 
                 if (!GetConfigurations(new List<KinectSocket>() { newClient }))
                 {
-                    FatalClientError("Client could not be configured, please reconnect", "Could not configure client");
+                    FatalClientError(newClient, "Client could not be configured, please reconnect", "Could not configure client");
                     return;
                 }
 
@@ -1315,7 +1315,7 @@ namespace KinectServer
 
                 if (!SetAndConfirmConfig(newClient, newConfig))
                 {
-                    FatalClientError("Client could not be configured, please reconnect", "Could not configure client");
+                    FatalClientError(newClient, "Client could not be configured, please reconnect", "Could not configure client");
                     return;
                 }
 
@@ -1332,7 +1332,7 @@ namespace KinectServer
                     {
                         if(!CloseClient(newClient) || !InitializeClient(newClient))
                         {
-                            FatalClientError("Could not restart new client to match temporal sync settings, please reconnect", "Could not close or open new client");
+                            FatalClientError(newClient, "Could not restart new client to match temporal sync settings, please reconnect", "Could not close or open new client");
                             return;
                         }
                     }
@@ -1350,16 +1350,16 @@ namespace KinectServer
 
                 else
                 {
-                    FatalClientError("Could not send Temp Sync State on client, please reconnect", "Could not set temp sync state on new client");
+                    FatalClientError(newClient, "Could not send Temp Sync State on client, please reconnect", "Could not set temp sync state on new client");
                     return;
                 }
             }
         }
 
-        private void FatalClientError(string userMessage, string logMessage)
+        private void FatalClientError(KinectSocket client, string userMessage, string logMessage)
         {
             Log.LogError(logMessage);
-            DisconnectClient(lClientSockets[lClientSockets.Count - 1]);
+            DisconnectClient(client);
             fMainWindowForm.ShowWarningWindow(userMessage);
         }
 
@@ -1380,15 +1380,18 @@ namespace KinectServer
         private void ClientDisconnected(KinectSocket client)
         {
             //Close the configuration form
-            foreach (var kcf in kinectConfigurationForms)
+            if(client.configuration != null)
             {
-                if (kcf.Value.displayedConfiguration.SerialNumber == client.configuration.SerialNumber)
+                foreach (var kcf in kinectConfigurationForms)
                 {
-                    GetKinectSettingsForm(kcf.Key).CloseConfiguration();
-                    kinectConfigurationForms.Remove(kcf.Key);
-                    break;
+                    if (kcf.Value.displayedConfiguration.SerialNumber == client.configuration.SerialNumber)
+                    {
+                        GetKinectSettingsForm(kcf.Key).CloseConfiguration();
+                        kinectConfigurationForms.Remove(kcf.Key);
+                        break;
+                    }
                 }
-            }
+            }         
 
             lock (oClientSocketLock)
             {

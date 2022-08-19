@@ -1360,7 +1360,6 @@ void LiveScanClient::SendPostSyncConfirmation(bool success)
 
 void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB, bool live)
 {
-
 	log.LogCaptureDebug("Sending Frame to server");
 
 	int size = verticesSize * (3 + 3 * sizeof(short)) + sizeof(int);
@@ -1407,9 +1406,12 @@ void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGB* RGB, bo
 	else
 		message = MSG_STORED_FRAME;
 
-	m_pClientSocket->SendBytes(&message, 1);
-	m_pClientSocket->SendBytes((char*)&header, sizeof(int) * 2);
-	m_pClientSocket->SendBytes(buffer.data(), size);
+	if (m_pClientSocket != NULL)
+	{
+		m_pClientSocket->SendBytes(&message, 1);
+		m_pClientSocket->SendBytes((char*)&header, sizeof(int) * 2);
+		m_pClientSocket->SendBytes(buffer.data(), size);
+	}
 }
 
 void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage)
