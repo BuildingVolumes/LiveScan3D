@@ -854,8 +854,9 @@ namespace KinectServer
                 form = new KinectConfigurationForm();
             }
             //
-            form.Initialize(oServer, oSettings, gvClients.SelectedRows[0].Index, this);
+            form.Initialize(oServer, gvClients.SelectedRows[0].Index);
             form.Show();
+            form.Focus();
             oServer.SetKinectSettingsForm(gvClients.SelectedRows[0].Index, form);
         }
 

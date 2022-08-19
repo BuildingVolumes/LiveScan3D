@@ -32,7 +32,7 @@ namespace KinectServer
 
         KinectSettings oSettings;
         public SettingsForm fSettingsForm;
-        public Dictionary<int, KinectConfigurationForm> kinectSettingsForms;
+        public Dictionary<int, KinectConfigurationForm> kinectConfigurationForms;
         public MainWindowForm fMainWindowForm;
         Thread listeningThread;
         Thread receivingThread;
@@ -136,7 +136,7 @@ namespace KinectServer
         public KinectServer(KinectSettings settings)
         {
             this.oSettings = settings;
-            kinectSettingsForms = new Dictionary<int, KinectConfigurationForm>();
+            kinectConfigurationForms = new Dictionary<int, KinectConfigurationForm>();
         }
 
         public void SetSettingsForm(SettingsForm settings)
@@ -145,13 +145,13 @@ namespace KinectServer
         }
         public void SetKinectSettingsForm(int id, KinectConfigurationForm form)
         {
-            if (kinectSettingsForms.ContainsKey(id))
+            if (kinectConfigurationForms.ContainsKey(id))
             {
-                kinectSettingsForms[id] = form;
+                kinectConfigurationForms[id] = form;
             }
             else
             {
-                kinectSettingsForms.Add(id, form);
+                kinectConfigurationForms.Add(id, form);
             }
         }
 
@@ -170,7 +170,7 @@ namespace KinectServer
             List<string> serialNumbers = new List<string>();
 
             for (int i = 0; i < lClientSockets.Count; i++)
-            {
+            { 
                 serialNumbers.Add(lClientSockets[i].configuration.SerialNumber);
             }
 
@@ -189,7 +189,7 @@ namespace KinectServer
 
         public KinectConfigurationForm GetKinectSettingsForm(int id)
         {
-            if (kinectSettingsForms.TryGetValue(id, out var value))
+            if (kinectConfigurationForms.TryGetValue(id, out var value))
             {
                 return value;
             }
@@ -1365,14 +1365,40 @@ namespace KinectServer
 
         private void DisconnectClient(KinectSocket client)
         {
-            Log.LogInfo("Client disconnected");
+            if (client.configuration != null)
+                Log.LogInfo("Disconnecting" + client.configuration.SerialNumber);
+            else Log.LogInfo("Diconnecting client");
 
             lock (oClientSocketLock)
             {
                 client.DisconnectSocket();
-                lClientSockets.Remove(client);
-                SocketListChanged();
             }
+
+            ClientDisconnected(client);
+        }
+
+        private void ClientDisconnected(KinectSocket client)
+        {
+            //Close the configuration form
+            foreach (var kcf in kinectConfigurationForms)
+            {
+                if (kcf.Value.displayedConfiguration.SerialNumber == client.configuration.SerialNumber)
+                {
+                    GetKinectSettingsForm(kcf.Key).CloseConfiguration();
+                    kinectConfigurationForms.Remove(kcf.Key);
+                    break;
+                }
+            }
+
+            lock (oClientSocketLock)
+            {
+                lClientSockets.Remove(client);
+                if (eSocketListChanged != null)
+                {
+                    eSocketListChanged(lClientSockets);
+                }
+            }
+           
         }
 
         private void ListeningWorker()
@@ -1410,11 +1436,7 @@ namespace KinectServer
                     {
                         if (!lClientSockets[i].SocketConnected())
                         {
-                            lClientSockets.RemoveAt(i);
-                            if (eSocketListChanged != null)
-                            {
-                                eSocketListChanged(lClientSockets);
-                            }
+                            ClientDisconnected(lClientSockets[i]);
                             continue;
                         }
                     }

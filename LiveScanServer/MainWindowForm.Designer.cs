@@ -120,10 +120,9 @@
             // 
             // btCalibrate
             // 
-            this.btCalibrate.Location = new System.Drawing.Point(8, 35);
-            this.btCalibrate.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.btCalibrate.Location = new System.Drawing.Point(5, 23);
             this.btCalibrate.Name = "btCalibrate";
-            this.btCalibrate.Size = new System.Drawing.Size(142, 35);
+            this.btCalibrate.Size = new System.Drawing.Size(95, 23);
             this.btCalibrate.TabIndex = 2;
             this.btCalibrate.Text = "Calibrate";
             this.btCalibrate.UseVisualStyleBackColor = true;
@@ -134,10 +133,9 @@
             this.statusStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.statusLabel});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 1046);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 672);
             this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Padding = new System.Windows.Forms.Padding(2, 0, 21, 0);
-            this.statusStrip1.Size = new System.Drawing.Size(1572, 22);
+            this.statusStrip1.Size = new System.Drawing.Size(1048, 22);
             this.statusStrip1.SizingGrip = false;
             this.statusStrip1.TabIndex = 6;
             this.statusStrip1.Text = "statusStrip1";
@@ -145,7 +143,7 @@
             // statusLabel
             // 
             this.statusLabel.Name = "statusLabel";
-            this.statusLabel.Size = new System.Drawing.Size(0, 15);
+            this.statusLabel.Size = new System.Drawing.Size(0, 17);
             // 
             // recordingWorker
             // 
@@ -155,20 +153,18 @@
             // 
             // txtSeqName
             // 
-            this.txtSeqName.Location = new System.Drawing.Point(144, 40);
-            this.txtSeqName.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.txtSeqName.Location = new System.Drawing.Point(96, 26);
             this.txtSeqName.MaxLength = 40;
             this.txtSeqName.Name = "txtSeqName";
-            this.txtSeqName.Size = new System.Drawing.Size(432, 26);
+            this.txtSeqName.Size = new System.Drawing.Size(289, 20);
             this.txtSeqName.TabIndex = 7;
             this.txtSeqName.Text = "Capture";
             // 
             // btRefineCalib
             // 
-            this.btRefineCalib.Location = new System.Drawing.Point(210, 35);
-            this.btRefineCalib.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.btRefineCalib.Location = new System.Drawing.Point(140, 23);
             this.btRefineCalib.Name = "btRefineCalib";
-            this.btRefineCalib.Size = new System.Drawing.Size(168, 35);
+            this.btRefineCalib.Size = new System.Drawing.Size(112, 23);
             this.btRefineCalib.TabIndex = 11;
             this.btRefineCalib.Text = "Refine Calibration";
             this.btRefineCalib.UseVisualStyleBackColor = true;
@@ -193,10 +189,9 @@
             // 
             // btSettings
             // 
-            this.btSettings.Location = new System.Drawing.Point(438, 239);
-            this.btSettings.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.btSettings.Location = new System.Drawing.Point(292, 155);
             this.btSettings.Name = "btSettings";
-            this.btSettings.Size = new System.Drawing.Size(142, 35);
+            this.btSettings.Size = new System.Drawing.Size(95, 23);
             this.btSettings.TabIndex = 13;
             this.btSettings.Text = "More Settings";
             this.btSettings.UseVisualStyleBackColor = true;
@@ -210,10 +205,9 @@
             // lbSeqName
             // 
             this.lbSeqName.AutoSize = true;
-            this.lbSeqName.Location = new System.Drawing.Point(3, 45);
-            this.lbSeqName.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lbSeqName.Location = new System.Drawing.Point(2, 29);
             this.lbSeqName.Name = "lbSeqName";
-            this.lbSeqName.Size = new System.Drawing.Size(132, 20);
+            this.lbSeqName.Size = new System.Drawing.Size(90, 13);
             this.lbSeqName.TabIndex = 14;
             this.lbSeqName.Text = "Sequence Name:";
             // 
@@ -221,12 +215,11 @@
             // 
             this.btKinectSettingsOpenButton.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(4, 303);
-            this.btKinectSettingsOpenButton.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(3, 197);
             this.btKinectSettingsOpenButton.Name = "btKinectSettingsOpenButton";
-            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(575, 35);
+            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(382, 23);
             this.btKinectSettingsOpenButton.TabIndex = 15;
-            this.btKinectSettingsOpenButton.Text = "Individual Client Settings";
+            this.btKinectSettingsOpenButton.Text = "Individual Client Configuration";
             this.btKinectSettingsOpenButton.UseVisualStyleBackColor = true;
             this.btKinectSettingsOpenButton.Click += new System.EventHandler(this.btKinectSettingsOpenButton_Click);
             // 
@@ -242,9 +235,8 @@
             this.lClientsHeader.Dock = System.Windows.Forms.DockStyle.Left;
             this.lClientsHeader.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lClientsHeader.Location = new System.Drawing.Point(0, 0);
-            this.lClientsHeader.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.lClientsHeader.Name = "lClientsHeader";
-            this.lClientsHeader.Size = new System.Drawing.Size(72, 22);
+            this.lClientsHeader.Size = new System.Drawing.Size(51, 15);
             this.lClientsHeader.TabIndex = 17;
             this.lClientsHeader.Text = "Clients";
             // 
@@ -253,9 +245,8 @@
             this.lCalibrationHeader.AutoSize = true;
             this.lCalibrationHeader.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lCalibrationHeader.Location = new System.Drawing.Point(0, 0);
-            this.lCalibrationHeader.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.lCalibrationHeader.Name = "lCalibrationHeader";
-            this.lCalibrationHeader.Size = new System.Drawing.Size(107, 22);
+            this.lCalibrationHeader.Size = new System.Drawing.Size(77, 15);
             this.lCalibrationHeader.TabIndex = 18;
             this.lCalibrationHeader.Text = "Calibration";
             // 
@@ -264,9 +255,8 @@
             this.lSettingsHeader.AutoSize = true;
             this.lSettingsHeader.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lSettingsHeader.Location = new System.Drawing.Point(0, 0);
-            this.lSettingsHeader.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.lSettingsHeader.Name = "lSettingsHeader";
-            this.lSettingsHeader.Size = new System.Drawing.Size(83, 22);
+            this.lSettingsHeader.Size = new System.Drawing.Size(59, 15);
             this.lSettingsHeader.TabIndex = 19;
             this.lSettingsHeader.Text = "Settings";
             // 
@@ -274,20 +264,18 @@
             // 
             this.lCaptureHeader.AutoSize = true;
             this.lCaptureHeader.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lCaptureHeader.Location = new System.Drawing.Point(3, 0);
-            this.lCaptureHeader.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lCaptureHeader.Location = new System.Drawing.Point(2, 0);
             this.lCaptureHeader.Name = "lCaptureHeader";
-            this.lCaptureHeader.Size = new System.Drawing.Size(81, 22);
+            this.lCaptureHeader.Size = new System.Drawing.Size(57, 15);
             this.lCaptureHeader.TabIndex = 20;
             this.lCaptureHeader.Text = "Capture";
             // 
             // rExportRaw
             // 
             this.rExportRaw.Checked = true;
-            this.rExportRaw.Location = new System.Drawing.Point(12, 5);
-            this.rExportRaw.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.rExportRaw.Location = new System.Drawing.Point(8, 3);
             this.rExportRaw.Name = "rExportRaw";
-            this.rExportRaw.Size = new System.Drawing.Size(126, 26);
+            this.rExportRaw.Size = new System.Drawing.Size(84, 17);
             this.rExportRaw.TabIndex = 21;
             this.rExportRaw.TabStop = true;
             this.rExportRaw.Text = "Raw Frames";
@@ -296,10 +284,9 @@
             // 
             // rExportPointclouds
             // 
-            this.rExportPointclouds.Location = new System.Drawing.Point(297, 5);
-            this.rExportPointclouds.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.rExportPointclouds.Location = new System.Drawing.Point(198, 3);
             this.rExportPointclouds.Name = "rExportPointclouds";
-            this.rExportPointclouds.Size = new System.Drawing.Size(120, 26);
+            this.rExportPointclouds.Size = new System.Drawing.Size(80, 17);
             this.rExportPointclouds.TabIndex = 22;
             this.rExportPointclouds.Text = "Pointclouds";
             this.rExportPointclouds.UseVisualStyleBackColor = true;
@@ -319,14 +306,13 @@
             this.Column3,
             this.Column4,
             this.SyncState});
-            this.gvClients.Location = new System.Drawing.Point(0, 42);
-            this.gvClients.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.gvClients.Location = new System.Drawing.Point(0, 27);
             this.gvClients.MultiSelect = false;
             this.gvClients.Name = "gvClients";
             this.gvClients.ReadOnly = true;
             this.gvClients.RowHeadersWidth = 62;
             this.gvClients.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.gvClients.Size = new System.Drawing.Size(580, 252);
+            this.gvClients.Size = new System.Drawing.Size(386, 164);
             this.gvClients.TabIndex = 25;
             // 
             // Column1
@@ -388,9 +374,9 @@
             this.glLiveView.BackColor = System.Drawing.Color.Black;
             this.glLiveView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.glLiveView.Location = new System.Drawing.Point(0, 0);
-            this.glLiveView.Margin = new System.Windows.Forms.Padding(6, 8, 6, 8);
+            this.glLiveView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.glLiveView.Name = "glLiveView";
-            this.glLiveView.Size = new System.Drawing.Size(964, 1036);
+            this.glLiveView.Size = new System.Drawing.Size(642, 666);
             this.glLiveView.TabIndex = 26;
             this.glLiveView.VSync = false;
             this.glLiveView.Load += new System.EventHandler(this.glLiveView_Load);
@@ -406,10 +392,9 @@
             this.lFPS.BackColor = System.Drawing.Color.Black;
             this.lFPS.ForeColor = System.Drawing.SystemColors.Control;
             this.lFPS.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.lFPS.Location = new System.Drawing.Point(895, 0);
-            this.lFPS.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lFPS.Location = new System.Drawing.Point(596, 0);
             this.lFPS.Name = "lFPS";
-            this.lFPS.Size = new System.Drawing.Size(69, 35);
+            this.lFPS.Size = new System.Drawing.Size(46, 23);
             this.lFPS.TabIndex = 27;
             this.lFPS.Text = "30 FPS";
             this.lFPS.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -417,10 +402,9 @@
             // chMergeScans
             // 
             this.chMergeScans.AutoSize = true;
-            this.chMergeScans.Location = new System.Drawing.Point(315, 37);
-            this.chMergeScans.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.chMergeScans.Location = new System.Drawing.Point(210, 24);
             this.chMergeScans.Name = "chMergeScans";
-            this.chMergeScans.Size = new System.Drawing.Size(129, 24);
+            this.chMergeScans.Size = new System.Drawing.Size(89, 17);
             this.chMergeScans.TabIndex = 30;
             this.chMergeScans.Text = "Merge Scans";
             this.chMergeScans.UseVisualStyleBackColor = true;
@@ -429,19 +413,17 @@
             // lTempSyncHeader
             // 
             this.lTempSyncHeader.AutoSize = true;
-            this.lTempSyncHeader.Location = new System.Drawing.Point(3, 43);
-            this.lTempSyncHeader.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lTempSyncHeader.Location = new System.Drawing.Point(2, 28);
             this.lTempSyncHeader.Name = "lTempSyncHeader";
-            this.lTempSyncHeader.Size = new System.Drawing.Size(118, 20);
+            this.lTempSyncHeader.Size = new System.Drawing.Size(81, 13);
             this.lTempSyncHeader.TabIndex = 31;
             this.lTempSyncHeader.Text = "Temporal Sync:";
             // 
             // chHardwareSync
             // 
-            this.chHardwareSync.Location = new System.Drawing.Point(136, 42);
-            this.chHardwareSync.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.chHardwareSync.Location = new System.Drawing.Point(91, 27);
             this.chHardwareSync.Name = "chHardwareSync";
-            this.chHardwareSync.Size = new System.Drawing.Size(150, 26);
+            this.chHardwareSync.Size = new System.Drawing.Size(100, 17);
             this.chHardwareSync.TabIndex = 32;
             this.chHardwareSync.Text = "Hardware Sync";
             this.chHardwareSync.UseVisualStyleBackColor = true;
@@ -449,10 +431,9 @@
             // 
             // chNetworkSync
             // 
-            this.chNetworkSync.Location = new System.Drawing.Point(332, 43);
-            this.chNetworkSync.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.chNetworkSync.Location = new System.Drawing.Point(221, 28);
             this.chNetworkSync.Name = "chNetworkSync";
-            this.chNetworkSync.Size = new System.Drawing.Size(141, 26);
+            this.chNetworkSync.Size = new System.Drawing.Size(94, 17);
             this.chNetworkSync.TabIndex = 33;
             this.chNetworkSync.Text = "Network Sync";
             this.chNetworkSync.UseVisualStyleBackColor = true;
@@ -461,20 +442,18 @@
             // lExposure
             // 
             this.lExposure.AutoSize = true;
-            this.lExposure.Location = new System.Drawing.Point(3, 88);
-            this.lExposure.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lExposure.Location = new System.Drawing.Point(2, 57);
             this.lExposure.Name = "lExposure";
-            this.lExposure.Size = new System.Drawing.Size(80, 20);
+            this.lExposure.Size = new System.Drawing.Size(54, 13);
             this.lExposure.TabIndex = 36;
             this.lExposure.Text = "Exposure:";
             // 
             // rExposureAuto
             // 
             this.rExposureAuto.AutoSize = true;
-            this.rExposureAuto.Location = new System.Drawing.Point(15, 8);
-            this.rExposureAuto.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.rExposureAuto.Location = new System.Drawing.Point(10, 5);
             this.rExposureAuto.Name = "rExposureAuto";
-            this.rExposureAuto.Size = new System.Drawing.Size(68, 24);
+            this.rExposureAuto.Size = new System.Drawing.Size(47, 17);
             this.rExposureAuto.TabIndex = 37;
             this.rExposureAuto.TabStop = true;
             this.rExposureAuto.Text = "Auto";
@@ -484,10 +463,9 @@
             // rExposureManual
             // 
             this.rExposureManual.AutoSize = true;
-            this.rExposureManual.Location = new System.Drawing.Point(98, 8);
-            this.rExposureManual.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.rExposureManual.Location = new System.Drawing.Point(65, 5);
             this.rExposureManual.Name = "rExposureManual";
-            this.rExposureManual.Size = new System.Drawing.Size(86, 24);
+            this.rExposureManual.Size = new System.Drawing.Size(60, 17);
             this.rExposureManual.TabIndex = 38;
             this.rExposureManual.TabStop = true;
             this.rExposureManual.Text = "Manual";
@@ -498,12 +476,11 @@
             // 
             this.trManualExposure.Enabled = false;
             this.trManualExposure.LargeChange = 1;
-            this.trManualExposure.Location = new System.Drawing.Point(349, 78);
-            this.trManualExposure.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.trManualExposure.Location = new System.Drawing.Point(233, 51);
             this.trManualExposure.Maximum = -5;
             this.trManualExposure.Minimum = -11;
             this.trManualExposure.Name = "trManualExposure";
-            this.trManualExposure.Size = new System.Drawing.Size(231, 69);
+            this.trManualExposure.Size = new System.Drawing.Size(154, 45);
             this.trManualExposure.TabIndex = 39;
             this.trManualExposure.Value = -5;
             this.trManualExposure.Scroll += new System.EventHandler(this.trManualExposure_Scroll);
@@ -511,19 +488,19 @@
             // lPerformance
             // 
             this.lPerformance.AutoSize = true;
-            this.lPerformance.Location = new System.Drawing.Point(5, 199);
-            this.lPerformance.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lPerformance.Location = new System.Drawing.Point(3, 129);
             this.lPerformance.Name = "lPerformance";
-            this.lPerformance.Size = new System.Drawing.Size(104, 20);
+            this.lPerformance.Size = new System.Drawing.Size(70, 13);
             this.lPerformance.TabIndex = 41;
             this.lPerformance.Text = "Performance:";
             // 
             // cbEnablePreview
             // 
             this.cbEnablePreview.AutoSize = true;
-            this.cbEnablePreview.Location = new System.Drawing.Point(115, 197);
+            this.cbEnablePreview.Location = new System.Drawing.Point(77, 128);
+            this.cbEnablePreview.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.cbEnablePreview.Name = "cbEnablePreview";
-            this.cbEnablePreview.Size = new System.Drawing.Size(289, 24);
+            this.cbEnablePreview.Size = new System.Drawing.Size(198, 17);
             this.cbEnablePreview.TabIndex = 42;
             this.cbEnablePreview.Text = "Enable client preview during capture";
             this.cbEnablePreview.UseVisualStyleBackColor = true;
@@ -540,10 +517,9 @@
             // pInfoClientPreview
             // 
             this.pInfoClientPreview.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoClientPreview.Location = new System.Drawing.Point(407, 197);
-            this.pInfoClientPreview.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pInfoClientPreview.Location = new System.Drawing.Point(271, 128);
             this.pInfoClientPreview.Name = "pInfoClientPreview";
-            this.pInfoClientPreview.Size = new System.Drawing.Size(22, 23);
+            this.pInfoClientPreview.Size = new System.Drawing.Size(15, 15);
             this.pInfoClientPreview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pInfoClientPreview.TabIndex = 43;
             this.pInfoClientPreview.TabStop = false;
@@ -553,10 +529,9 @@
             // pictureBox1
             // 
             this.pictureBox1.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pictureBox1.Location = new System.Drawing.Point(279, 43);
-            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pictureBox1.Location = new System.Drawing.Point(186, 28);
             this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(22, 23);
+            this.pictureBox1.Size = new System.Drawing.Size(15, 15);
             this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pictureBox1.TabIndex = 34;
             this.pictureBox1.TabStop = false;
@@ -566,10 +541,9 @@
             // PInfoExposure
             // 
             this.PInfoExposure.Image = global::KinectServer.Properties.Resources.info_box;
-            this.PInfoExposure.Location = new System.Drawing.Point(85, 88);
-            this.PInfoExposure.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.PInfoExposure.Location = new System.Drawing.Point(57, 57);
             this.PInfoExposure.Name = "PInfoExposure";
-            this.PInfoExposure.Size = new System.Drawing.Size(22, 23);
+            this.PInfoExposure.Size = new System.Drawing.Size(15, 15);
             this.PInfoExposure.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.PInfoExposure.TabIndex = 40;
             this.PInfoExposure.TabStop = false;
@@ -579,10 +553,9 @@
             // pInfoNetworkSync
             // 
             this.pInfoNetworkSync.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoNetworkSync.Location = new System.Drawing.Point(465, 43);
-            this.pInfoNetworkSync.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pInfoNetworkSync.Location = new System.Drawing.Point(310, 28);
             this.pInfoNetworkSync.Name = "pInfoNetworkSync";
-            this.pInfoNetworkSync.Size = new System.Drawing.Size(22, 23);
+            this.pInfoNetworkSync.Size = new System.Drawing.Size(15, 15);
             this.pInfoNetworkSync.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pInfoNetworkSync.TabIndex = 35;
             this.pInfoNetworkSync.TabStop = false;
@@ -592,10 +565,9 @@
             // pInfoRefineCalib
             // 
             this.pInfoRefineCalib.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoRefineCalib.Location = new System.Drawing.Point(382, 40);
-            this.pInfoRefineCalib.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pInfoRefineCalib.Location = new System.Drawing.Point(255, 26);
             this.pInfoRefineCalib.Name = "pInfoRefineCalib";
-            this.pInfoRefineCalib.Size = new System.Drawing.Size(22, 23);
+            this.pInfoRefineCalib.Size = new System.Drawing.Size(15, 15);
             this.pInfoRefineCalib.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pInfoRefineCalib.TabIndex = 24;
             this.pInfoRefineCalib.TabStop = false;
@@ -605,10 +577,9 @@
             // pInfoCalibrate
             // 
             this.pInfoCalibrate.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoCalibrate.Location = new System.Drawing.Point(154, 42);
-            this.pInfoCalibrate.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pInfoCalibrate.Location = new System.Drawing.Point(103, 27);
             this.pInfoCalibrate.Name = "pInfoCalibrate";
-            this.pInfoCalibrate.Size = new System.Drawing.Size(22, 23);
+            this.pInfoCalibrate.Size = new System.Drawing.Size(15, 15);
             this.pInfoCalibrate.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pInfoCalibrate.TabIndex = 23;
             this.pInfoCalibrate.TabStop = false;
@@ -618,10 +589,9 @@
             // pInfoRawFrames
             // 
             this.pInfoRawFrames.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoRawFrames.Location = new System.Drawing.Point(138, 6);
-            this.pInfoRawFrames.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pInfoRawFrames.Location = new System.Drawing.Point(92, 4);
             this.pInfoRawFrames.Name = "pInfoRawFrames";
-            this.pInfoRawFrames.Size = new System.Drawing.Size(22, 23);
+            this.pInfoRawFrames.Size = new System.Drawing.Size(15, 15);
             this.pInfoRawFrames.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pInfoRawFrames.TabIndex = 28;
             this.pInfoRawFrames.TabStop = false;
@@ -631,10 +601,9 @@
             // pInfoPointclouds
             // 
             this.pInfoPointclouds.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoPointclouds.Location = new System.Drawing.Point(417, 5);
-            this.pInfoPointclouds.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pInfoPointclouds.Location = new System.Drawing.Point(278, 3);
             this.pInfoPointclouds.Name = "pInfoPointclouds";
-            this.pInfoPointclouds.Size = new System.Drawing.Size(22, 23);
+            this.pInfoPointclouds.Size = new System.Drawing.Size(15, 15);
             this.pInfoPointclouds.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pInfoPointclouds.TabIndex = 29;
             this.pInfoPointclouds.TabStop = false;
@@ -643,10 +612,9 @@
             // pInfoWhiteBalance
             // 
             this.pInfoWhiteBalance.Image = global::KinectServer.Properties.Resources.info_box;
-            this.pInfoWhiteBalance.Location = new System.Drawing.Point(122, 141);
-            this.pInfoWhiteBalance.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pInfoWhiteBalance.Location = new System.Drawing.Point(81, 92);
             this.pInfoWhiteBalance.Name = "pInfoWhiteBalance";
-            this.pInfoWhiteBalance.Size = new System.Drawing.Size(22, 23);
+            this.pInfoWhiteBalance.Size = new System.Drawing.Size(15, 15);
             this.pInfoWhiteBalance.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pInfoWhiteBalance.TabIndex = 47;
             this.pInfoWhiteBalance.TabStop = false;
@@ -657,10 +625,9 @@
             // 
             this.gbExposure.Controls.Add(this.rExposureManual);
             this.gbExposure.Controls.Add(this.rExposureAuto);
-            this.gbExposure.Location = new System.Drawing.Point(154, 76);
-            this.gbExposure.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.gbExposure.Location = new System.Drawing.Point(103, 49);
             this.gbExposure.Name = "gbExposure";
-            this.gbExposure.Size = new System.Drawing.Size(192, 42);
+            this.gbExposure.Size = new System.Drawing.Size(128, 27);
             this.gbExposure.TabIndex = 44;
             // 
             // gbFrameExport
@@ -670,26 +637,24 @@
             this.gbFrameExport.Controls.Add(this.pInfoRawFrames);
             this.gbFrameExport.Controls.Add(this.pInfoPointclouds);
             this.gbFrameExport.Controls.Add(this.chMergeScans);
-            this.gbFrameExport.Location = new System.Drawing.Point(4, 80);
-            this.gbFrameExport.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.gbFrameExport.Location = new System.Drawing.Point(3, 52);
             this.gbFrameExport.Name = "gbFrameExport";
-            this.gbFrameExport.Size = new System.Drawing.Size(453, 69);
+            this.gbFrameExport.Size = new System.Drawing.Size(302, 45);
             this.gbFrameExport.TabIndex = 45;
             // 
             // tlMainPanel
             // 
             this.tlMainPanel.ColumnCount = 2;
-            this.tlMainPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 600F));
+            this.tlMainPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 400F));
             this.tlMainPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tlMainPanel.Controls.Add(this.pnLiveView, 1, 0);
             this.tlMainPanel.Controls.Add(this.tlControls, 0, 0);
             this.tlMainPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlMainPanel.Location = new System.Drawing.Point(0, 0);
-            this.tlMainPanel.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.tlMainPanel.Name = "tlMainPanel";
             this.tlMainPanel.RowCount = 1;
             this.tlMainPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tlMainPanel.Size = new System.Drawing.Size(1572, 1046);
+            this.tlMainPanel.Size = new System.Drawing.Size(1048, 672);
             this.tlMainPanel.TabIndex = 46;
             // 
             // pnLiveView
@@ -697,10 +662,9 @@
             this.pnLiveView.Controls.Add(this.lFPS);
             this.pnLiveView.Controls.Add(this.glLiveView);
             this.pnLiveView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnLiveView.Location = new System.Drawing.Point(604, 5);
-            this.pnLiveView.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pnLiveView.Location = new System.Drawing.Point(403, 3);
             this.pnLiveView.Name = "pnLiveView";
-            this.pnLiveView.Size = new System.Drawing.Size(964, 1036);
+            this.pnLiveView.Size = new System.Drawing.Size(642, 666);
             this.pnLiveView.TabIndex = 0;
             // 
             // tlControls
@@ -715,17 +679,16 @@
             this.tlControls.Controls.Add(this.pnCapture, 0, 4);
             this.tlControls.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlControls.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.FixedSize;
-            this.tlControls.Location = new System.Drawing.Point(4, 5);
-            this.tlControls.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.tlControls.Location = new System.Drawing.Point(3, 3);
             this.tlControls.Name = "tlControls";
             this.tlControls.RowCount = 6;
-            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 362F));
-            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 92F));
-            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 289F));
+            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 235F));
+            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 60F));
+            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 188F));
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 169F));
-            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 77F));
-            this.tlControls.Size = new System.Drawing.Size(592, 1036);
+            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 110F));
+            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
+            this.tlControls.Size = new System.Drawing.Size(394, 666);
             this.tlControls.TabIndex = 1;
             // 
             // pnClients
@@ -734,10 +697,9 @@
             this.pnClients.Controls.Add(this.gvClients);
             this.pnClients.Controls.Add(this.btKinectSettingsOpenButton);
             this.pnClients.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnClients.Location = new System.Drawing.Point(4, 5);
-            this.pnClients.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pnClients.Location = new System.Drawing.Point(3, 3);
             this.pnClients.Name = "pnClients";
-            this.pnClients.Size = new System.Drawing.Size(584, 352);
+            this.pnClients.Size = new System.Drawing.Size(388, 229);
             this.pnClients.TabIndex = 0;
             // 
             // pnSettings
@@ -761,29 +723,26 @@
             this.pnSettings.Controls.Add(this.pInfoNetworkSync);
             this.pnSettings.Controls.Add(this.chNetworkSync);
             this.pnSettings.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnSettings.Location = new System.Drawing.Point(4, 459);
-            this.pnSettings.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pnSettings.Location = new System.Drawing.Point(3, 298);
             this.pnSettings.Name = "pnSettings";
-            this.pnSettings.Size = new System.Drawing.Size(584, 279);
+            this.pnSettings.Size = new System.Drawing.Size(388, 182);
             this.pnSettings.TabIndex = 1;
             // 
             // gbWhiteBalance
             // 
             this.gbWhiteBalance.Controls.Add(this.rWhiteBalanceManual);
             this.gbWhiteBalance.Controls.Add(this.rWhiteBalanceAuto);
-            this.gbWhiteBalance.Location = new System.Drawing.Point(154, 128);
-            this.gbWhiteBalance.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.gbWhiteBalance.Location = new System.Drawing.Point(103, 83);
             this.gbWhiteBalance.Name = "gbWhiteBalance";
-            this.gbWhiteBalance.Size = new System.Drawing.Size(192, 42);
+            this.gbWhiteBalance.Size = new System.Drawing.Size(128, 27);
             this.gbWhiteBalance.TabIndex = 48;
             // 
             // rWhiteBalanceManual
             // 
             this.rWhiteBalanceManual.AutoSize = true;
-            this.rWhiteBalanceManual.Location = new System.Drawing.Point(98, 8);
-            this.rWhiteBalanceManual.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.rWhiteBalanceManual.Location = new System.Drawing.Point(65, 5);
             this.rWhiteBalanceManual.Name = "rWhiteBalanceManual";
-            this.rWhiteBalanceManual.Size = new System.Drawing.Size(86, 24);
+            this.rWhiteBalanceManual.Size = new System.Drawing.Size(60, 17);
             this.rWhiteBalanceManual.TabIndex = 38;
             this.rWhiteBalanceManual.TabStop = true;
             this.rWhiteBalanceManual.Text = "Manual";
@@ -793,10 +752,9 @@
             // rWhiteBalanceAuto
             // 
             this.rWhiteBalanceAuto.AutoSize = true;
-            this.rWhiteBalanceAuto.Location = new System.Drawing.Point(15, 8);
-            this.rWhiteBalanceAuto.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.rWhiteBalanceAuto.Location = new System.Drawing.Point(10, 5);
             this.rWhiteBalanceAuto.Name = "rWhiteBalanceAuto";
-            this.rWhiteBalanceAuto.Size = new System.Drawing.Size(68, 24);
+            this.rWhiteBalanceAuto.Size = new System.Drawing.Size(47, 17);
             this.rWhiteBalanceAuto.TabIndex = 37;
             this.rWhiteBalanceAuto.TabStop = true;
             this.rWhiteBalanceAuto.Text = "Auto";
@@ -807,12 +765,11 @@
             // 
             this.trWhiteBalance.Enabled = false;
             this.trWhiteBalance.LargeChange = 4;
-            this.trWhiteBalance.Location = new System.Drawing.Point(349, 126);
-            this.trWhiteBalance.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.trWhiteBalance.Location = new System.Drawing.Point(233, 82);
             this.trWhiteBalance.Maximum = 18;
             this.trWhiteBalance.Minimum = 5;
             this.trWhiteBalance.Name = "trWhiteBalance";
-            this.trWhiteBalance.Size = new System.Drawing.Size(231, 69);
+            this.trWhiteBalance.Size = new System.Drawing.Size(154, 45);
             this.trWhiteBalance.TabIndex = 46;
             this.trWhiteBalance.Value = 8;
             this.trWhiteBalance.Scroll += new System.EventHandler(this.tbWhiteBalance_Scroll);
@@ -820,10 +777,9 @@
             // lWhiteBalance
             // 
             this.lWhiteBalance.AutoSize = true;
-            this.lWhiteBalance.Location = new System.Drawing.Point(3, 141);
-            this.lWhiteBalance.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lWhiteBalance.Location = new System.Drawing.Point(2, 92);
             this.lWhiteBalance.Name = "lWhiteBalance";
-            this.lWhiteBalance.Size = new System.Drawing.Size(116, 20);
+            this.lWhiteBalance.Size = new System.Drawing.Size(80, 13);
             this.lWhiteBalance.TabIndex = 45;
             this.lWhiteBalance.Text = "White Balance:";
             // 
@@ -835,10 +791,9 @@
             this.pnCalibration.Controls.Add(this.pInfoRefineCalib);
             this.pnCalibration.Controls.Add(this.pInfoCalibrate);
             this.pnCalibration.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnCalibration.Location = new System.Drawing.Point(4, 367);
-            this.pnCalibration.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pnCalibration.Location = new System.Drawing.Point(3, 238);
             this.pnCalibration.Name = "pnCalibration";
-            this.pnCalibration.Size = new System.Drawing.Size(584, 82);
+            this.pnCalibration.Size = new System.Drawing.Size(388, 54);
             this.pnCalibration.TabIndex = 5;
             // 
             // btRecord
@@ -848,11 +803,10 @@
             this.btRecord.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btRecord.Image = global::KinectServer.Properties.Resources.recording;
             this.btRecord.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btRecord.Location = new System.Drawing.Point(4, 964);
-            this.btRecord.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.btRecord.MinimumSize = new System.Drawing.Size(0, 46);
+            this.btRecord.Location = new System.Drawing.Point(3, 619);
+            this.btRecord.MinimumSize = new System.Drawing.Size(0, 30);
             this.btRecord.Name = "btRecord";
-            this.btRecord.Size = new System.Drawing.Size(584, 67);
+            this.btRecord.Size = new System.Drawing.Size(388, 44);
             this.btRecord.TabIndex = 4;
             this.btRecord.Text = "  Start Capture";
             this.btRecord.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
@@ -866,21 +820,19 @@
             this.pnCapture.Controls.Add(this.txtSeqName);
             this.pnCapture.Controls.Add(this.lbSeqName);
             this.pnCapture.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnCapture.Location = new System.Drawing.Point(4, 795);
-            this.pnCapture.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.pnCapture.Location = new System.Drawing.Point(3, 509);
             this.pnCapture.Name = "pnCapture";
-            this.pnCapture.Size = new System.Drawing.Size(584, 159);
+            this.pnCapture.Size = new System.Drawing.Size(388, 104);
             this.pnCapture.TabIndex = 2;
             // 
             // MainWindowForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1572, 1068);
+            this.ClientSize = new System.Drawing.Size(1048, 694);
             this.Controls.Add(this.tlMainPanel);
             this.Controls.Add(this.statusStrip1);
-            this.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.MinimumSize = new System.Drawing.Size(619, 1001);
+            this.MinimumSize = new System.Drawing.Size(418, 664);
             this.Name = "MainWindowForm";
             this.Text = "LiveScanServer";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);

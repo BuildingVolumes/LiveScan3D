@@ -12,13 +12,11 @@ namespace KinectServer
 {
     public partial class KinectConfigurationForm : Form
     {
-        MainWindowForm fMainWindowForm;
         KinectServer oServer;
-        KinectSettings oSettings;
         int socketID;
         
         KinectSocket kinectSocket;
-        KinectConfiguration displayedConfiguration;
+        public KinectConfiguration displayedConfiguration;
        
         public KinectConfigurationForm()
         {
@@ -27,21 +25,18 @@ namespace KinectServer
             CreateColorResList();
         }
 
-        public void Initialize(KinectServer kServer, KinectSettings kSettings, int socketID, MainWindowForm winForm)
+        public void Initialize(KinectServer kServer, int socketID)
         {
-            fMainWindowForm = winForm;
             oServer = kServer;
-            oSettings = kSettings;
             this.socketID = socketID;
             kinectSocket = oServer.GetKinectSocketByIndex(socketID);
-            this.Text = "Settings for device: ";
+            this.Text = "Loading Configuration...";
             this.Update();
 
             kinectSocket.RequestConfiguration();
             kinectSocket.configurationUpdated += UpdateFormItemsFromConfiguration;
         }
 
-        //Will this run or do we need some kind of event listener?
         private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
             // Invoke UI logic on the same thread.
@@ -49,17 +44,24 @@ namespace KinectServer
                 new Action(() =>
                 {
                     displayedConfiguration = kc;
-                    this.Text = "Settings for device: " + kc.SerialNumber;
+                    this.Text = "Configuration for device: " + kc.SerialNumber;
                     this.Update(); 
                     cbFilterDepthMap.Checked = kc.FilterDepthMap;
                     nDepthFilterSize.Value = kc.FilterDepthMapSize;
                     
                     //Disable changing depth map filtering if we are in raw frames mode.
                     //Depth filtering only works in point cloud mode.
-                    SetDepthFilterBoxActive(oSettings.eExportMode == KinectSettings.ExportMode.Pointcloud);
 
                     lbDepthRes.SelectedIndex = (int)kc.eDepthRes - 1;
-                    lbColorRes.SelectedIndex = (int)kc.eColorRes - 1;
+
+                    //Swab some values so that the list looks neater (4:3 and 16:9 split)
+                    int colorRes = (int)kc.eColorRes;
+                    if (colorRes == 4)
+                        colorRes = 5;
+                    else if (colorRes == 5)
+                        colorRes = 4;
+
+                    lbColorRes.SelectedIndex = colorRes - 1;
                 }
         ));
         }
@@ -86,8 +88,8 @@ namespace KinectServer
                 "1280 x 720 (16:9)",
                 "1920 x 1080 (16:9)",
                 "2560 x 1440 (16:9)",
-                "2048 x 1536 (4:3)",
                 "3840 x 2160 (16:9)",
+                "2048 x 1536 (4:3)",
                 "4096 x 3072 (4:3, 15 FPS)"
             };
 
@@ -148,13 +150,15 @@ namespace KinectServer
 
         private void lbColorRes_SelectedIndexChanged(object sender, EventArgs e)
         {
-            displayedConfiguration.eColorRes = (KinectConfiguration.colorResolution)lbColorRes.SelectedIndex + 1;
-        }
+            int selected = lbColorRes.SelectedIndex + 1;
 
-        private void KinectSettingsForm_FormClosed(object sender, FormClosedEventArgs e)
-        {
-            oServer.SetKinectSettingsForm(socketID, null);
-            kinectSocket.configurationUpdated -= UpdateFormItemsFromConfiguration;
+            //We swap some values so that it looks neater on the displayed list
+            if (selected == 4)
+                selected = 5;
+            else if (selected == 5)
+                selected = 4;
+
+            displayedConfiguration.eColorRes = (KinectConfiguration.colorResolution)selected;
         }
 
         private void cbFilterDepthMap_CheckedChanged(object sender, EventArgs e)
@@ -175,14 +179,15 @@ namespace KinectServer
             displayedConfiguration.FilterDepthMapSize = size;
         }
 
-        /// <summary>
-        /// enable/disable the Set depth filter mode checkbox. This should get disabled in raw capture mode.
-        /// </summary>
-        internal void SetDepthFilterBoxActive(bool enabled)
+        public void CloseConfiguration()
         {
-            cbFilterDepthMap.Enabled = enabled;
-            nDepthFilterSize.Enabled = enabled;
+            Invoke(new Action(() => { Close(); })); //So that we can close the form from other threads aswell
         }
 
+        private void KinectSettingsForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            oServer.SetKinectSettingsForm(socketID, null);
+            kinectSocket.configurationUpdated -= UpdateFormItemsFromConfiguration;
+        }
     }
 }

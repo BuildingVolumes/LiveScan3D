@@ -68,6 +68,7 @@ namespace KinectServer
         public event SocketChangedHandler eChanged;
 
         public Action<KinectConfiguration> configurationUpdated;
+        
         public KinectSocket(Socket clientSocket)
         {
             oSocket = clientSocket;
@@ -502,7 +503,16 @@ namespace KinectServer
 
         private void SendByte()
         {
-            oSocket.Send(byteToSend);
+            try
+            {
+                oSocket.Send(byteToSend);
+            }
+
+            catch(SocketException so)
+            {
+                //Client probably disconnected
+                DisconnectSocket();
+            }
         }
 
         public void UpdateSocketState(string message)
