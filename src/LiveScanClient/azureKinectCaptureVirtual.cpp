@@ -428,7 +428,11 @@ int AzureKinectCaptureVirtual::GetSyncJackState()
 
 bool AzureKinectCaptureVirtual::GetIntrinsicsJSON(std::vector<uint8_t>& calibrationBuffer, size_t& calibrationSize)
 {
-	std::ifstream calibrationFile(m_sVirtualIntrinsicsPath, std::ios::in | std::ios::binary | std::ios::ate);
+	std::string virtualIntrinsicsPath = "resources/testdata/virtualdevice/virtualdevice";
+	virtualIntrinsicsPath += std::to_string(localDeviceIndex);
+	virtualIntrinsicsPath += "/intrinsics.json";
+
+	std::ifstream calibrationFile(virtualIntrinsicsPath, std::ios::in | std::ios::binary | std::ios::ate);
 	if (calibrationFile.is_open())
 	{
 		calibrationSize = calibrationFile.tellg();

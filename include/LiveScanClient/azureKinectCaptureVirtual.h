@@ -36,7 +36,6 @@ public:
 private:
 
 	k4a_calibration_t m_VirtualCalibration;
-	std::string m_sVirtualIntrinsicsPath = "resources/testdata/virtualdevice/intrinsics.json";
 
 	std::vector<k4a_image_t> m_vVirtualColorImageSequence;
 	std::vector<uint8_t*> m_vVirtualColorImagesBuffer;
