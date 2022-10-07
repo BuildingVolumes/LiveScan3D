@@ -206,3 +206,6 @@ LiveScanClient/lastIP.txt
 /LiveScanClient/out/
 /LiveScanClient/*.txt
 LiveScan.sln.startup.json
+
+#Un-Ignores
+!/LiveScanClient/KinectClient.vcxproj.user
