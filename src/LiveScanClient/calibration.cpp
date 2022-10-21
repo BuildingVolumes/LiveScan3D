@@ -24,7 +24,7 @@ Calibration::Calibration()
 	nSampleCounter = 0;
 	nRequiredSamples = 20;
 
-	markerToWorldTransform = Matrix4x4::GetIdentity();
+	sensorToMarkerTransform = Matrix4x4::GetIdentity();
 	clientPose = Matrix4x4::GetIdentity();
 	refinementTransform = Matrix4x4::GetIdentity();
 
@@ -97,20 +97,13 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f* pCameraCoordinates, int 
 	}
 
 	//Try to find out how the marker is rotated and translated in 3D space
-	markerToWorldTransform = Procrustes(marker, marker3D);
+	sensorToMarkerTransform = Procrustes(marker, marker3D);
 
-	//Apply the marker rotation factor to the translation as well
-	markerToWorldTransform = markerToWorldTransform.GetR() * markerToWorldTransform.GetT();
-	
-	//We first apply the Marker Rotation, for user convinience. The rotation is inversed so that
-	//a positive value in the offset field will give us a clockwise rotation
-	markerToWorldTransform = markerPoses[iUsedMarkerId].pose.GetR().Inverse() * markerToWorldTransform;
+	//The T from the matrix we got from the procustes doesn't have the roation
+	//factor applied yet, so we do this here
+	sensorToMarkerTransform = sensorToMarkerTransform.GetR() * sensorToMarkerTransform.GetT();	
 
-	//We then apply the Marker translation. As this should happen in world space, we don't
-	//rotate the translation factor
-	markerToWorldTransform = markerPoses[iUsedMarkerId].pose.GetT() * markerToWorldTransform;
-
-	//UpdateClientPose();
+	UpdateClientPose();
 
 	bCalibrated = true;
 
@@ -122,9 +115,17 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f* pCameraCoordinates, int 
 
 void Calibration::UpdateClientPose()
 {
-	markerToWorldTransform = refinementTransform.GetT() * markerToWorldTransform;
+	//We first apply the Marker Rotation, for user convinience. The rotation is inversed so that
+	//a positive value in the offset field will give us a clockwise rotation
+	markerOffsetTransform = markerPoses[iUsedMarkerId].pose.GetR().Inverse() * sensorToMarkerTransform;
 
-	markerToWorldTransform = refinementTransform.GetR().Inverse() * markerToWorldTransform;
+	//We then apply the Marker translation. As this should happen in world space, we don't
+	//rotate the translation factor
+	markerOffsetTransform = markerPoses[iUsedMarkerId].pose.GetT() * markerOffsetTransform;
+
+	//Apply the refinement pose from the ICP algorithm to the global pose
+	worldTransform = refinementTransform.GetT() * markerOffsetTransform;
+	worldTransform = refinementTransform.GetR().Inverse() * worldTransform;
 }
 
 bool Calibration::LoadCalibration(const string& serialNumber)
@@ -138,7 +139,15 @@ bool Calibration::LoadCalibration(const string& serialNumber)
 	{
 		for (int j = 0; j < 4; j++)
 		{
-			file >> markerToWorldTransform.mat[i][j];
+			file >> sensorToMarkerTransform.mat[i][j];
+		}
+	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			file >> refinementTransform.mat[i][j];
 		}
 	}
 
@@ -157,13 +166,25 @@ void Calibration::SaveCalibration(const string& serialNumber)
 	{
 		for (int j = 0; j < 4; j++)
 		{
-			file << markerToWorldTransform.mat[i][j];
+			file << sensorToMarkerTransform.mat[i][j];
 			file << " ";
 		}
 
 		file << endl;
 	}
 
+	file << endl;
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			file << refinementTransform.mat[i][j];
+			file << " ";
+		}
+
+		file << endl;
+	}
 
 	file << iUsedMarkerId << endl;
 	file << bCalibrated << endl;

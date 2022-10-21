@@ -394,9 +394,9 @@ namespace KinectServer
                 try
                 {
                     pose.id = Int32.Parse(id[2]);
-                    pose.pose.mat[0, 4] = float.Parse(translation[2]);
-                    pose.pose.mat[1, 4] = float.Parse(translation[4]);
-                    pose.pose.mat[2, 4] = float.Parse(translation[6]);
+                    pose.pose.mat[0, 3] = float.Parse(translation[2]);
+                    pose.pose.mat[1, 3] = float.Parse(translation[4]);
+                    pose.pose.mat[2, 3] = float.Parse(translation[6]);
                     pose.SetOrientation(float.Parse(rotation[2]), float.Parse(rotation[4]), float.Parse(rotation[6]));
                 }
 

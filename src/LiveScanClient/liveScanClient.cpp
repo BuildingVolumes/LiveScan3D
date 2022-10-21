@@ -956,7 +956,7 @@ void LiveScanClient::HandleSocket()
 				i += sizeof(int);
 			}
 
-			//calibration.UpdateClientPose();
+			calibration.UpdateClientPose();
 			m_bConfirmCalibrated = true;
 
 			m_iCompressionLevel = *(int*)(received.c_str() + i);
@@ -1066,7 +1066,9 @@ void LiveScanClient::HandleSocket()
 				}
 			}
 
-			calibration.refinementTransform = newRefinement;
+			//We combine the refinement pose with the already existing one
+			//As the ICP offset is always based on the last ICP transformation
+			calibration.refinementTransform = newRefinement * calibration.refinementTransform;
 			calibration.UpdateClientPose();
 
 			//so that we do not lose the next character in the stream
@@ -1432,7 +1434,7 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 
 			if (calibration.bCalibrated)
 			{
-				temp = calibration.markerToWorldTransform * temp;
+				temp = calibration.worldTransform * temp;
 
 				int g = 1;
 			}
