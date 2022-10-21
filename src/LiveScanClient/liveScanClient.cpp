@@ -220,6 +220,7 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL logleve
 	wc.lpfnWndProc = DefDlgProcW;
 	wc.lpszClassName = L"LiveScanClientAppDlgWndClass";
 
+
 	m_loglevel = loglevel;
 
 	//For build convinience, we can build a seperate .exe with virtual device always enabled
@@ -307,6 +308,7 @@ void LiveScanClient::UpdateFrame()
 	{
 		pCapture->SetExposureState(m_bAutoExposureEnabled, m_nExposureStep);
 		pCapture->SetWhiteBalanceState(m_bAutoWhiteBalanceEnabled, m_nKelvin);
+		//calibration.ApplyMarkerOffset(calibration.markerPoses[calibration.iUsedMarkerId]);
 		m_bUpdateSettings = false;
 	}
 
@@ -941,24 +943,21 @@ void LiveScanClient::HandleSocket()
 
 			for (int j = 0; j < nMarkers; j++)
 			{
-				for (int k = 0; k < 3; k++)
+				for (int k = 0; k < 4; k++)
 				{
-					for (int l = 0; l < 3; l++)
+					for (int l = 0; l < 4; l++)
 					{
-						calibration.markerPoses[j].R[k][l] = *(float*)(received.c_str() + i);
+						calibration.markerPoses[j].pose.mat[k][l] = *(float*)(received.c_str() + i);
 						i += sizeof(float);
 					}
-				}
-
-				for (int k = 0; k < 3; k++)
-				{
-					calibration.markerPoses[j].t[k] = *(float*)(received.c_str() + i);
-					i += sizeof(float);
 				}
 
 				calibration.markerPoses[j].markerId = *(int*)(received.c_str() + i);
 				i += sizeof(int);
 			}
+
+			//calibration.UpdateClientPose();
+			m_bConfirmCalibrated = true;
 
 			m_iCompressionLevel = *(int*)(received.c_str() + i);
 			i += sizeof(int);
@@ -1055,20 +1054,20 @@ void LiveScanClient::HandleSocket()
 		{
 			log.LogInfo("Recieving calibration data");
 
+			Matrix4x4 newRefinement = Matrix4x4();
+
 			i++;
-			for (int j = 0; j < 3; j++)
+			for (int j = 0; j < 4; j++)
 			{
-				for (int k = 0; k < 3; k++)
+				for (int k = 0; k < 4; k++)
 				{
-					calibration.worldR[j][k] = *(float*)(received.c_str() + i);
+					newRefinement.mat[j][k] = *(float*)(received.c_str() + i);
 					i += sizeof(float);
 				}
 			}
-			for (int j = 0; j < 3; j++)
-			{
-				calibration.worldT[j] = *(float*)(received.c_str() + i);
-				i += sizeof(float);
-			}
+
+			calibration.refinementTransform = newRefinement;
+			calibration.UpdateClientPose();
 
 			//so that we do not lose the next character in the stream
 			i--;
@@ -1165,21 +1164,15 @@ void LiveScanClient::HandleSocket()
 	{
 		log.LogTrace("Sending calibration");
 
-		int size = (9 + 3) * sizeof(float) + sizeof(int) + 1;
+		int size = 16 * sizeof(float) + sizeof(int) + 1;
 		char* buffer = new char[size];
 		buffer[0] = MSG_CONFIRM_CALIBRATED;
 		int i = 1;
 
 		memcpy(buffer + i, &calibration.iUsedMarkerId, 1 * sizeof(int));
 		i += 1 * sizeof(int);
-		memcpy(buffer + i, calibration.worldR[0].data(), 3 * sizeof(float));
-		i += 3 * sizeof(float);
-		memcpy(buffer + i, calibration.worldR[1].data(), 3 * sizeof(float));
-		i += 3 * sizeof(float);
-		memcpy(buffer + i, calibration.worldR[2].data(), 3 * sizeof(float));
-		i += 3 * sizeof(float);
-		memcpy(buffer + i, calibration.worldT.data(), 3 * sizeof(float));
-		i += 3 * sizeof(float);
+		memcpy(buffer + i, calibration.clientPose.mat[0], 16 * sizeof(float));
+		i += 16 * sizeof(float);		
 
 		m_pClientSocket->SendBytes(buffer, size);
 		m_bConfirmCalibrated = false;
@@ -1439,10 +1432,9 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 
 			if (calibration.bCalibrated)
 			{
-				temp.X += calibration.worldT[0];
-				temp.Y += calibration.worldT[1];
-				temp.Z += calibration.worldT[2];
-				temp = RotatePoint(temp, calibration.worldR);
+				temp = calibration.markerToWorldTransform * temp;
+
+				int g = 1;
 			}
 
 			if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]

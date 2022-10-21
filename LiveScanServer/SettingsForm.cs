@@ -31,6 +31,15 @@ namespace KinectServer
         public KinectServer oServer;
         bool bFormLoaded = false;
         bool bSendSettingsLock = false;
+        Image[] markerthumbs = new Image[6]
+        {
+            Properties.Resources.Marker_0_thumb,
+            Properties.Resources.Marker_1_thumb,
+            Properties.Resources.Marker_2_thumb,
+            Properties.Resources.Marker_3_thumb,
+            Properties.Resources.Marker_4_thumb,
+            Properties.Resources.Marker_5_thumb,
+        };
 
 
         public SettingsForm()
@@ -48,14 +57,18 @@ namespace KinectServer
             txtMaxY.Text = oSettings.aMaxBounds[1].ToString(CultureInfo.InvariantCulture);
             txtMaxZ.Text = oSettings.aMaxBounds[2].ToString(CultureInfo.InvariantCulture);
 
-            lisMarkers.DataSource = oSettings.lMarkerPoses;
+            for (int i = 0; i < oSettings.lMarkerPoses.Count; i++)
+                lisMarkers.Items.Add("Marker " + oSettings.lMarkerPoses[i].id);
+
+            lisMarkers.SelectedIndex = 0;
+            UpdateMarkerFields();
 
             cbCompressionLevel.SelectedText = oSettings.iCompressionLevel.ToString();
 
             txtICPIters.Text = oSettings.nNumICPIterations.ToString();
             txtRefinIters.Text = oSettings.nNumRefineIters.ToString();
 
-            cbExtrinsicsFormat.SelectedIndex = (int)oSettings.eExtrinsicsFormat;          
+            cbExtrinsicsFormat.SelectedIndex = (int)oSettings.eExtrinsicsFormat;
 
             if (oSettings.bSaveAsBinaryPLY)
             {
@@ -107,11 +120,11 @@ namespace KinectServer
                 txtOrientationY.Text = Y.ToString(CultureInfo.InvariantCulture);
                 txtOrientationZ.Text = Z.ToString(CultureInfo.InvariantCulture);
 
-                txtTranslationX.Text = pose.pose.t[0].ToString(CultureInfo.InvariantCulture);
-                txtTranslationY.Text = pose.pose.t[1].ToString(CultureInfo.InvariantCulture);
-                txtTranslationZ.Text = pose.pose.t[2].ToString(CultureInfo.InvariantCulture);
+                txtTranslationX.Text = pose.pose.mat[0,3].ToString(CultureInfo.InvariantCulture);
+                txtTranslationY.Text = pose.pose.mat[1,3].ToString(CultureInfo.InvariantCulture);
+                txtTranslationZ.Text = pose.pose.mat[2,3].ToString(CultureInfo.InvariantCulture);
 
-                txtId.Text = pose.id.ToString(CultureInfo.InvariantCulture);
+                pMarkerThumb.Image = markerthumbs[lisMarkers.SelectedIndex];
             }
             else
             {
@@ -123,7 +136,6 @@ namespace KinectServer
                 txtTranslationY.Text = "";
                 txtTranslationZ.Text = "";
 
-                txtId.Text = "";
             }
 
             bSendSettingsLock = false;
@@ -175,25 +187,6 @@ namespace KinectServer
             Int32.TryParse(txtRefinIters.Text, out oSettings.nNumRefineIters);
         }
 
-        private void btAdd_Click(object sender, EventArgs e)
-        {
-            lock (oSettings)
-                oSettings.lMarkerPoses.Add(new MarkerPose());
-            lisMarkers.SelectedIndex = oSettings.lMarkerPoses.Count - 1;
-            UpdateMarkerFields();
-            SettingsChanged();
-        }
-        private void btRemove_Click(object sender, EventArgs e)
-        {
-            if (oSettings.lMarkerPoses.Count > 0)
-            {
-                oSettings.lMarkerPoses.RemoveAt(lisMarkers.SelectedIndex);
-                lisMarkers.SelectedIndex = oSettings.lMarkerPoses.Count - 1;
-                UpdateMarkerFields();
-                SettingsChanged();
-            }
-        }
-
         private void lisMarkers_SelectedIndexChanged(object sender, EventArgs e)
         {
             UpdateMarkerFields();
@@ -201,96 +194,63 @@ namespace KinectServer
 
         private void txtOrientationX_TextChanged(object sender, EventArgs e)
         {
+        }
+
+
+        private string OrientationSetValue(string input, bool x, bool y, bool z)
+        {
             if (lisMarkers.SelectedIndex >= 0)
             {
+                //Special cases, that doesn't get parsed correctly
+                if (input == "-0")
+                    return "-0";
+
+                if (input == "-")
+                    return "-";
+
                 MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
                 float X, Y, Z;
+                float output = 0;
                 pose.GetOrientation(out X, out Y, out Z);
-                Single.TryParse(txtOrientationX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out X);
 
-                pose.SetOrientation(X, Y, Z);
+                Single.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out output);
+
+                if (x)
+                    pose.SetOrientation(output, Y, Z);
+                if (y)
+                    pose.SetOrientation(X, output, Z);
+                if (z)
+                    pose.SetOrientation(X, Y, output);
+
                 SettingsChanged();
+
+                return output.ToString();
             }
+
+            return "0";
         }
 
-        private void txtOrientationY_TextChanged(object sender, EventArgs e)
+        private string TranslationSetValue(string input, bool x, bool y, bool z)
         {
             if (lisMarkers.SelectedIndex >= 0)
             {
                 MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
-                float X, Y, Z;
-                pose.GetOrientation(out X, out Y, out Z);
-                Single.TryParse(txtOrientationY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Y);
+                float output;
+                Single.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out output);
 
-                pose.SetOrientation(X, Y, Z);
+                if (x)
+                    pose.pose.mat[0,3] = output;
+                if (y)
+                    pose.pose.mat[1, 3] = output;
+                if (z)
+                    pose.pose.mat[2, 3] = output;
+
                 SettingsChanged();
+
+                return output.ToString();
             }
-        }
 
-        private void txtOrientationZ_TextChanged(object sender, EventArgs e)
-        {
-            if (lisMarkers.SelectedIndex >= 0)
-            {
-                MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
-                float X, Y, Z;
-                pose.GetOrientation(out X, out Y, out Z);
-                Single.TryParse(txtOrientationZ.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Z);
-
-                pose.SetOrientation(X, Y, Z);
-                SettingsChanged();
-            }
-        }
-
-        private void txtTranslationX_TextChanged(object sender, EventArgs e)
-        {
-            if (lisMarkers.SelectedIndex >= 0)
-            {
-                float X;
-                MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
-                Single.TryParse(txtTranslationX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out X);
-
-                pose.pose.t[0] = X;
-                SettingsChanged();
-            }
-        }
-
-        private void txtTranslationY_TextChanged(object sender, EventArgs e)
-        {
-            if (lisMarkers.SelectedIndex >= 0)
-            {
-                float Y;
-                MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
-                Single.TryParse(txtTranslationY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Y);
-
-                pose.pose.t[1] = Y;
-                SettingsChanged();
-            }
-        }
-
-        private void txtTranslationZ_TextChanged(object sender, EventArgs e)
-        {
-            if (lisMarkers.SelectedIndex >= 0)
-            {
-                float Z;
-                MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
-                Single.TryParse(txtTranslationZ.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out Z);
-
-                pose.pose.t[2] = Z;
-                SettingsChanged();
-            }
-        }
-
-        private void txtId_TextChanged(object sender, EventArgs e)
-        {
-            if (lisMarkers.SelectedIndex >= 0)
-            {
-                int id;
-                MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
-                Int32.TryParse(txtId.Text, out id);
-
-                pose.id = id;
-                SettingsChanged();
-            }
+            return "0";
         }
 
         private void PlyFormat_CheckedChanged(object sender, EventArgs e)
@@ -332,6 +292,104 @@ namespace KinectServer
         {
             oSettings.eExtrinsicsFormat = (KinectSettings.ExtrinsicsStyle)cbExtrinsicsFormat.SelectedIndex;
             SettingsChanged();
+        }
+
+        private void btSaveMarker_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "Marker Pose Text files (*txt) | *.txt";
+            saveFileDialog.Title = "Save Marker Pose Text file";
+
+            DialogResult dlgres = saveFileDialog.ShowDialog();
+
+            if (dlgres == DialogResult.OK)
+            {
+                lock (oSettings.lMarkerPoses)
+                {
+                    if(!Utils.SaveMarkerPoses(saveFileDialog.FileName, oSettings.lMarkerPoses))
+                        oServer.fMainWindowForm.ShowWarningWindow("Could not save marker file, is the file already open in another program?");
+                    return;
+                }
+            }
+
+            else if(dlgres == DialogResult.Cancel)
+            {
+                return;
+            }
+        }
+
+        private void btLoad_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Marker Pose Text files (*txt) | *.txt";
+            openFileDialog.Title = "Open Marker Pose Text file";
+
+            bool success = false;
+
+            DialogResult dlgres = openFileDialog.ShowDialog();
+
+            List<MarkerPose> poses = new List<MarkerPose>();
+
+            if (dlgres == DialogResult.OK)
+            {
+                lock (oSettings.lMarkerPoses)
+                {
+                    poses = Utils.LoadMarkerPoses(openFileDialog.FileName);
+
+                    if (poses != null)
+                    {
+                        if (poses.Count == 6)
+                            success = true;
+                    }
+                }
+            }
+
+            else if (dlgres == DialogResult.Cancel)
+                return;
+
+            if (success)
+            {
+                oSettings.lMarkerPoses = poses;
+                UpdateMarkerFields();
+
+            }
+
+            else
+            {
+                oServer.fMainWindowForm.ShowWarningWindow("Could not load Marker Poses from file. File could not be openend or corrupted data!");
+            }
+        }
+
+        private void txtOrientationX_Changed(object sender, EventArgs e)
+        {
+            txtOrientationX.Text = OrientationSetValue(txtOrientationX.Text, true, false, false);
+        }
+
+        private void txtOrientationY_Changed(object sender, EventArgs e)
+        {
+            txtOrientationY.Text = OrientationSetValue(txtOrientationY.Text, false, true, false);
+        }      
+
+        private void txtOrientationZ_Changed(object sender, EventArgs e)
+        {
+            txtOrientationZ.Text = OrientationSetValue(txtOrientationZ.Text, false, false, true);
+
+        }
+
+        private void txtTranslationX_Changed(object sender, EventArgs e)
+        {
+            txtTranslationX.Text = TranslationSetValue(txtTranslationX.Text, true, false, false);
+        }
+
+        private void txtTranslationY_Changed(object sender, EventArgs e)
+        {
+            txtTranslationY.Text = TranslationSetValue(txtTranslationY.Text, false, true, false);
+        }
+
+        private void txtTranslationZ_Changed(object sender, EventArgs e)
+        {
+            txtTranslationZ.Text = TranslationSetValue(txtTranslationZ.Text, false, false, true);
+
         }
     }
 }

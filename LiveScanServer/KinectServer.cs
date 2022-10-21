@@ -59,11 +59,11 @@ namespace KinectServer
             }
         }
 
-        public List<AffineTransform> lCameraPoses
+        public List<Matrix4x4> lCameraPoses
         {
             get
             {
-                List<AffineTransform> cameraPoses = new List<AffineTransform>();
+                List<Matrix4x4> cameraPoses = new List<Matrix4x4>();
                 lock (oClientSocketLock)
                 {
                     for (int i = 0; i < lClientSockets.Count; i++)
@@ -85,11 +85,11 @@ namespace KinectServer
             }
         }
 
-        public List<AffineTransform> lWorldTransforms
+        public List<Matrix4x4> lWorldTransforms
         {
             get
             {
-                List<AffineTransform> worldTransforms = new List<AffineTransform>();
+                List<Matrix4x4> worldTransforms = new List<Matrix4x4>();
                 lock (oClientSocketLock)
                 {
                     for (int i = 0; i < lClientSockets.Count; i++)
@@ -108,6 +108,71 @@ namespace KinectServer
                     {
                         lClientSockets[i].oWorldTransform = value[i];
                     }
+                }
+            }
+        }
+
+        public List<Matrix4x4> lRefinementTransforms
+        {
+            get
+            {
+                List<Matrix4x4> refinementTransforms = new List<Matrix4x4>();
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        refinementTransforms.Add(lClientSockets[i].oRefinementOffset);
+                    }
+                }
+                return refinementTransforms;
+            }
+
+            set
+            {
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        lClientSockets[i].oRefinementOffset = value[i];
+                    }
+                }
+            }
+        }
+
+        public List<Matrix4x4> lMarkerTransforms
+        {
+            get
+            {
+                List<Matrix4x4> markerTransforms = new List<Matrix4x4>();
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        markerTransforms.Add(lClientSockets[i].oMarkerPose);
+                    }
+                }
+                return markerTransforms;
+            }
+
+            set
+            {
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        lClientSockets[i].oMarkerPose = value[i];
+                    }
+                }
+            }
+        }
+
+        public void UpdateMarkerTransforms()
+        {
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    lClientSockets[i].UpdateMarkerTransform();
                 }
             }
         }
@@ -312,7 +377,7 @@ namespace KinectServer
             }
         }
 
-        public void SendCalibrationData()
+        public void SendRefinementData()
         {
             Log.LogDebug("Sending Calibration Data");
 
@@ -1281,6 +1346,8 @@ namespace KinectServer
                         eSocketListChanged(lClientSockets);
                     }
                 }
+
+                newClient.lMarkers = oSettings.lMarkerPoses;
 
                 //Sending the initial configuration and settings to the device.
                 newClient.UpdateSocketState("Configuring...");

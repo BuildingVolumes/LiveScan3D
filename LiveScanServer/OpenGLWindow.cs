@@ -73,7 +73,8 @@ namespace KinectServer
 
         public List<float> vertices = new List<float>();
         public List<byte> colors = new List<byte>();
-        public List<AffineTransform> cameraPoses = new List<AffineTransform>();
+        public List<Matrix4x4> cameraPoses = new List<Matrix4x4>();
+        public List<Matrix4x4> markerPoses = new List<Matrix4x4>();
         public KinectSettings settings = new KinectSettings();
 
         public ViewportSettings viewportSettings = new ViewportSettings();
@@ -322,13 +323,17 @@ namespace KinectServer
                     {
                         int iCurLineCount = 0;
                         iCurLineCount += AddBoundingBox(PointCount + 2 * iCurLineCount);
-                        for (int i = 0; i < settings.lMarkerPoses.Count; i++)
+
+                        byte[] red = new byte[4] {255, 0, 0, 0};
+                        byte[] green = new byte[4] {0, 255, 0, 0};
+
+                        for (int i = 0; i < markerPoses.Count; i++)
                         {
-                            iCurLineCount += AddMarker(PointCount + 2 * iCurLineCount, settings.lMarkerPoses[i].pose);
+                            iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, markerPoses[i], red);
                         }
                         for (int i = 0; i < cameraPoses.Count; i++)
                         {
-                            iCurLineCount += AddCamera(PointCount + 2 * iCurLineCount, cameraPoses[i]);
+                            iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, cameraPoses[i], green);
                         }
                     }
 
@@ -431,7 +436,7 @@ namespace KinectServer
             return nLinesBeingAdded;
         }
 
-        private int AddMarker(int startIdx, AffineTransform pose)
+        private int AddGizmo(int startIdx, Matrix4x4 pose, byte[] color)
         {
             int nLinesBeingAdded = 3;
             //2 points per line
@@ -439,111 +444,51 @@ namespace KinectServer
 
             for (int i = startIdx; i < startIdx + nPointsToAdd; i++)
             {
-                VBO[i].R = 255;
-                VBO[i].G = 0;
-                VBO[i].B = 0;
-                VBO[i].A = 0;
+                VBO[i].R = color[0];
+                VBO[i].G = color[1];
+                VBO[i].B = color[2];
+                VBO[i].A = color[3];
             }
 
             int n = 0;
 
-            float x0 = pose.t[0];
-            float y0 = pose.t[1];
-            float z0 = pose.t[2];
+            float x0 = pose.mat[0, 3];
+            float y0 = pose.mat[1, 3];
+            float z0 = pose.mat[2, 3];
 
             float x1 = 0.1f;
             float y1 = 0.1f;
             float z1 = 0.1f;
 
-            float x2 = pose.R[0, 0] * x1;
-            float y2 = pose.R[1, 0] * x1;
-            float z2 = pose.R[2, 0] * x1;
+            float x2 = pose.mat[0, 0] * x1;
+            float y2 = pose.mat[1, 0] * x1;
+            float z2 = pose.mat[2, 0] * x1;
 
-            x2 += pose.t[0];
-            y2 += pose.t[1];
-            z2 += pose.t[2];
-
-            AddLine(startIdx + n, x0, y0, z0, x2, y2, z2);
-            n += 2;
-
-            x2 = pose.R[0, 1] * y1;
-            y2 = pose.R[1, 1] * y1;
-            z2 = pose.R[2, 1] * y1;
-
-            x2 += pose.t[0];
-            y2 += pose.t[1];
-            z2 += pose.t[2];
+            x2 += pose.mat[0, 3];
+            y2 += pose.mat[1, 3];
+            z2 += pose.mat[2, 3];
 
             AddLine(startIdx + n, x0, y0, z0, x2, y2, z2);
             n += 2;
 
-            x2 = pose.R[0, 2] * z1;
-            y2 = pose.R[1, 2] * z1;
-            z2 = pose.R[2, 2] * z1;
+            x2 = pose.mat[0, 1] * y1;
+            y2 = pose.mat[1, 1] * y1;
+            z2 = pose.mat[2, 1] * y1;
 
-            x2 += pose.t[0];
-            y2 += pose.t[1];
-            z2 += pose.t[2];
-
-            AddLine(startIdx + n, x0, y0, z0, x2, y2, z2);
-            n += 2;
-
-            return nLinesBeingAdded;
-        }
-
-        private int AddCamera(int startIdx, AffineTransform pose)
-        {
-            int nLinesBeingAdded = 3;
-            //2 points per line
-            int nPointsToAdd = 2 * nLinesBeingAdded;
-
-            for (int i = startIdx; i < startIdx + nPointsToAdd; i++)
-            {
-                VBO[i].R = 0;
-                VBO[i].G = 255;
-                VBO[i].B = 0;
-                VBO[i].A = 0;
-            }
-
-            int n = 0;
-
-            float x0 = pose.t[0];
-            float y0 = pose.t[1];
-            float z0 = pose.t[2];
-
-            float x1 = 0.1f;
-            float y1 = 0.1f;
-            float z1 = 0.1f;
-
-            float x2 = pose.R[0, 0] * x1;
-            float y2 = pose.R[1, 0] * x1;
-            float z2 = pose.R[2, 0] * x1;
-
-            x2 += pose.t[0];
-            y2 += pose.t[1];
-            z2 += pose.t[2];
+            x2 += pose.mat[0, 3];
+            y2 += pose.mat[1, 3];
+            z2 += pose.mat[2, 3];
 
             AddLine(startIdx + n, x0, y0, z0, x2, y2, z2);
             n += 2;
 
-            x2 = pose.R[0, 1] * y1;
-            y2 = pose.R[1, 1] * y1;
-            z2 = pose.R[2, 1] * y1;
+            x2 = pose.mat[0, 2] * z1;
+            y2 = pose.mat[1, 2] * z1;
+            z2 = pose.mat[2, 2] * z1;
 
-            x2 += pose.t[0];
-            y2 += pose.t[1];
-            z2 += pose.t[2];
-
-            AddLine(startIdx + n, x0, y0, z0, x2, y2, z2);
-            n += 2;
-
-            x2 = pose.R[0, 2] * z1;
-            y2 = pose.R[1, 2] * z1;
-            z2 = pose.R[2, 2] * z1;
-
-            x2 += pose.t[0];
-            y2 += pose.t[1];
-            z2 += pose.t[2];
+            x2 += pose.mat[0, 3];
+            y2 += pose.mat[1, 3];
+            z2 += pose.mat[2, 3];
 
             AddLine(startIdx + n, x0, y0, z0, x2, y2, z2);
             n += 2;

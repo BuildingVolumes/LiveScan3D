@@ -498,7 +498,7 @@
             // 
             this.cbEnablePreview.AutoSize = true;
             this.cbEnablePreview.Location = new System.Drawing.Point(77, 128);
-            this.cbEnablePreview.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.cbEnablePreview.Margin = new System.Windows.Forms.Padding(2);
             this.cbEnablePreview.Name = "cbEnablePreview";
             this.cbEnablePreview.Size = new System.Drawing.Size(198, 17);
             this.cbEnablePreview.TabIndex = 42;

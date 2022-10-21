@@ -121,6 +121,24 @@
   <data name="info_box" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\info_box.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="Marker_0_thumb" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Marker_0_thumb.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Marker_1_thumb" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Marker_1_thumb.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Marker_2_thumb" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Marker_2_thumb.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Marker_3_thumb" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Marker_3_thumb.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Marker_4_thumb" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Marker_4_thumb.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Marker_5_thumb" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Marker_5_thumb.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="recording" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\recording.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>

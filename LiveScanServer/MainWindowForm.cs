@@ -41,7 +41,9 @@ namespace KinectServer
         //Color data from all of the sensors
         List<byte> lAllColors = new List<byte>();
         //Sensor poses from all of the sensors
-        List<AffineTransform> lAllCameraPoses = new List<AffineTransform>();
+        List<Matrix4x4> lAllCameraPoses = new List<Matrix4x4>();
+        //Marker poses from all of the sensors
+        List<Matrix4x4> lAllMarkerPoses = new List<Matrix4x4>();
         //Viewport settings
         ViewportSettings viewportSettings = new ViewportSettings();
 
@@ -122,7 +124,7 @@ namespace KinectServer
                     settingsStream.Dispose();
             }
 
-            oSettings.AddDefaultMarker();
+            oSettings.AddDefaultMarkers();
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateClientGridView);
             oServer.eSocketListChanged += new SocketListChangedHandler(ClientConnectionChanged);
@@ -353,6 +355,7 @@ namespace KinectServer
                 oOpenGLWindow.vertices = lAllVertices;
                 oOpenGLWindow.colors = lAllColors;
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
+                oOpenGLWindow.markerPoses = lAllMarkerPoses;
                 oOpenGLWindow.settings = oSettings;
                 oOpenGLWindow.viewportSettings = viewportSettings;
                 oOpenGLWindow.viewportSettings.colorMode = EColorMode.BGR;
@@ -498,6 +501,7 @@ namespace KinectServer
                         lAllVertices.Clear();
                         lAllColors.Clear();
                         lAllCameraPoses.Clear();
+                        lAllMarkerPoses.Clear();
 
                         for (int i = 0; i < lFramesRGB.Count; i++)
                         {
@@ -506,6 +510,7 @@ namespace KinectServer
                         }
 
                         lAllCameraPoses.AddRange(oServer.lCameraPoses);
+                        lAllMarkerPoses.AddRange(oServer.lMarkerTransforms);
 
                         timer.Stop();
 
@@ -594,44 +599,49 @@ namespace KinectServer
                 }
             }
 
-            //Update the calibration data in client machines.
-            List<AffineTransform> worldTransforms = oServer.lWorldTransforms;
-            List<AffineTransform> cameraPoses = oServer.lCameraPoses;
+            List<Matrix4x4> icpTransforms = oServer.lRefinementTransforms;
 
-            for (int i = 0; i < worldTransforms.Count; i++)
+            for (int i = 0; i < icpTransforms.Count; i++)
             {
-                float[] tempT = new float[3];
-                float[,] tempR = new float[3, 3];
-                for (int j = 0; j < 3; j++)
-                {
-                    for (int k = 0; k < 3; k++)
-                    {
-                        tempT[j] += Ts[i][k] * worldTransforms[i].R[k, j];
-                    }
-
-                    worldTransforms[i].t[j] += tempT[j];
-                    cameraPoses[i].t[j] += Ts[i][j];
-                }
+                Matrix4x4 icpOffset = new Matrix4x4();
 
                 for (int j = 0; j < 3; j++)
                 {
                     for (int k = 0; k < 3; k++)
                     {
-                        for (int l = 0; l < 3; l++)
-                        {
-                            tempR[j, k] += Rs[i][l * 3 + j] * worldTransforms[i].R[l, k];
-                        }
-
-                        worldTransforms[i].R[j, k] = tempR[j, k];
-                        cameraPoses[i].R[j, k] = tempR[j, k];
+                        icpOffset.mat[j, k] = Rs[i][j * 3 + k];
                     }
                 }
+
+                for (int j = 0; j < 3; j++)
+                {
+                    icpOffset.mat[j, 3] = Ts[i][j];
+                }
+
+                string s = "";
+
+                for (int j = 0; j < 4; j++)
+                {
+                    for (int k = 0; k < 4; k++)
+                    {
+                        s += icpOffset.mat[j, k] + ", ";
+                    }
+                }
+
+                icpTransforms[i] = icpOffset;
+
+
+
+
+               // icpTransforms[i] = icpOffset * icpTransforms[i];
+
             }
 
-            oServer.lWorldTransforms = worldTransforms;
-            oServer.lCameraPoses = cameraPoses;
+            oServer.lRefinementTransforms = icpTransforms;
 
-            oServer.SendCalibrationData();
+            //oServer.lRefinementTransforms = icpTransforms;
+            oServer.UpdateMarkerTransforms();
+            oServer.SendRefinementData();
         }
 
         private void refineWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
