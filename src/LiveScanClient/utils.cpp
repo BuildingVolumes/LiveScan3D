@@ -14,28 +14,6 @@
 //    }
 #include "utils.h"
 
-Point3f RotatePoint(Point3f& point, std::vector<std::vector<float>>& R)
-{
-	Point3f res;
-
-	res.X = point.X * R[0][0] + point.Y * R[0][1] + point.Z * R[0][2];
-	res.Y = point.X * R[1][0] + point.Y * R[1][1] + point.Z * R[1][2];
-	res.Z = point.X * R[2][0] + point.Y * R[2][1] + point.Z * R[2][2];
-
-	return res;
-}
-
-Point3f InverseRotatePoint(Point3f& point, std::vector<std::vector<float>>& R)
-{
-	Point3f res;
-
-	res.X = point.X * R[0][0] + point.Y * R[1][0] + point.Z * R[2][0];
-	res.Y = point.X * R[0][1] + point.Y * R[1][1] + point.Z * R[2][1];
-	res.Z = point.X * R[0][2] + point.Y * R[1][2] + point.Z * R[2][2];
-
-	return res;
-}
-
 Matrix4x4 Matrix4x4::GetIdentity()
 {
 	Matrix4x4 identity = Matrix4x4();
@@ -79,6 +57,17 @@ Matrix4x4 Matrix4x4::GetR()
 	return r;
 }
 
+void Matrix4x4::SetR(Matrix4x4 r)
+{
+	for (size_t i = 0; i < 3; i++)
+	{
+		for (size_t j = 0; j < 3; j++)
+		{
+			mat[i][j] = r.mat[i][j];
+		}
+	}
+}
+
 Matrix4x4 Matrix4x4::GetT()
 {
 	Matrix4x4 t = Matrix4x4::GetIdentity();
@@ -89,6 +78,14 @@ Matrix4x4 Matrix4x4::GetT()
 	}
 
 	return t;
+}
+
+void Matrix4x4::SetT(Matrix4x4 t)
+{
+	for (size_t i = 0; i < 4; i++)
+	{
+		mat[i][3] = t.mat[i][3];
+	}
 }
 
 Matrix4x4 Matrix4x4::GetTranspose()

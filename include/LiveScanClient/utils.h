@@ -227,7 +227,9 @@ public:
 	Matrix4x4 Inverse();
 	Matrix4x4 GetTranspose();
 	Matrix4x4 GetR();
+	void SetR(Matrix4x4 r);
 	Matrix4x4 GetT();
+	void SetT(Matrix4x4 t);
 	
 private:
 
@@ -246,5 +248,3 @@ typedef struct RGB
 	BYTE    rgbReserved;
 } RGB;
 
-Point3f RotatePoint(Point3f& point, std::vector<std::vector<float>>& R);
-Point3f InverseRotatePoint(Point3f& point, std::vector<std::vector<float>>& R);

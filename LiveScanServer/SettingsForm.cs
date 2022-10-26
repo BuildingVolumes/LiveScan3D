@@ -343,6 +343,7 @@ namespace KinectServer
             {
                 oSettings.lMarkerPoses = poses;
                 UpdateMarkerFields();
+                SettingsChanged();
 
             }
 

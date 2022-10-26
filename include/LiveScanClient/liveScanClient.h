@@ -57,7 +57,7 @@ private:
 	bool m_bSaveCalibration;
 	bool m_bConnected;
 	bool m_bConfirmCaptured;
-	bool m_bConfirmCalibrated;
+	bool m_bSendCalibration;
 	bool m_bCloseCamera;
 	bool m_bConfirmCameraClosed;
 	bool m_bInitializeCamera;

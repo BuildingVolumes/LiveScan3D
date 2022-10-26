@@ -510,7 +510,7 @@ namespace KinectServer
                         }
 
                         lAllCameraPoses.AddRange(oServer.lCameraPoses);
-                        lAllMarkerPoses.AddRange(oServer.lMarkerTransforms);
+                        lAllMarkerPoses.AddRange(oServer.lMarkerPoses);
 
                         timer.Stop();
 

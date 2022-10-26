@@ -110,7 +110,7 @@ LiveScanClient::LiveScanClient() :
 	m_bSaveCalibration(false),
 	m_bConnected(false),
 	m_bConfirmCaptured(false),
-	m_bConfirmCalibrated(false),
+	m_bSendCalibration(false),
 	m_bShowDepth(false),
 	m_bShowPreviewDuringRecording(false),
 	m_bSocketThread(true),
@@ -308,7 +308,8 @@ void LiveScanClient::UpdateFrame()
 	{
 		pCapture->SetExposureState(m_bAutoExposureEnabled, m_nExposureStep);
 		pCapture->SetWhiteBalanceState(m_bAutoWhiteBalanceEnabled, m_nKelvin);
-		//calibration.ApplyMarkerOffset(calibration.markerPoses[calibration.iUsedMarkerId]);
+		calibration.UpdateClientPose();
+		m_bSendCalibration = true;
 		m_bUpdateSettings = false;
 	}
 
@@ -516,7 +517,7 @@ void LiveScanClient::Connect()
 
 			m_bConnected = true;
 			if (calibration.bCalibrated)
-				m_bConfirmCalibrated = true;
+				m_bSendCalibration = true;
 
 			SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Disconnect");
 			//Clear the status bar so that the "Failed to connect..." disappears.
@@ -672,7 +673,7 @@ void LiveScanClient::Calibrate()
 	{
 		log.LogInfo("Calibration Successfull");
 		calibration.SaveCalibration(configuration.serialNumber);
-		m_bConfirmCalibrated = true;
+		m_bSendCalibration = true;
 		m_bCalibrate = false;
 	}
 
@@ -956,9 +957,6 @@ void LiveScanClient::HandleSocket()
 				i += sizeof(int);
 			}
 
-			calibration.UpdateClientPose();
-			m_bConfirmCalibrated = true;
-
 			m_iCompressionLevel = *(int*)(received.c_str() + i);
 			i += sizeof(int);
 			if (m_iCompressionLevel > 0)
@@ -1155,35 +1153,36 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCaptured)
 	{
-		log.LogTrace("Confirming capture to server");
+		log.LogCaptureDebug("Confirming capture to server");
 
 		byteToSend = MSG_CONFIRM_CAPTURED;
 		m_pClientSocket->SendBytes(&byteToSend, 1);
 		m_bConfirmCaptured = false;
 	}
 
-	if (m_bConfirmCalibrated)
+	if (m_bSendCalibration)
 	{
-		log.LogTrace("Sending calibration");
+		log.LogDebug("Sending calibration");
 
-		int size = 16 * sizeof(float) + sizeof(int) + 1;
+		int size = 2 * 16 * sizeof(float) + sizeof(int) + 1;
 		char* buffer = new char[size];
 		buffer[0] = MSG_CONFIRM_CALIBRATED;
 		int i = 1;
 
 		memcpy(buffer + i, &calibration.iUsedMarkerId, 1 * sizeof(int));
 		i += 1 * sizeof(int);
-		memcpy(buffer + i, calibration.clientPose.mat[0], 16 * sizeof(float));
+		memcpy(buffer + i, calibration.worldTransform.mat[0], 16 * sizeof(float));
 		i += 16 * sizeof(float);		
+		memcpy(buffer + i, calibration.currentMarkerPose.mat, 16 * sizeof(float));
+		i += 16 * sizeof(float);
 
 		m_pClientSocket->SendBytes(buffer, size);
-		m_bConfirmCalibrated = false;
+		m_bSendCalibration = false;
 	}
 
 	if (m_bConfirmPreRecordingProcess)
 	{
-
-		log.LogTrace("Sending Pre Record Process confirmation");
+		log.LogDebug("Sending Pre Record Process confirmation");
 
 		byteToSend = MSG_CONFIRM_PRE_RECORD_PROCESS;
 		m_pClientSocket->SendBytes(&byteToSend, 1);
@@ -1192,8 +1191,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmPostRecordingProcess)
 	{
-
-		log.LogTrace("Sending Post Record Process confirmation");
+		log.LogDebug("Sending Post Record Process confirmation");
 
 		byteToSend = MSG_CONFIRM_POST_RECORD_PROCESS;
 		m_pClientSocket->SendBytes(&byteToSend, 1);
@@ -1202,7 +1200,7 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bSendConfiguration)
 	{
-		log.LogInfo("Sending configuration");
+		log.LogDebug("Sending configuration");
 
 		int size = configuration.byteLength + 1;
 		char* buffer = new char[size];
@@ -1435,8 +1433,6 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 			if (calibration.bCalibrated)
 			{
 				temp = calibration.worldTransform * temp;
-
-				int g = 1;
 			}
 
 			if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]

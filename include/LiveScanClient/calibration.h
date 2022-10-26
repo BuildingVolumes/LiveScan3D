@@ -17,9 +17,6 @@
 #include "marker.h"
 #include "utils.h"
 
-vector<float> RotatePoint(vector<float> &point, std::vector<std::vector<float>> &R);
-vector<float> InverseRotatePoint(vector<float> &point, std::vector<std::vector<float>> &R);
-
 struct MarkerPose
 {
 	int markerId;
@@ -30,13 +27,13 @@ class Calibration
 {
 public:
 	Matrix4x4 sensorToMarkerTransform; //The transform mapping from the marker position to sensor/camera
+	Matrix4x4 currentMarkerPose; //The pose of the marker used
 	Matrix4x4 markerOffsetTransform; //Transform mapping from the sensor to the marker with the marker Offset applied
-	Matrix4x4 worldTransform; //Sensor to marker + Marker offset + ICP refinement transform applied
-	vector<MarkerPose> markerPoses; //How the marker iteself is positioned in the world
 	Matrix4x4 refinementTransform; //A refinement offset given by the ICP algorithm
-	Matrix4x4 clientPose; //All transforms above affecting the sensor pose added together
-	int iUsedMarkerId;
+	Matrix4x4 worldTransform; //Sensor to marker + Marker offset + ICP refinement transform applied
 
+	vector<MarkerPose> markerPoses; //How the marker iteself is positioned in the world
+	int iUsedMarkerId;
 
 	bool bCalibrated;
 

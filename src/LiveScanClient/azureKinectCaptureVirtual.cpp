@@ -373,8 +373,6 @@ int AzureKinectCaptureVirtual::GetAndLockDeviceIndex()
 	int index = 0;
 	bool found = false;
 
-	//std::filesystem::
-
 	while (!found && index < 4)
 	{
 		std::string path = "resources/testdata/virtualdevice/virtualdevice";

@@ -288,7 +288,7 @@ namespace KinectServer
                         //bounding box
                         LineCount += 12;
                         //markers
-                        LineCount += settings.lMarkerPoses.Count * 3;
+                        LineCount += markerPoses.Count * 3;
                         //cameras
                         LineCount += cameraPoses.Count * 3;
                     }

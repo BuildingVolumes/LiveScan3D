@@ -139,7 +139,7 @@ namespace KinectServer
             }
         }
 
-        public List<Matrix4x4> lMarkerTransforms
+        public List<Matrix4x4> lMarkerPoses
         {
             get
             {

@@ -305,6 +305,8 @@ namespace KinectServer
 
             buffer = Receive(sizeof(float) * 16);
             Buffer.BlockCopy(buffer, 0, oWorldTransform.mat, 0, sizeof(float) * 16);
+            buffer = Receive(sizeof(float) * 16);
+            Buffer.BlockCopy(buffer, 0, oMarkerPose.mat, 0, sizeof(float) * 16);
 
             oCameraPose.mat = oWorldTransform.mat;
 

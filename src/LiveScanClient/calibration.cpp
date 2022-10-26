@@ -25,8 +25,10 @@ Calibration::Calibration()
 	nRequiredSamples = 20;
 
 	sensorToMarkerTransform = Matrix4x4::GetIdentity();
-	clientPose = Matrix4x4::GetIdentity();
+	currentMarkerPose = Matrix4x4::GetIdentity();
+	markerOffsetTransform = Matrix4x4::GetIdentity();
 	refinementTransform = Matrix4x4::GetIdentity();
+	worldTransform = Matrix4x4::GetIdentity();
 
 	pDetector = new MarkerDetector();
 }
@@ -115,9 +117,13 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f* pCameraCoordinates, int 
 
 void Calibration::UpdateClientPose()
 {
-	//We first apply the Marker Rotation, for user convinience. The rotation is inversed so that
-	//a positive value in the offset field will give us a clockwise rotation
-	markerOffsetTransform = markerPoses[iUsedMarkerId].pose.GetR().Inverse() * sensorToMarkerTransform;
+	//Get the currently used marker pose from the list of markers
+	//The rotation is inversed so that a positive value in the offset field will give us a clockwise rotation
+	currentMarkerPose = markerPoses[iUsedMarkerId].pose;
+	currentMarkerPose.SetR(currentMarkerPose.GetR().Inverse());
+
+	//We first apply the Marker Rotation, for user convinience. 
+	markerOffsetTransform = currentMarkerPose.GetR() * sensorToMarkerTransform;
 
 	//We then apply the Marker translation. As this should happen in world space, we don't
 	//rotate the translation factor
@@ -196,7 +202,6 @@ Matrix4x4 Calibration::Procrustes(MarkerInfo& marker, vector<Point3f>& markerInW
 {
 	int nVertices = marker.points.size(); //nVertices = 5
 	Matrix4x4 worldToMarker = Matrix4x4::GetIdentity();
-	//Matrix4x4 worldToMarkerR = Matrix4x4::GetIdentity();
 
 	Point3f markerCenterInWorld;
 	Point3f markerCenter;
@@ -265,8 +270,6 @@ Matrix4x4 Calibration::Procrustes(MarkerInfo& marker, vector<Point3f>& markerInW
 		}
 	}
 
-	//Matrix4x4 worldToMarker = worldToMarkerT * worldToMarkerR; //Combine rotation and translation into one Matrix without applying the rotations!
-
 	return worldToMarker;
 }
 
@@ -297,26 +300,3 @@ bool Calibration::GetMarkerCorners3D(vector<Point3f>& marker3D, MarkerInfo& mark
 
 	return true;
 }
-
-vector<float> InverseRotatePoint(vector<float>& point, std::vector<std::vector<float>>& R)
-{
-	vector<float> res(3);
-
-	res[0] = point[0] * R[0][0] + point[1] * R[1][0] + point[2] * R[2][0];
-	res[1] = point[0] * R[0][1] + point[1] * R[1][1] + point[2] * R[2][1];
-	res[2] = point[0] * R[0][2] + point[1] * R[1][2] + point[2] * R[2][2];
-
-	return res;
-}
-
-vector<float> RotatePoint(vector<float>& point, std::vector<std::vector<float>>& R)
-{
-	vector<float> res(3);
-
-	res[0] = point[0] * R[0][0] + point[1] * R[0][1] + point[2] * R[0][2];
-	res[1] = point[0] * R[1][0] + point[1] * R[1][1] + point[2] * R[1][2];
-	res[2] = point[0] * R[2][0] + point[1] * R[2][1] + point[2] * R[2][2];
-
-	return res;
-}
-
