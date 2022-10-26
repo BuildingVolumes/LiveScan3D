@@ -24,12 +24,9 @@ Calibration::Calibration()
 	nSampleCounter = 0;
 	nRequiredSamples = 20;
 
-	worldT = vector<float>(3, 0.0f);
-	for (int i = 0; i < 3; i++)
-	{
-		worldR.push_back(vector<float>(3, 0.0f));
-		worldR[i][i] = 1.0f;
-	}
+	sensorToMarkerTransform = Matrix4x4::GetIdentity();
+	clientPose = Matrix4x4::GetIdentity();
+	refinementTransform = Matrix4x4::GetIdentity();
 
 	pDetector = new MarkerDetector();
 }
@@ -43,9 +40,11 @@ Calibration::~Calibration()
 	}
 }
 
-bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight)
+bool Calibration::Calibrate(cv::Mat* colorMat, Point3f* pCameraCoordinates, int cColorWidth, int cColorHeight)
 {
 	MarkerInfo marker;
+
+	refinementTransform = Matrix4x4::GetIdentity(); //Reset the refinement
 
 	bool res = pDetector->GetMarker(colorMat, marker); //Find the biggest marker in the image
 	if (!res)
@@ -98,32 +97,13 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int 
 	}
 
 	//Try to find out how the marker is rotated and translated in 3D space
-	Procrustes(marker, marker3D, worldT, worldR);
+	sensorToMarkerTransform = Procrustes(marker, marker3D);
 
-	vector<vector<float>> Rcopy = worldR;
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			worldR[i][j] = 0;
+	//The T from the matrix we got from the procustes doesn't have the roation
+	//factor applied yet, so we do this here
+	sensorToMarkerTransform = sensorToMarkerTransform.GetR() * sensorToMarkerTransform.GetT();	
 
-			for (int k = 0; k < 3; k++)
-			{
-				worldR[i][j] += markerPose.R[i][k] * Rcopy[k][j];
-			}
-		}
-	}
-
-	vector<float> translationIncr(3);
-	translationIncr[0] = markerPose.t[0];
-	translationIncr[1] = markerPose.t[1];
-	translationIncr[2] = markerPose.t[2];;
-
-	translationIncr = InverseRotatePoint(translationIncr, worldR);
-
-	worldT[0] += translationIncr[0];
-	worldT[1] += translationIncr[1];
-	worldT[2] += translationIncr[2];
+	UpdateClientPose();
 
 	bCalibrated = true;
 
@@ -133,48 +113,90 @@ bool Calibration::Calibrate(cv::Mat* colorMat, Point3f *pCameraCoordinates, int 
 	return true;
 }
 
-bool Calibration::LoadCalibration(const string &serialNumber)
+void Calibration::UpdateClientPose()
+{
+	//We first apply the Marker Rotation, for user convinience. The rotation is inversed so that
+	//a positive value in the offset field will give us a clockwise rotation
+	markerOffsetTransform = markerPoses[iUsedMarkerId].pose.GetR().Inverse() * sensorToMarkerTransform;
+
+	//We then apply the Marker translation. As this should happen in world space, we don't
+	//rotate the translation factor
+	markerOffsetTransform = markerPoses[iUsedMarkerId].pose.GetT() * markerOffsetTransform;
+
+	//Apply the refinement pose from the ICP algorithm to the global pose
+	worldTransform = refinementTransform.GetT() * markerOffsetTransform;
+	worldTransform = refinementTransform.GetR().Inverse() * worldTransform;
+}
+
+bool Calibration::LoadCalibration(const string& serialNumber)
 {
 	ifstream file;
 	file.open("calibration_" + serialNumber + ".txt");
 	if (!file.is_open())
 		return false;
 
-	for (int i = 0; i < 3; i++)
-		file >> worldT[i];
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 	{
-		for (int j = 0; j < 3; j++)
-			file >> worldR[i][j];
+		for (int j = 0; j < 4; j++)
+		{
+			file >> sensorToMarkerTransform.mat[i][j];
+		}
 	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			file >> refinementTransform.mat[i][j];
+		}
+	}
+
 	file >> iUsedMarkerId;
 	file >> bCalibrated;
 
 	return true;
 }
 
-void Calibration::SaveCalibration(const string &serialNumber)
+void Calibration::SaveCalibration(const string& serialNumber)
 {
 	ofstream file;
 	file.open("calibration_" + serialNumber + ".txt");
-	for (int i = 0; i < 3; i++)
-		file << worldT[i] << " ";
-	file << endl;
-	for (int i = 0; i < 3; i++)
+
+	for (int i = 0; i < 4; i++)
 	{
-		for (int j = 0; j < 3; j++)
-			file << worldR[i][j];
+		for (int j = 0; j < 4; j++)
+		{
+			file << sensorToMarkerTransform.mat[i][j];
+			file << " ";
+		}
+
 		file << endl;
 	}
+
+	file << endl;
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			file << refinementTransform.mat[i][j];
+			file << " ";
+		}
+
+		file << endl;
+	}
+
 	file << iUsedMarkerId << endl;
 	file << bCalibrated << endl;
 
 	file.close();
 }
 
-void Calibration::Procrustes(MarkerInfo &marker, vector<Point3f> &markerInWorld, vector<float> &worldToMarkerT, vector<vector<float>> &worldToMarkerR)
+Matrix4x4 Calibration::Procrustes(MarkerInfo& marker, vector<Point3f>& markerInWorld)
 {
 	int nVertices = marker.points.size(); //nVertices = 5
+	Matrix4x4 worldToMarker = Matrix4x4::GetIdentity();
+	//Matrix4x4 worldToMarkerR = Matrix4x4::GetIdentity();
 
 	Point3f markerCenterInWorld;
 	Point3f markerCenter;
@@ -189,18 +211,17 @@ void Calibration::Procrustes(MarkerInfo &marker, vector<Point3f> &markerInWorld,
 		markerCenter.Z += marker.points[i].Z / nVertices;
 	}
 
-	worldToMarkerT.resize(3);
-	worldToMarkerT[0] = -markerCenterInWorld.X;
-	worldToMarkerT[1] = -markerCenterInWorld.Y;
-	worldToMarkerT[2] = -markerCenterInWorld.Z;
+	worldToMarker.mat[0][3] = -markerCenterInWorld.X;
+	worldToMarker.mat[1][3] = -markerCenterInWorld.Y;
+	worldToMarker.mat[2][3] = -markerCenterInWorld.Z;
 
 	vector<Point3f> markerInWorldTranslated(nVertices);
 	vector<Point3f> markerTranslated(nVertices);
 	for (int i = 0; i < nVertices; i++)
 	{
-		markerInWorldTranslated[i].X = markerInWorld[i].X + worldToMarkerT[0];
-		markerInWorldTranslated[i].Y = markerInWorld[i].Y + worldToMarkerT[1];
-		markerInWorldTranslated[i].Z = markerInWorld[i].Z + worldToMarkerT[2];
+		markerInWorldTranslated[i].X = markerInWorld[i].X + worldToMarker.mat[0][3];
+		markerInWorldTranslated[i].Y = markerInWorld[i].Y + worldToMarker.mat[1][3];
+		markerInWorldTranslated[i].Z = markerInWorld[i].Z + worldToMarker.mat[2][3];
 
 		markerTranslated[i].X = marker.points[i].X - markerCenter.X;
 		markerTranslated[i].Y = marker.points[i].Y - markerCenter.Y;
@@ -236,19 +257,20 @@ void Calibration::Procrustes(MarkerInfo &marker, vector<Point3f> &markerInWorld,
 		R = svd.u * temp * svd.vt;
 	}
 
-	worldToMarkerR.resize(3);
-
 	for (int i = 0; i < 3; i++)
 	{
-		worldToMarkerR[i].resize(3);
 		for (int j = 0; j < 3; j++)
 		{
-			worldToMarkerR[i][j] = static_cast<float>(R.at<double>(i, j));
+			worldToMarker.mat[i][j] = static_cast<float>(R.at<double>(i, j));
 		}
 	}
+
+	//Matrix4x4 worldToMarker = worldToMarkerT * worldToMarkerR; //Combine rotation and translation into one Matrix without applying the rotations!
+
+	return worldToMarker;
 }
 
-bool Calibration::GetMarkerCorners3D(vector<Point3f> &marker3D, MarkerInfo &marker, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight)
+bool Calibration::GetMarkerCorners3D(vector<Point3f>& marker3D, MarkerInfo& marker, Point3f* pCameraCoordinates, int cColorWidth, int cColorHeight)
 {
 	for (unsigned int i = 0; i < marker.corners.size(); i++)
 	{
@@ -276,7 +298,7 @@ bool Calibration::GetMarkerCorners3D(vector<Point3f> &marker3D, MarkerInfo &mark
 	return true;
 }
 
-vector<float> InverseRotatePoint(vector<float> &point, std::vector<std::vector<float>> &R)
+vector<float> InverseRotatePoint(vector<float>& point, std::vector<std::vector<float>>& R)
 {
 	vector<float> res(3);
 
@@ -287,7 +309,7 @@ vector<float> InverseRotatePoint(vector<float> &point, std::vector<std::vector<f
 	return res;
 }
 
-vector<float> RotatePoint(vector<float> &point, std::vector<std::vector<float>> &R)
+vector<float> RotatePoint(vector<float>& point, std::vector<std::vector<float>>& R)
 {
 	vector<float> res(3);
 
@@ -297,3 +319,4 @@ vector<float> RotatePoint(vector<float> &point, std::vector<std::vector<float>> 
 
 	return res;
 }
+

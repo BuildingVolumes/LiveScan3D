@@ -1,6 +1,7 @@
 #include "azureKinectCaptureVirtual.h"
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 // This class simulates a Azure Kinect for Testing purposes. It is not meant to cover all parts of the hardware
 // but rather to provide a basic virtual device, so that you don't need to be connected to the hardware at all times
@@ -15,7 +16,7 @@ AzureKinectCaptureVirtual::AzureKinectCaptureVirtual()
 
 AzureKinectCaptureVirtual::~AzureKinectCaptureVirtual()
 {
-	DeleteIndexLockFile();
+	ReleaseDeviceIndexLock();
 }
 
 bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
@@ -372,6 +373,8 @@ int AzureKinectCaptureVirtual::GetAndLockDeviceIndex()
 	int index = 0;
 	bool found = false;
 
+	//std::filesystem::
+
 	while (!found && index < 4)
 	{
 		std::string path = "resources/testdata/virtualdevice/virtualdevice";
@@ -382,14 +385,14 @@ int AzureKinectCaptureVirtual::GetAndLockDeviceIndex()
 		if (readLockfile.is_open())
 		{
 			index++;
-			readLockfile.close();
+			//readLockfile.close();
 		}
 
 		else
 		{
 			found = true;
 			std::ofstream lockfile(path);
-			lockfile.close();
+			//lockfile.close();
 			return index;
 		}
 	}
@@ -397,7 +400,7 @@ int AzureKinectCaptureVirtual::GetAndLockDeviceIndex()
 	return -1;
 }
 
-void AzureKinectCaptureVirtual::DeleteIndexLockFile()
+void AzureKinectCaptureVirtual::ReleaseDeviceIndexLock()
 {
 	std::string path = "resources/testdata/virtualdevice/virtualdevice";
 	path += std::to_string(localDeviceIndex);

@@ -23,18 +23,20 @@ vector<float> InverseRotatePoint(vector<float> &point, std::vector<std::vector<f
 struct MarkerPose
 {
 	int markerId;
-	float R[3][3];
-	float t[3];
+	Matrix4x4 pose;
 };
 
 class Calibration
 {
 public:
-	vector<float> worldT;
-	vector<vector<float>> worldR;
+	Matrix4x4 sensorToMarkerTransform; //The transform mapping from the marker position to sensor/camera
+	Matrix4x4 markerOffsetTransform; //Transform mapping from the sensor to the marker with the marker Offset applied
+	Matrix4x4 worldTransform; //Sensor to marker + Marker offset + ICP refinement transform applied
+	vector<MarkerPose> markerPoses; //How the marker iteself is positioned in the world
+	Matrix4x4 refinementTransform; //A refinement offset given by the ICP algorithm
+	Matrix4x4 clientPose; //All transforms above affecting the sensor pose added together
 	int iUsedMarkerId;
 
-	vector<MarkerPose> markerPoses;
 
 	bool bCalibrated;
 
@@ -44,6 +46,8 @@ public:
 	bool Calibrate(cv::Mat *colorMat, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight);
 	bool LoadCalibration(const string &serialNumber);
 	void SaveCalibration(const string &serialNumber);
+	void UpdateClientPose();
+
 private:
 	IMarker *pDetector;
 	int nSampleCounter;
@@ -51,7 +55,7 @@ private:
 
 	vector<vector<Point3f>> marker3DSamples;
 
-	void Procrustes(MarkerInfo &marker, vector<Point3f> &markerInWorld, vector<float> &markerT, vector<vector<float>> &markerR);
+	Matrix4x4 Procrustes(MarkerInfo &marker, vector<Point3f> &markerInWorld);
 	bool GetMarkerCorners3D(vector<Point3f> &marker3D, MarkerInfo &marker, Point3f *pCameraCoordinates, int cColorWidth, int cColorHeight);
 };
 

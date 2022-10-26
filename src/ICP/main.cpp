@@ -75,7 +75,7 @@ void loadPLY(string filename, vector<Point3f> &verts, vector<RGB> &colors)
 	FILE *f;
 	int nVerts;
 
-	fopen_s(&f, filename.c_str(), "r");
+	errno_t err = fopen_s(&f, filename.c_str(), "r");
 
 	char buffer[100];
 	fgets(buffer, 100, f);
@@ -113,16 +113,15 @@ int main()
 	vector<Point3f> verts1, verts2;
 	vector<RGB> colors1, colors2;
 
-	loadPLY("../test1.ply", verts1, colors1);
-	loadPLY("../test2.ply", verts2, colors2);
+	loadPLY("out/FirstRef_0.ply", verts1, colors1);
+	loadPLY("out/FirstRef_1.ply", verts2, colors2);
 
 	cv::Mat R = cv::Mat::eye(3, 3, CV_32F);
 	cv::Mat t(1, 3, CV_32F, cv::Scalar(0));
-	cv::Mat verts2Mat(verts2.size(), 3, CV_32F, (float*)verts2.data());
 
 	ICP(verts1.data(), verts2.data(), verts1.size(), verts2.size(), (float*)R.data, (float*)t.data, 1);
 
-	savePLY("../testResult.ply", verts2, colors2);
+	savePLY("out/ICPResult_Ref2.ply", verts2, colors2);
 
 	return 0;
 }

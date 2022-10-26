@@ -28,13 +28,17 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.lbICPIters = new System.Windows.Forms.Label();
             this.txtICPIters = new System.Windows.Forms.TextBox();
             this.grClient = new System.Windows.Forms.GroupBox();
             this.gbICP = new System.Windows.Forms.GroupBox();
+            this.pInfoICP = new System.Windows.Forms.PictureBox();
+            this.pInfoRefinement = new System.Windows.Forms.PictureBox();
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
             this.exportGroup = new System.Windows.Forms.GroupBox();
+            this.pInfoExtrinsics = new System.Windows.Forms.PictureBox();
             this.cbCompressionLevel = new System.Windows.Forms.ComboBox();
             this.label2 = new System.Windows.Forms.Label();
             this.lExtrinsics = new System.Windows.Forms.Label();
@@ -43,23 +47,26 @@
             this.lbFormat = new System.Windows.Forms.Label();
             this.rAsciiPly = new System.Windows.Forms.RadioButton();
             this.grMarkers = new System.Windows.Forms.GroupBox();
+            this.pInfoTranslation = new System.Windows.Forms.PictureBox();
+            this.pInfoRotation = new System.Windows.Forms.PictureBox();
+            this.pMarkerThumb = new System.Windows.Forms.PictureBox();
             this.lbX2 = new System.Windows.Forms.Label();
-            this.btRemove = new System.Windows.Forms.Button();
+            this.btLoad = new System.Windows.Forms.Button();
             this.txtOrientationZ = new System.Windows.Forms.TextBox();
-            this.txtId = new System.Windows.Forms.TextBox();
             this.lbY2 = new System.Windows.Forms.Label();
             this.txtOrientationY = new System.Windows.Forms.TextBox();
-            this.lbId = new System.Windows.Forms.Label();
             this.lbZ2 = new System.Windows.Forms.Label();
             this.txtOrientationX = new System.Windows.Forms.TextBox();
-            this.btAdd = new System.Windows.Forms.Button();
+            this.btSaveMarker = new System.Windows.Forms.Button();
             this.lbTranslation = new System.Windows.Forms.Label();
-            this.lbOrientation = new System.Windows.Forms.Label();
+            this.lbRotation = new System.Windows.Forms.Label();
             this.txtTranslationZ = new System.Windows.Forms.TextBox();
             this.txtTranslationX = new System.Windows.Forms.TextBox();
             this.lisMarkers = new System.Windows.Forms.ListBox();
             this.txtTranslationY = new System.Windows.Forms.TextBox();
             this.grBounding = new System.Windows.Forms.GroupBox();
+            this.pInfoMaxBounds = new System.Windows.Forms.PictureBox();
+            this.PInfoMinBounds = new System.Windows.Forms.PictureBox();
             this.lbMin = new System.Windows.Forms.Label();
             this.txtMaxZ = new System.Windows.Forms.TextBox();
             this.txtMaxY = new System.Windows.Forms.TextBox();
@@ -72,11 +79,20 @@
             this.lbY = new System.Windows.Forms.Label();
             this.lbX = new System.Windows.Forms.Label();
             this.UpdateClientsBackgroundWorker = new System.ComponentModel.BackgroundWorker();
+            this.tooltips = new System.Windows.Forms.ToolTip(this.components);
             this.grClient.SuspendLayout();
             this.gbICP.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoICP)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRefinement)).BeginInit();
             this.exportGroup.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoExtrinsics)).BeginInit();
             this.grMarkers.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoTranslation)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRotation)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pMarkerThumb)).BeginInit();
             this.grBounding.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoMaxBounds)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PInfoMinBounds)).BeginInit();
             this.SuspendLayout();
             // 
             // lbICPIters
@@ -105,27 +121,51 @@
             this.grClient.Location = new System.Drawing.Point(8, 8);
             this.grClient.Margin = new System.Windows.Forms.Padding(2);
             this.grClient.Name = "grClient";
-            this.grClient.Size = new System.Drawing.Size(632, 251);
+            this.grClient.Size = new System.Drawing.Size(661, 251);
             this.grClient.TabIndex = 43;
             this.grClient.TabStop = false;
-            this.grClient.Text = "More Settings";
+            this.grClient.Text = "Extended Settings";
             // 
             // gbICP
             // 
+            this.gbICP.Controls.Add(this.pInfoICP);
+            this.gbICP.Controls.Add(this.pInfoRefinement);
             this.gbICP.Controls.Add(this.txtRefinIters);
             this.gbICP.Controls.Add(this.lbOuterIters);
             this.gbICP.Controls.Add(this.lbICPIters);
             this.gbICP.Controls.Add(this.txtICPIters);
-            this.gbICP.Location = new System.Drawing.Point(271, 188);
+            this.gbICP.Location = new System.Drawing.Point(271, 157);
             this.gbICP.Name = "gbICP";
-            this.gbICP.Size = new System.Drawing.Size(353, 54);
+            this.gbICP.Size = new System.Drawing.Size(384, 54);
             this.gbICP.TabIndex = 60;
             this.gbICP.TabStop = false;
             this.gbICP.Text = "Calibration Refinement";
             // 
+            // pInfoICP
+            // 
+            this.pInfoICP.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoICP.Location = new System.Drawing.Point(150, 26);
+            this.pInfoICP.Name = "pInfoICP";
+            this.pInfoICP.Size = new System.Drawing.Size(15, 15);
+            this.pInfoICP.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoICP.TabIndex = 63;
+            this.pInfoICP.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoICP, "Increase this value if the calibration is not getting close enough to each other");
+            // 
+            // pInfoRefinement
+            // 
+            this.pInfoRefinement.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoRefinement.Location = new System.Drawing.Point(363, 25);
+            this.pInfoRefinement.Name = "pInfoRefinement";
+            this.pInfoRefinement.Size = new System.Drawing.Size(15, 15);
+            this.pInfoRefinement.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoRefinement.TabIndex = 62;
+            this.pInfoRefinement.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoRefinement, "Increasing this value will increase the refinement time");
+            // 
             // txtRefinIters
             // 
-            this.txtRefinIters.Location = new System.Drawing.Point(294, 25);
+            this.txtRefinIters.Location = new System.Drawing.Point(321, 23);
             this.txtRefinIters.Name = "txtRefinIters";
             this.txtRefinIters.Size = new System.Drawing.Size(38, 20);
             this.txtRefinIters.TabIndex = 27;
@@ -134,7 +174,7 @@
             // lbOuterIters
             // 
             this.lbOuterIters.AutoSize = true;
-            this.lbOuterIters.Location = new System.Drawing.Point(170, 28);
+            this.lbOuterIters.Location = new System.Drawing.Point(197, 26);
             this.lbOuterIters.Name = "lbOuterIters";
             this.lbOuterIters.Size = new System.Drawing.Size(118, 13);
             this.lbOuterIters.TabIndex = 26;
@@ -142,6 +182,7 @@
             // 
             // exportGroup
             // 
+            this.exportGroup.Controls.Add(this.pInfoExtrinsics);
             this.exportGroup.Controls.Add(this.cbCompressionLevel);
             this.exportGroup.Controls.Add(this.label2);
             this.exportGroup.Controls.Add(this.lExtrinsics);
@@ -155,6 +196,18 @@
             this.exportGroup.TabIndex = 50;
             this.exportGroup.TabStop = false;
             this.exportGroup.Text = "Export";
+            // 
+            // pInfoExtrinsics
+            // 
+            this.pInfoExtrinsics.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoExtrinsics.Location = new System.Drawing.Point(181, 22);
+            this.pInfoExtrinsics.Name = "pInfoExtrinsics";
+            this.pInfoExtrinsics.Size = new System.Drawing.Size(15, 15);
+            this.pInfoExtrinsics.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoExtrinsics.TabIndex = 62;
+            this.pInfoExtrinsics.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoExtrinsics, "The Extrinsics are used for further processing in other software (VolNodes). You " +
+        "should leave this on");
             // 
             // cbCompressionLevel
             // 
@@ -247,68 +300,93 @@
             // 
             // grMarkers
             // 
+            this.grMarkers.Controls.Add(this.pInfoTranslation);
+            this.grMarkers.Controls.Add(this.pInfoRotation);
+            this.grMarkers.Controls.Add(this.pMarkerThumb);
             this.grMarkers.Controls.Add(this.lbX2);
-            this.grMarkers.Controls.Add(this.btRemove);
+            this.grMarkers.Controls.Add(this.btLoad);
             this.grMarkers.Controls.Add(this.txtOrientationZ);
-            this.grMarkers.Controls.Add(this.txtId);
             this.grMarkers.Controls.Add(this.lbY2);
             this.grMarkers.Controls.Add(this.txtOrientationY);
-            this.grMarkers.Controls.Add(this.lbId);
             this.grMarkers.Controls.Add(this.lbZ2);
             this.grMarkers.Controls.Add(this.txtOrientationX);
-            this.grMarkers.Controls.Add(this.btAdd);
+            this.grMarkers.Controls.Add(this.btSaveMarker);
             this.grMarkers.Controls.Add(this.lbTranslation);
-            this.grMarkers.Controls.Add(this.lbOrientation);
+            this.grMarkers.Controls.Add(this.lbRotation);
             this.grMarkers.Controls.Add(this.txtTranslationZ);
             this.grMarkers.Controls.Add(this.txtTranslationX);
             this.grMarkers.Controls.Add(this.lisMarkers);
             this.grMarkers.Controls.Add(this.txtTranslationY);
             this.grMarkers.Location = new System.Drawing.Point(271, 19);
             this.grMarkers.Name = "grMarkers";
-            this.grMarkers.Size = new System.Drawing.Size(353, 163);
+            this.grMarkers.Size = new System.Drawing.Size(384, 132);
             this.grMarkers.TabIndex = 45;
             this.grMarkers.TabStop = false;
-            this.grMarkers.Text = "Calibration Markers";
+            this.grMarkers.Text = "Marker Pose";
+            // 
+            // pInfoTranslation
+            // 
+            this.pInfoTranslation.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoTranslation.Location = new System.Drawing.Point(350, 63);
+            this.pInfoTranslation.Name = "pInfoTranslation";
+            this.pInfoTranslation.Size = new System.Drawing.Size(15, 15);
+            this.pInfoTranslation.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoTranslation.TabIndex = 62;
+            this.pInfoTranslation.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoTranslation, "The marker translation offset from the origin in meters");
+            // 
+            // pInfoRotation
+            // 
+            this.pInfoRotation.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoRotation.Location = new System.Drawing.Point(350, 37);
+            this.pInfoRotation.Name = "pInfoRotation";
+            this.pInfoRotation.Size = new System.Drawing.Size(15, 15);
+            this.pInfoRotation.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoRotation.TabIndex = 61;
+            this.pInfoRotation.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoRotation, "The marker rotation offset from the origin in degrees");
+            // 
+            // pMarkerThumb
+            // 
+            this.pMarkerThumb.BackColor = System.Drawing.Color.White;
+            this.pMarkerThumb.Location = new System.Drawing.Point(72, 18);
+            this.pMarkerThumb.Name = "pMarkerThumb";
+            this.pMarkerThumb.Size = new System.Drawing.Size(72, 96);
+            this.pMarkerThumb.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pMarkerThumb.TabIndex = 60;
+            this.pMarkerThumb.TabStop = false;
             // 
             // lbX2
             // 
             this.lbX2.AutoSize = true;
-            this.lbX2.Location = new System.Drawing.Point(230, 19);
+            this.lbX2.Location = new System.Drawing.Point(231, 16);
             this.lbX2.Name = "lbX2";
             this.lbX2.Size = new System.Drawing.Size(14, 13);
             this.lbX2.TabIndex = 49;
             this.lbX2.Text = "X";
             // 
-            // btRemove
+            // btLoad
             // 
-            this.btRemove.Location = new System.Drawing.Point(233, 127);
-            this.btRemove.Name = "btRemove";
-            this.btRemove.Size = new System.Drawing.Size(92, 23);
-            this.btRemove.TabIndex = 59;
-            this.btRemove.Text = "Remove Marker";
-            this.btRemove.UseVisualStyleBackColor = true;
-            this.btRemove.Click += new System.EventHandler(this.btRemove_Click);
+            this.btLoad.Location = new System.Drawing.Point(262, 91);
+            this.btLoad.Name = "btLoad";
+            this.btLoad.Size = new System.Drawing.Size(103, 23);
+            this.btLoad.TabIndex = 59;
+            this.btLoad.Text = "Load Poses";
+            this.btLoad.UseVisualStyleBackColor = true;
+            this.btLoad.Click += new System.EventHandler(this.btLoad_Click);
             // 
             // txtOrientationZ
             // 
-            this.txtOrientationZ.Location = new System.Drawing.Point(305, 38);
+            this.txtOrientationZ.Location = new System.Drawing.Point(306, 35);
             this.txtOrientationZ.Name = "txtOrientationZ";
             this.txtOrientationZ.Size = new System.Drawing.Size(38, 20);
             this.txtOrientationZ.TabIndex = 48;
-            this.txtOrientationZ.TextChanged += new System.EventHandler(this.txtOrientationZ_TextChanged);
-            // 
-            // txtId
-            // 
-            this.txtId.Location = new System.Drawing.Point(217, 93);
-            this.txtId.Name = "txtId";
-            this.txtId.Size = new System.Drawing.Size(38, 20);
-            this.txtId.TabIndex = 58;
-            this.txtId.TextChanged += new System.EventHandler(this.txtId_TextChanged);
+            this.txtOrientationZ.TextChanged += new System.EventHandler(this.txtOrientationZ_Changed);
             // 
             // lbY2
             // 
             this.lbY2.AutoSize = true;
-            this.lbY2.Location = new System.Drawing.Point(274, 19);
+            this.lbY2.Location = new System.Drawing.Point(275, 16);
             this.lbY2.Name = "lbY2";
             this.lbY2.Size = new System.Drawing.Size(14, 13);
             this.lbY2.TabIndex = 50;
@@ -316,25 +394,16 @@
             // 
             // txtOrientationY
             // 
-            this.txtOrientationY.Location = new System.Drawing.Point(261, 38);
+            this.txtOrientationY.Location = new System.Drawing.Point(262, 35);
             this.txtOrientationY.Name = "txtOrientationY";
             this.txtOrientationY.Size = new System.Drawing.Size(38, 20);
             this.txtOrientationY.TabIndex = 47;
-            this.txtOrientationY.TextChanged += new System.EventHandler(this.txtOrientationY_TextChanged);
-            // 
-            // lbId
-            // 
-            this.lbId.AutoSize = true;
-            this.lbId.Location = new System.Drawing.Point(132, 96);
-            this.lbId.Name = "lbId";
-            this.lbId.Size = new System.Drawing.Size(57, 13);
-            this.lbId.TabIndex = 57;
-            this.lbId.Text = "Marker ID:";
+            this.txtOrientationY.TextChanged += new System.EventHandler(this.txtOrientationY_Changed);
             // 
             // lbZ2
             // 
             this.lbZ2.AutoSize = true;
-            this.lbZ2.Location = new System.Drawing.Point(317, 19);
+            this.lbZ2.Location = new System.Drawing.Point(318, 16);
             this.lbZ2.Name = "lbZ2";
             this.lbZ2.Size = new System.Drawing.Size(14, 13);
             this.lbZ2.TabIndex = 51;
@@ -342,75 +411,77 @@
             // 
             // txtOrientationX
             // 
-            this.txtOrientationX.Location = new System.Drawing.Point(217, 38);
+            this.txtOrientationX.Location = new System.Drawing.Point(218, 35);
             this.txtOrientationX.Name = "txtOrientationX";
             this.txtOrientationX.Size = new System.Drawing.Size(38, 20);
             this.txtOrientationX.TabIndex = 46;
-            this.txtOrientationX.TextChanged += new System.EventHandler(this.txtOrientationX_TextChanged);
+            this.txtOrientationX.TextChanged += new System.EventHandler(this.txtOrientationX_Changed);
             // 
-            // btAdd
+            // btSaveMarker
             // 
-            this.btAdd.Location = new System.Drawing.Point(135, 127);
-            this.btAdd.Name = "btAdd";
-            this.btAdd.Size = new System.Drawing.Size(92, 23);
-            this.btAdd.TabIndex = 56;
-            this.btAdd.Text = "Add Marker";
-            this.btAdd.UseVisualStyleBackColor = true;
-            this.btAdd.Click += new System.EventHandler(this.btAdd_Click);
+            this.btSaveMarker.Location = new System.Drawing.Point(153, 91);
+            this.btSaveMarker.Name = "btSaveMarker";
+            this.btSaveMarker.Size = new System.Drawing.Size(103, 23);
+            this.btSaveMarker.TabIndex = 56;
+            this.btSaveMarker.Text = "Save Poses";
+            this.btSaveMarker.UseVisualStyleBackColor = true;
+            this.btSaveMarker.Click += new System.EventHandler(this.btSaveMarker_Click);
             // 
             // lbTranslation
             // 
             this.lbTranslation.AutoSize = true;
-            this.lbTranslation.Location = new System.Drawing.Point(132, 68);
+            this.lbTranslation.Location = new System.Drawing.Point(150, 65);
             this.lbTranslation.Name = "lbTranslation";
             this.lbTranslation.Size = new System.Drawing.Size(62, 13);
             this.lbTranslation.TabIndex = 52;
             this.lbTranslation.Text = "Translation:";
             // 
-            // lbOrientation
+            // lbRotation
             // 
-            this.lbOrientation.AutoSize = true;
-            this.lbOrientation.Location = new System.Drawing.Point(132, 41);
-            this.lbOrientation.Name = "lbOrientation";
-            this.lbOrientation.Size = new System.Drawing.Size(61, 13);
-            this.lbOrientation.TabIndex = 45;
-            this.lbOrientation.Text = "Orientation:";
+            this.lbRotation.AutoSize = true;
+            this.lbRotation.Location = new System.Drawing.Point(150, 38);
+            this.lbRotation.Name = "lbRotation";
+            this.lbRotation.Size = new System.Drawing.Size(47, 13);
+            this.lbRotation.TabIndex = 45;
+            this.lbRotation.Text = "Rotation";
             // 
             // txtTranslationZ
             // 
-            this.txtTranslationZ.Location = new System.Drawing.Point(305, 65);
+            this.txtTranslationZ.Location = new System.Drawing.Point(306, 62);
             this.txtTranslationZ.Name = "txtTranslationZ";
             this.txtTranslationZ.Size = new System.Drawing.Size(38, 20);
             this.txtTranslationZ.TabIndex = 55;
-            this.txtTranslationZ.TextChanged += new System.EventHandler(this.txtTranslationZ_TextChanged);
+            this.txtTranslationZ.TextChanged += new System.EventHandler(this.txtTranslationZ_Changed);
             // 
             // txtTranslationX
             // 
-            this.txtTranslationX.Location = new System.Drawing.Point(217, 65);
+            this.txtTranslationX.Location = new System.Drawing.Point(218, 62);
             this.txtTranslationX.Name = "txtTranslationX";
             this.txtTranslationX.Size = new System.Drawing.Size(38, 20);
             this.txtTranslationX.TabIndex = 53;
-            this.txtTranslationX.TextChanged += new System.EventHandler(this.txtTranslationX_TextChanged);
+            this.txtTranslationX.TextChanged += new System.EventHandler(this.txtTranslationX_Changed);
             // 
             // lisMarkers
             // 
             this.lisMarkers.FormattingEnabled = true;
-            this.lisMarkers.Location = new System.Drawing.Point(6, 41);
+            this.lisMarkers.Location = new System.Drawing.Point(10, 19);
             this.lisMarkers.Name = "lisMarkers";
-            this.lisMarkers.Size = new System.Drawing.Size(120, 108);
+            this.lisMarkers.Size = new System.Drawing.Size(56, 95);
             this.lisMarkers.TabIndex = 43;
             this.lisMarkers.SelectedIndexChanged += new System.EventHandler(this.lisMarkers_SelectedIndexChanged);
             // 
             // txtTranslationY
             // 
-            this.txtTranslationY.Location = new System.Drawing.Point(261, 65);
+            this.txtTranslationY.Location = new System.Drawing.Point(262, 62);
             this.txtTranslationY.Name = "txtTranslationY";
             this.txtTranslationY.Size = new System.Drawing.Size(38, 20);
             this.txtTranslationY.TabIndex = 54;
-            this.txtTranslationY.TextChanged += new System.EventHandler(this.txtTranslationY_TextChanged);
+            this.txtTranslationY.TextChanged += new System.EventHandler(this.txtTranslationY_Changed);
             // 
             // grBounding
             // 
+            this.grBounding.Controls.Add(this.pInfoMaxBounds);
+            this.grBounding.Controls.Add(this.PInfoMinBounds);
             this.grBounding.Controls.Add(this.lbMin);
             this.grBounding.Controls.Add(this.txtMaxZ);
             this.grBounding.Controls.Add(this.txtMaxY);
@@ -428,6 +499,28 @@
             this.grBounding.TabIndex = 46;
             this.grBounding.TabStop = false;
             this.grBounding.Text = "Bounding Box";
+            // 
+            // pInfoMaxBounds
+            // 
+            this.pInfoMaxBounds.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoMaxBounds.Location = new System.Drawing.Point(225, 63);
+            this.pInfoMaxBounds.Name = "pInfoMaxBounds";
+            this.pInfoMaxBounds.Size = new System.Drawing.Size(15, 15);
+            this.pInfoMaxBounds.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoMaxBounds.TabIndex = 64;
+            this.pInfoMaxBounds.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoMaxBounds, "All points that are not inside these bounds will be cut off from the Pointcloud");
+            // 
+            // PInfoMinBounds
+            // 
+            this.PInfoMinBounds.Image = global::KinectServer.Properties.Resources.info_box;
+            this.PInfoMinBounds.Location = new System.Drawing.Point(225, 36);
+            this.PInfoMinBounds.Name = "PInfoMinBounds";
+            this.PInfoMinBounds.Size = new System.Drawing.Size(15, 15);
+            this.PInfoMinBounds.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.PInfoMinBounds.TabIndex = 63;
+            this.PInfoMinBounds.TabStop = false;
+            this.tooltips.SetToolTip(this.PInfoMinBounds, "All points that are not inside these bounds will be cut off from the Pointcloud");
             // 
             // lbMin
             // 
@@ -522,11 +615,19 @@
             this.lbX.TabIndex = 17;
             this.lbX.Text = "X";
             // 
+            // tooltips
+            // 
+            this.tooltips.AutomaticDelay = 0;
+            this.tooltips.AutoPopDelay = 0;
+            this.tooltips.InitialDelay = 0;
+            this.tooltips.IsBalloon = true;
+            this.tooltips.ReshowDelay = 0;
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(656, 270);
+            this.ClientSize = new System.Drawing.Size(676, 270);
             this.Controls.Add(this.grClient);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
@@ -537,12 +638,20 @@
             this.grClient.ResumeLayout(false);
             this.gbICP.ResumeLayout(false);
             this.gbICP.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoICP)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRefinement)).EndInit();
             this.exportGroup.ResumeLayout(false);
             this.exportGroup.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoExtrinsics)).EndInit();
             this.grMarkers.ResumeLayout(false);
             this.grMarkers.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoTranslation)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoRotation)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pMarkerThumb)).EndInit();
             this.grBounding.ResumeLayout(false);
             this.grBounding.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoMaxBounds)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.PInfoMinBounds)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -555,17 +664,15 @@
         private System.Windows.Forms.Label lbOuterIters;
         private System.Windows.Forms.GroupBox grMarkers;
         private System.Windows.Forms.Label lbX2;
-        private System.Windows.Forms.Button btRemove;
+        private System.Windows.Forms.Button btLoad;
         private System.Windows.Forms.TextBox txtOrientationZ;
-        private System.Windows.Forms.TextBox txtId;
         private System.Windows.Forms.Label lbY2;
         private System.Windows.Forms.TextBox txtOrientationY;
-        private System.Windows.Forms.Label lbId;
         private System.Windows.Forms.Label lbZ2;
         private System.Windows.Forms.TextBox txtOrientationX;
-        private System.Windows.Forms.Button btAdd;
+        private System.Windows.Forms.Button btSaveMarker;
         private System.Windows.Forms.Label lbTranslation;
-        private System.Windows.Forms.Label lbOrientation;
+        private System.Windows.Forms.Label lbRotation;
         private System.Windows.Forms.TextBox txtTranslationZ;
         private System.Windows.Forms.TextBox txtTranslationX;
         private System.Windows.Forms.ListBox lisMarkers;
@@ -592,5 +699,14 @@
         private System.Windows.Forms.Label lExtrinsics;
         private System.ComponentModel.BackgroundWorker UpdateClientsBackgroundWorker;
         private System.Windows.Forms.GroupBox gbICP;
+        private System.Windows.Forms.PictureBox pMarkerThumb;
+        private System.Windows.Forms.PictureBox pInfoICP;
+        private System.Windows.Forms.PictureBox pInfoRefinement;
+        private System.Windows.Forms.PictureBox pInfoExtrinsics;
+        private System.Windows.Forms.PictureBox pInfoTranslation;
+        private System.Windows.Forms.PictureBox pInfoRotation;
+        private System.Windows.Forms.PictureBox pInfoMaxBounds;
+        private System.Windows.Forms.PictureBox PInfoMinBounds;
+        private System.Windows.Forms.ToolTip tooltips;
     }
 }

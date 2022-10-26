@@ -26,7 +26,7 @@ namespace KinectServer
         public float[] aMinBounds = new float[3];
         public float[] aMaxBounds = new float[3];
 
-        public BindingList<MarkerPose> lMarkerPoses = new BindingList<MarkerPose>();
+        public List<MarkerPose> lMarkerPoses = new List<MarkerPose>();
 
         public int iCompressionLevel = 2;       // 0 for no compression, 2 is recommended
 
@@ -64,13 +64,17 @@ namespace KinectServer
 
         }
 
-        public void AddDefaultMarker()
+        public void AddDefaultMarkers()
         {
             if (lMarkerPoses.Count == 0)
             {
-                MarkerPose defaultMarker = new MarkerPose();
-                defaultMarker.id = 0;
-                lMarkerPoses.Add(defaultMarker);
+                for (int i = 0; i < 6; i++)
+                {
+                    MarkerPose defaultMarker = new MarkerPose();
+                    defaultMarker.id = i;
+                    lMarkerPoses.Add(defaultMarker);
+                }               
+
             }
         }
 
@@ -90,12 +94,8 @@ namespace KinectServer
 
             for (int i = 0; i < lMarkerPoses.Count; i++)
             {
-                bTemp = new byte[sizeof(float) * 9];
-                Buffer.BlockCopy(lMarkerPoses[i].pose.R, 0, bTemp, 0, sizeof(float) * 9);
-                lData.AddRange(bTemp);
-
-                bTemp = new byte[sizeof(float) * 3];
-                Buffer.BlockCopy(lMarkerPoses[i].pose.t, 0, bTemp, 0, sizeof(float) * 3);
+                bTemp = new byte[sizeof(float) * 16];
+                Buffer.BlockCopy(lMarkerPoses[i].pose.mat, 0, bTemp, 0, sizeof(float) * 16);
                 lData.AddRange(bTemp);
 
                 bTemp = BitConverter.GetBytes(lMarkerPoses[i].id);

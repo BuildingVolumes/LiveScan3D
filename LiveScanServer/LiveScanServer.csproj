@@ -139,6 +139,27 @@
   <ItemGroup>
     <None Include="Resources\stop.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\MarkerThumb0.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Marker_0_thumb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Marker_1_thumb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Marker_2_thumb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Marker_3_thumb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Marker_4_thumb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Marker_5_thumb.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>

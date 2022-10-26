@@ -19,7 +19,7 @@ public:
 	~AzureKinectCaptureVirtual();
 
 	int GetAndLockDeviceIndex();
-	void DeleteIndexLockFile();
+	void ReleaseDeviceIndexLock();
 	bool Initialize(KinectConfiguration& configuration) override;
 	bool AquireRawFrame() override;	
 	bool Close() override;
