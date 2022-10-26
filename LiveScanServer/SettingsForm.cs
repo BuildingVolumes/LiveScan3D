@@ -14,12 +14,7 @@
 //    }
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Globalization;
 
@@ -31,6 +26,7 @@ namespace KinectServer
         public KinectServer oServer;
         bool bFormLoaded = false;
         bool bSendSettingsLock = false;
+
         Image[] markerthumbs = new Image[6]
         {
             Properties.Resources.Marker_0_thumb,
@@ -192,48 +188,44 @@ namespace KinectServer
             UpdateMarkerFields();
         }
 
-        private void txtOrientationX_TextChanged(object sender, EventArgs e)
-        {
-        }
-
 
         private string OrientationSetValue(string input, bool x, bool y, bool z)
         {
+
             if (lisMarkers.SelectedIndex >= 0)
             {
-                //Special cases, that doesn't get parsed correctly
-                if (input == "-0")
-                    return "-0";
-
-                if (input == "-")
-                    return "-";
-
                 MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
                 float X, Y, Z;
                 float output = 0;
                 pose.GetOrientation(out X, out Y, out Z);
 
-                Single.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out output);
+                if (input == "" || input == "-" || input == ".")
+                    input = "0";
 
-                if (x)
-                    pose.SetOrientation(output, Y, Z);
-                if (y)
-                    pose.SetOrientation(X, output, Z);
-                if (z)
-                    pose.SetOrientation(X, Y, output);
+                if (Single.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out output))
+                {
+                    if (x)
+                        pose.SetOrientation(output, Y, Z);
+                    if (y)
+                        pose.SetOrientation(X, output, Z);
+                    if (z)
+                        pose.SetOrientation(X, Y, output);
 
-                SettingsChanged();
-
-                return output.ToString();
+                    SettingsChanged();
+                    return output.ToString();
+                }               
             }
 
-            return "0";
+            return input;
         }
 
         private string TranslationSetValue(string input, bool x, bool y, bool z)
         {
             if (lisMarkers.SelectedIndex >= 0)
             {
+                if (input == "" || input == "-" || input == ".")
+                    input = "0";
+
                 MarkerPose pose = oSettings.lMarkerPoses[lisMarkers.SelectedIndex];
                 float output;
                 Single.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out output);
@@ -362,33 +354,32 @@ namespace KinectServer
 
         private void txtOrientationX_Changed(object sender, EventArgs e)
         {
-            txtOrientationX.Text = OrientationSetValue(txtOrientationX.Text, true, false, false);
+            OrientationSetValue(txtOrientationX.Text, true, false, false);
         }
 
         private void txtOrientationY_Changed(object sender, EventArgs e)
         {
-            txtOrientationY.Text = OrientationSetValue(txtOrientationY.Text, false, true, false);
+            OrientationSetValue(txtOrientationY.Text, false, true, false);
         }      
 
         private void txtOrientationZ_Changed(object sender, EventArgs e)
         {
-            txtOrientationZ.Text = OrientationSetValue(txtOrientationZ.Text, false, false, true);
-
+            OrientationSetValue(txtOrientationZ.Text, false, false, true);
         }
 
         private void txtTranslationX_Changed(object sender, EventArgs e)
         {
-            txtTranslationX.Text = TranslationSetValue(txtTranslationX.Text, true, false, false);
+            TranslationSetValue(txtTranslationX.Text, true, false, false);
         }
 
         private void txtTranslationY_Changed(object sender, EventArgs e)
         {
-            txtTranslationY.Text = TranslationSetValue(txtTranslationY.Text, false, true, false);
+            TranslationSetValue(txtTranslationY.Text, false, true, false);
         }
 
         private void txtTranslationZ_Changed(object sender, EventArgs e)
         {
-            txtTranslationZ.Text = TranslationSetValue(txtTranslationZ.Text, false, false, true);
+            TranslationSetValue(txtTranslationZ.Text, false, false, true);
 
         }
     }
