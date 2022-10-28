@@ -42,7 +42,6 @@ private:
 
 	std::vector<k4a_image_t> m_vVirtualDepthImageSequence;
 
-	std::chrono::system_clock::time_point m_DeviceStartTime;
 	long m_lLastFrameTimeus;
 };
 

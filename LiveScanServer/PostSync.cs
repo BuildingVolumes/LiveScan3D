@@ -112,7 +112,7 @@ namespace KinectServer
 
     public class PostSync
     {
-        public static List<ClientSyncData> GenerateSyncList(List<ClientSyncData> allDeviceSyncData)
+        public static List<ClientSyncData> GenerateSyncList(List<ClientSyncData> allDeviceSyncData, string capturePath)
         {
             if (allDeviceSyncData.Count < 2) //We need at least two clients for syncing
             {
@@ -126,7 +126,7 @@ namespace KinectServer
                 return null;
             }
 
-            return GenerateGlobalSyncIndex(allDeviceSyncData);
+            return GenerateGlobalSyncIndex(allDeviceSyncData, capturePath);
         }
 
 
@@ -165,7 +165,7 @@ namespace KinectServer
         /// </summary>
         /// <param name="syncCollections"></param>
         /// <returns></returns>
-        static List<ClientSyncData> GenerateGlobalSyncIndex(List<ClientSyncData> syncCollections)
+        static List<ClientSyncData> GenerateGlobalSyncIndex(List<ClientSyncData> syncCollections, string captureDirPath)
         {
             List<GroupedFrame> allGroupedFrames = new List<GroupedFrame>();
 
@@ -202,7 +202,7 @@ namespace KinectServer
                 }
             }
 
-            if(Log.GetLogLevel() == Log.LogLevel.All)
+            if(Log.GetLogLevel() >= Log.LogLevel.DebugCapture)
             {
                 Log.LogTrace("Saving Postsync log of all grouped frames before sorting");
                 LogGroupedFrameData(allGroupedFrames);
@@ -211,7 +211,7 @@ namespace KinectServer
             //Sort all grouped frames by their timestamp
             allGroupedFrames.Sort((x, y) => x.minTimestamp.CompareTo(y.minTimestamp));
 
-            if (Log.GetLogLevel() == Log.LogLevel.All)
+            if (Log.GetLogLevel() >= Log.LogLevel.DebugCapture)
             {
                 Log.LogTrace("Saving Postsync log of all grouped frames after sorting");
                 LogGroupedFrameData(allGroupedFrames);
@@ -231,33 +231,32 @@ namespace KinectServer
                 {
                     bool deviceFoundInCurrentFrame = false;
 
+                    ulong timestamp = 0;
+
                     for (int l = 0; l < allGroupedFrames[i].listIndex.Count; l++) //See if we can find the client in this grouped frame
                     {
                         ClientFrame currentDeviceFrame = allGroupedFrames[i].listIndex[l];
+                        timestamp = allGroupedFrames[i].minTimestamp;
 
                         //If we can find the client in this frame, we give it a fitting device index
                         if (k == currentDeviceFrame.indexClient)
                         {
                             deviceFoundInCurrentFrame = true;
-                            postSyncedData[currentDeviceFrame.indexClient].frames.Add(new SyncFrame(currentDeviceFrame.indexFrame, currentDeviceFrame.indexClient, i));
+                            postSyncedData[currentDeviceFrame.indexClient].frames.Add(new SyncFrame(currentDeviceFrame.indexFrame, currentDeviceFrame.indexClient, i, timestamp));
                             break;
                         }
                     }
 
-                    //If we cant find the client in this frame, we insert a frame with the data set to -1, which tells the client to insert an empty frame
+                    //If we cant find the client in this frame, which indicates a dropped frame, we insert a frame with the data set to -1, which tells the client to insert an empty frame
                     //This prevents dropped frames from messing up the frametiming
                     if (!deviceFoundInCurrentFrame)
                     {
-                        postSyncedData[k].frames.Add(new SyncFrame(-1, k, i));
+                        postSyncedData[k].frames.Add(new SyncFrame(-1, k, i, timestamp));
                     }
                 }
             }
 
-            if (Log.GetLogLevel() == Log.LogLevel.All)
-            {
-                Log.LogTrace("Saving detailed Postsync log:");
-                LogSyncData(postSyncedData);
-            }
+            LogSyncData(postSyncedData, captureDirPath);
 
             return postSyncedData;
         }
@@ -293,24 +292,28 @@ namespace KinectServer
         /// Writes a file, which explains for each frame of a client how the frames before and after sync are numbered
         /// </summary>
         /// <param name="syncData"></param>
-        static void LogSyncData(List<ClientSyncData> syncData)
+        static void LogSyncData(List<ClientSyncData> syncData, string path)
         {
             string text = "";
+            text += "Columns: Frame number pre sync, Frame number post sync, Timestamp. -1 = Dropped Frame \n";
+
 
             for (int i = 0; i < syncData.Count; i++)
             {
-                text += "Sync Data for Client: " + i + "\n";
+                text += "Client: " + i + "\n";
 
                 for (int j = 0; j < syncData[i].frames.Count; j++)
                 {
-                    text += "Frame original number: " + syncData[i].frames[j].frameID + ", new Sync number: " + syncData[i].frames[j].syncedFrameID + "\n";
+                    text += syncData[i].frames[j].frameID + "\t" + syncData[i].frames[j].syncedFrameID + "\t" + syncData[i].frames[j].timestamp.ToString() + "\n";
                 }
 
                 text += "\n\n";
             }
 
-            File.WriteAllText("PostSyncDataForClientsLog.txt", text);
-            Log.LogTrace("Saving Post Sync Log Data to: PostSyncDataForClientsLog.txt");
+            path += "FrameSync.txt";
+
+            File.WriteAllText(path, text);
+            Log.LogInfo("Saved Frame Sync log to: " + path);
         }
 
         /// <summary>

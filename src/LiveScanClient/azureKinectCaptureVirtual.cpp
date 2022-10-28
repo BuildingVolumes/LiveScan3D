@@ -75,8 +75,7 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 		return bInitialized;
 	}
 
-	m_DeviceStartTime = std::chrono::system_clock::now();
-	m_lLastFrameTimeus = 0;
+	m_lLastFrameTimeus = GetTimeStamp();
 
 	log.LogInfo("Virtual Device Initialization successful!");
 	bInitialized = true;
@@ -141,6 +140,8 @@ bool AzureKinectCaptureVirtual::AquireRawFrame()
 	}
 
 	long timeStamp = GetTimeStamp();
+
+	long diff = timeStamp - m_lLastFrameTimeus;
 
 	if (configuration.config.camera_fps == K4A_FRAMES_PER_SECOND_15)
 	{
@@ -457,8 +458,7 @@ uint64_t AzureKinectCaptureVirtual::GetTimeStamp()
 {
 	//We get the time that has passed since the startup, to simulate timestamp behaviour
 	std::chrono::system_clock::time_point nowTime = std::chrono::system_clock::now();
-	long timeSinceStartMS = std::chrono::duration_cast<std::chrono::milliseconds>(nowTime - m_DeviceStartTime).count();
-
-	return timeSinceStartMS * 1000; //Converted to picoseconds
+	std::chrono::system_clock::duration sinceEpoch = nowTime.time_since_epoch();
+	return std::chrono::duration_cast<std::chrono::microseconds>(sinceEpoch).count();
 }
 

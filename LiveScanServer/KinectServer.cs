@@ -1157,7 +1157,7 @@ namespace KinectServer
                 }
             }
 
-            List<ClientSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData);
+            List<ClientSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData, oSettings.takePath);
 
             if(postSyncDeviceData == null)
             {
