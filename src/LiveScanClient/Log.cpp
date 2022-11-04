@@ -1,6 +1,5 @@
 #include "Log.h"
 #include <ctime>
-#include <Windows.h>
 #include "iostream"
 
 bool Log::StartLog(std::string serialNumber, LOGLEVEL level, bool openConsole) 

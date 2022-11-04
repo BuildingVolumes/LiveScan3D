@@ -4,13 +4,17 @@
 #include <string>
 #include <vector>
 #include <chrono>
-#include "utils.h"
 #include <k4a/k4a.h>
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
-#include <Log.h>
+#include <ctime>
+#include <iostream>
+#include <fstream>
+#include <assert.h>
+#include "Log.h"
+#include "utils.h"
 
 class FrameFileWriterReader
 {
@@ -20,20 +24,25 @@ public:
 	void openNewBinFileForReading(std::string path);
 	void openCurrentBinFileForReading();
 	std::string GetBinFilePath();
+
 	std::string GetRecordingDirPath();
 	void SetRecordingDirPath(std::string path);
 	bool CreateRecordDirectory(std::string dirToCreate, int deviceID);
 	bool DirExists(std::string path);
 
-	bool writeNextBinaryFrame(Point3s* points, int pointsSize, RGB* colors, uint64_t timestamp, int deviceID);
-	bool readNextBinaryFrame(Point3s*& outPoints, RGB*& outColors, int& outPointsSize, int& outTimestamp);
+	bool writeNextBinaryFrame(Point3s* points, int pointsSize, RGBA* colors, uint64_t timestamp, int deviceID);
+	bool readNextBinaryFrame(Point3s*& outPoints, RGBA*& outColors, int& outPointsSize, int& outTimestamp);
 	void seekBinaryReaderToFrame(int frameID);
 	void skipOneFrameBinaryReader();
+
 	void WriteColorJPGFile(void* buffer, size_t bufferSize, int frameIndex, std::string optionalPrefix);
 	void WriteDepthTiffFile(const k4a_image_t& im, int frameIndex, std::string optionalPrefix);
 	bool RenameRawFramePair(int oldFrameIndex, int newFrameIndex, std::string optionalPrefix);
+
 	void WriteTimestampLog(std::vector<int> frames, std::vector<uint64_t> timestamps, int deviceIndex);
 	void WriteCalibrationJSON(int deviceIndex, const std::vector<uint8_t> calibration_buffer, size_t calibration_size);
+	std::string ReadIPFromFile();
+	void WriteIPToFile(std::string ip);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }
 	bool openedForReading() { return m_bFileOpenedForReading; }

@@ -13,7 +13,6 @@
 //        year={2015},
 //    }
 #pragma once
-#include "stdafx.h"
 #include "marker.h"
 #include "utils.h"
 

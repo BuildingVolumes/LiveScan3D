@@ -30,8 +30,10 @@
     <ClInclude Include="..\include\LiveScanClient\utils.h" />
     <ClInclude Include="..\include\nanoflann.h" />
     <ClInclude Include="..\include\socketCS.h" />
+    <ClInclude Include="ClientManager.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="UI.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\LiveScanClient\azureKinectCapture.cpp" />
@@ -48,6 +50,8 @@
     <ClCompile Include="..\src\LiveScanClient\marker.cpp" />
     <ClCompile Include="..\src\LiveScanClient\socketCS.cpp" />
     <ClCompile Include="..\src\LiveScanClient\utils.cpp" />
+    <ClCompile Include="ClientManager.cpp" />
+    <ClCompile Include="UI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LiveScanClient.rc" />

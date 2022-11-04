@@ -133,7 +133,7 @@ HRESULT ImageRenderer::Initialize(HWND hWnd, ID2D1Factory* pD2DFactory, int sour
 /// <param name="cbImage">size of image data in bytes</param>
 /// <param name="vBodies">vector of bodies to draw</param>
 /// <returns>indicates success or failure</returns>
-HRESULT ImageRenderer::Draw(BYTE* pImage, unsigned long cbImage, std::vector<Body> &vBodies)
+HRESULT ImageRenderer::Draw(uint8_t* pImage, unsigned long cbImage)
 {
     // incorrectly sized image data passed in
     if (cbImage < ((m_sourceHeight - 1) * m_sourceStride) + (m_sourceWidth * 4))
@@ -163,13 +163,13 @@ HRESULT ImageRenderer::Draw(BYTE* pImage, unsigned long cbImage, std::vector<Bod
     // Draw the bitmap stretched to the size of the window
     m_pRenderTarget->DrawBitmap(m_pBitmap);
 
-	for (unsigned int i = 0; i < vBodies.size(); i++)
-	{
-		if (vBodies[i].bTracked)
-		{
-			//DrawBody(vBodies[i]);
-		}
-	}
+	//for (unsigned int i = 0; i < vBodies.size(); i++)
+	//{
+	//	if (vBodies[i].bTracked)
+	//	{
+	//		//DrawBody(vBodies[i]);
+	//	}
+	//}
 
     hr = m_pRenderTarget->EndDraw();
 

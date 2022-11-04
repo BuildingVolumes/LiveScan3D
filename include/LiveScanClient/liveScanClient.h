@@ -13,18 +13,22 @@
 //        year={2015},
 //    }
 #pragma once
-
+#include "stdafx.h"
+#include "SocketCS.h" //Should always be on top, otherwise lots of definition errors
 #include "resource.h"
 #include "ImageRenderer.h"
-#include "SocketCS.h"
 #include "calibration.h"
-//#include "utils.h"
 #include "azureKinectCapture.h"
 #include "azureKinectCaptureVirtual.h"
 #include "frameFileWriterReader.h"
 #include "Log.h"
 #include <thread>
 #include <mutex>
+#include "filter.h"
+#include <chrono>
+#include <fstream>
+#include "zstd.h"
+#include <KinectConfiguration.h>
 
 class LiveScanClient
 {
@@ -32,20 +36,30 @@ public:
     LiveScanClient();
     ~LiveScanClient();
 
+	void RunClient(Log::LOGLEVEL loglevel, bool virtualDevice);
+	void CloseClient();
+	bool Connect(std::string ip);
 
-    static LRESULT CALLBACK MessageRouter(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-    LRESULT CALLBACK        DlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-    int                     Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL loglevel);
-	void					Connect(); // HOGUE
-	bool m_bSocketThread;
-	bool m_bVirtualDevice;
+	//Below are thread-safe functions to get different resources from this client
+	float GetFPSTS();
+	PreviewFrame GetColorTS();
+	PreviewFrame GetDepthTS();
+	StatusMessage GetStatusTS();
+	bool GetConnectedTS();
+
+	std::mutex m_mRunning;
+	std::mutex m_mConnection;
+	std::mutex m_mPreviewResources;
+	std::mutex m_mFPS;
+	std::mutex m_mStatus;
 
 private:
 	Calibration calibration;
 
-
-	ICapture *pCapture;
-
+	bool m_bRunning;
+	bool m_bConnected;
+	bool m_bSocketThread;
+	bool m_bVirtualDevice;
 	bool m_bCalibrate;
 	bool m_bCaptureFrames;
 	bool m_bCaptureSingleFrame;
@@ -55,7 +69,6 @@ private:
 	bool m_bStartPostRecordingProcess;
 	bool m_bConfirmPostRecordingProcess;
 	bool m_bSaveCalibration;
-	bool m_bConnected;
 	bool m_bConfirmCaptured;
 	bool m_bSendCalibration;
 	bool m_bCloseCamera;
@@ -85,6 +98,11 @@ private:
 	std::chrono::milliseconds m_tFrameTime;
 	std::chrono::milliseconds m_tOldFrameTime;
 
+	int m_nFPSFrameCounter;
+	long m_nFPSUpdateCounter = 0;
+	float m_fAverageFPS;
+
+	ICapture* pCapture;
 	KinectConfiguration configuration;
 	CAPTURE_MODE m_eCaptureMode;
 
@@ -95,68 +113,56 @@ private:
 	SocketClient *m_pClientSocket;
 	std::string m_sReceived;
 	char byteToSend;
+	std::string m_sLastUsedIP;
+	bool m_bConnectionResult;
+
 	std::vector<float> m_vBounds;
 
 	Point3s* m_vLastFrameVertices;
 	int m_vLastFrameVerticesSize;
-	RGB* m_vLastFrameRGB;
+	RGBA* m_vLastFrameRGB;
 
 	std::vector<int> m_vFrameCount;
 	std::vector<uint64_t> m_vFrameTimestamps;
 	std::vector<int> m_vFrameID;
 	std::vector<int> m_vPostSyncedFrameID;
 
-	HWND m_hWnd;
-    INT64 m_nLastCounter;
-    double m_fFreq;
-    INT64 m_nNextStatusTime;
-	float m_fAverageFPS;
-	int m_nFPSFrameCounter;
-	long m_nFPSUpdateCounter = 0;
 	Log& log;
 	Log::LOGLEVEL m_loglevel;
 
 	int m_nFrameIndex;
 
 	Point3f* m_pCameraSpaceCoordinates;
-	RGB* m_pColorInColorSpace;
-	UINT16* m_pDepthInColorSpace;
-
-    // Direct2D
-    ImageRenderer* m_pD2DImageRenderer;
-    ID2D1Factory* m_pD2DFactory;
-
+	RGBA* m_pColorPreview;
+	RGBA* m_pDepthPreview;
+	int m_nPreviewWidth;
+	int m_nPreviewHeight;
+   
 	//Image Resources
 	std::vector<uchar>* emptyJPEGBuffer;
-	RGB* m_pRainbowColorDepth;
-	cv::Mat m_cvPreviewDisabled;
-	cv::Mat* emptyDepthMat;
+
+	StatusMessage statusMessage;
+	bool m_bNewMessage;
+
+
 
 	void UpdateFrame();
-    void ShowColor();
-	void ShowDepth();
-	void ShowPreviewDisabled();
+	void UpdatePreview();
 	void SaveRawFrame();
 	void SavePointcloudFrame(uint64_t timeStamp);
 	void Calibrate();
-
-	void ManagePreviewWindowInitialization();
-
-    bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
-
+	void SetStatusMessage(std::wstring message, int time, bool priority);
 	void HandleSocket();
 	bool InitializeCamera();
 	bool CloseCamera();
 	void SendPostSyncConfirmation(bool success);
-	void SendFrame(Point3s* vertices,int verticesSize, RGB* RGB, bool live);
+	void SendFrame(Point3s* vertices,int verticesSize, RGBA* RGB, bool live);
 	bool PostSyncPointclouds();
 	bool PostSyncRawFrames();
 
 	void SocketThreadFunction();
 	void StoreFrame(k4a_image_t pointCloudImage, cv::Mat *colorInDepth);
-	void ShowFPS();
-	void ReadIPFromFile();
-	void WriteIPToFile();
+	void UpdateFPS();
 
 	//Turbo Rainbow Color Map by Google, Copyright 2019 Google LLC., SPDX-License-Identifier: Apache-2.0, Author: Anton Mikhailov
 	//Modified a bit so that all values are cramped into half the range, to have a better readability on close distances (up to 5m) where most of the action happens

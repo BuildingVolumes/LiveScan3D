@@ -1,13 +1,10 @@
 #pragma once
-
-#include "stdafx.h"
 #include "ICapture.h"
 #include <k4a/k4a.h>
 #include <k4a/k4atypes.h>
 #include <opencv2/opencv.hpp>
-#include "utils.h"
-#include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/core.hpp>
 #include "turbojpeg/turbojpeg.h"
 #include "Log.h"
 

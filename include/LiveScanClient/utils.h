@@ -13,12 +13,8 @@
 //        year={2015},
 //    }
 #pragma once
-
-#include "stdafx.h"
-#include <stdio.h>
+#include <stdint.h>
 #include <string>
-#include <vector>
-
 
 //Do not change order of enums, they are referenced by index in KinectSocket.cs on the server.
 enum INCOMING_MESSAGE_TYPE
@@ -64,7 +60,7 @@ enum SYNC_STATE
 	Main,
 	Subordinate,
 	Standalone,
-	Unknown
+	UnknownState
 };
 
 enum CAPTURE_MODE
@@ -240,11 +236,24 @@ private:
 
 };
 
-typedef struct RGB
+typedef struct RGBA
 {
-	BYTE    rgbBlue;
-	BYTE    rgbGreen;
-	BYTE    rgbRed;
-	BYTE    rgbReserved;
-} RGB;
+	uint8_t blue;
+	uint8_t green;
+	uint8_t red;
+	uint8_t alpha;
+};
 
+typedef struct PreviewFrame
+{
+	RGBA* picture;
+	int width;
+	int height;
+};
+
+typedef struct StatusMessage
+{
+    std::wstring message;
+	int time;
+	bool priority;
+};

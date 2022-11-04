@@ -32,9 +32,6 @@
 // This library version has been altered from the original.
 //
 
-#ifndef SOCKET_H
-#define SOCKET_H
-
 
 #include <WinSock2.h>
 
@@ -103,7 +100,3 @@ class SocketSelect {
   private:
     fd_set fds_;
 }; 
-
-
-
-#endif

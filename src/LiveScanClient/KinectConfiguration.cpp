@@ -131,7 +131,7 @@
 		nGlobalDeviceIndex = 0;
 		nSyncOffset = 0;
 		eSoftwareSyncState = Standalone;
-		eHardwareSyncState = Unknown;
+		eHardwareSyncState = UnknownState;
 		filter_depth_map = false;
 		filter_depth_map_size = 5;
 	}

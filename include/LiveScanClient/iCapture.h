@@ -14,11 +14,11 @@
 //    }
 #pragma once
 
-#include "utils.h"
 #include <k4a/k4atypes.h>
 #include <KinectConfiguration.h>
 #include "k4a/k4a.h"
 #include "opencv2/core.hpp"
+#include <stdint.h>
 
 struct Joint
 {
@@ -76,7 +76,7 @@ public:
 	std::vector<uint8_t> calibrationBuffer;
 	size_t nCalibrationSize;
 
-	BYTE* pBodyIndex;
+    uint8_t* pBodyIndex;
 	std::vector<Body> vBodies;
 	std::string serialNumber;
 };
