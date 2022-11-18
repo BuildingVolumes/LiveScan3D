@@ -10,7 +10,6 @@ public:
 	
 	void AddClient();
 	void RemoveClient(int index);
-	void SelectActiveClient(int index);
 	void ConnectClient(std::string adress, int index);
 
 	float GetClientFPS(int index);
@@ -19,8 +18,7 @@ public:
 	PreviewFrame GetClientColor(int index);
 	PreviewFrame GetClientDepth(int index);
 	StatusMessage GetClientStatusMessage(int index);
-
-	int m_nActiveClientIndex;
+	DeviceStatus GetClientDeviceStatus(int index);
 
 private:
 

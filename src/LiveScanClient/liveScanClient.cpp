@@ -22,6 +22,7 @@ LiveScanClient::LiveScanClient() :
 	m_pCameraSpaceCoordinates(NULL),
 	log(log.Get()),
 	m_loglevel(Log::LOGLEVEL_INFO),
+	m_eClientStatus(STATUS_STARTING),
 	m_bVirtualDevice(false),
 	m_bCalibrate(false),
 	m_bCaptureFrames(false),
@@ -49,7 +50,10 @@ LiveScanClient::LiveScanClient() :
 	m_eCaptureMode(CM_POINTCLOUD),
 	m_nFrameIndex(0),
 	m_tFrameTime(0),
-	m_tOldFrameTime(0)
+	m_tOldFrameTime(0),
+	m_fAverageFPS(30),
+	m_nFPSFrameCounter(0),
+	m_nFPSUpdateCounter(0)
 {
 	m_vBounds.push_back(-0.5);
 	m_vBounds.push_back(-0.5);
@@ -88,6 +92,8 @@ void LiveScanClient::RunClient(Log::LOGLEVEL loglevel, bool virtualDevice)
 {
 	std::thread t1(&LiveScanClient::SocketThreadFunction, this);
 
+	m_eClientStatus = STATUS_STARTING;
+
 #ifdef _DEBUG
 	if (m_loglevel <= Log::LOGLEVEL_DEBUG)
 		m_loglevel = Log::LOGLEVEL_DEBUG;
@@ -114,20 +120,28 @@ void LiveScanClient::RunClient(Log::LOGLEVEL loglevel, bool virtualDevice)
 	if (res)
 	{
 		if (!log.StartLog(pCapture->serialNumber, m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG))
+		{
 			SetStatusMessage(L"Error: Log file could not be created!", 10000, true);
+			m_eClientStatus = STATUS_CRASH;
+		}
 
-		log.LogInfo("Device could be opened successfully");
-		m_sLastUsedIP = m_framesFileWriterReader.ReadIPFromFile();
-		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
-		calibration.LoadCalibration(pCapture->serialNumber);
-		m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
-		pCapture->SetExposureState(true, 0);
+		else
+		{
+			log.LogInfo("Device could be opened successfully");
+			m_sLastUsedIP = m_framesFileWriterReader.ReadIPFromFile();
+			configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
+			calibration.LoadCalibration(pCapture->serialNumber);
+			m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
+			pCapture->SetExposureState(true, 0);
+			m_eClientStatus = STATUS_RUNNING;
+		}		
 	}
 	else
 	{
 		log.StartLog("unknown", m_loglevel, m_loglevel >= Log::LOGLEVEL_DEBUG);
 		SetStatusMessage(L"Error: Device could not be initialized!", 10000, true);
 		m_bRunning = false;
+		m_eClientStatus = STATUS_CAMERA_ERROR;
 	}
 
 	bool running = m_bRunning;
@@ -148,6 +162,8 @@ void LiveScanClient::RunClient(Log::LOGLEVEL loglevel, bool virtualDevice)
 	m_bSocketThread = false;
 	t1.join();
 
+	if(m_eClientStatus != STATUS_CAMERA_ERROR && m_eClientStatus != STATUS_CRASH)
+		m_eClientStatus = STATUS_TERMINATED_NORMALLY;
 }
 
 void LiveScanClient::CloseClient()
@@ -382,9 +398,13 @@ PreviewFrame LiveScanClient::GetDepthTS()
 	PreviewFrame frame;
 	frame.width = m_nPreviewWidth;
 	frame.height = m_nPreviewHeight;
-	frame.picture = new RGBA[frame.height * frame.width];
+	frame.picture = NULL;
 
-	std::memcpy(frame.picture, m_pDepthPreview, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
+	if (m_nPreviewHeight * m_nPreviewWidth > 0)
+	{
+		frame.picture = new RGBA[frame.height * frame.width];
+		std::memcpy(frame.picture, m_pDepthPreview, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
+	}
 
 	return frame;
 }
@@ -397,10 +417,14 @@ PreviewFrame LiveScanClient::GetColorTS()
 	PreviewFrame frame;
 	frame.width = m_nPreviewWidth;
 	frame.height = m_nPreviewHeight;
-	frame.picture = new RGBA[frame.height * frame.width];
+	frame.picture = NULL;
 
-	std::memcpy(frame.picture, m_pColorPreview, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
-	
+	if (m_nPreviewHeight * m_nPreviewWidth > 0)
+	{
+		frame.picture = new RGBA[frame.height * frame.width];
+		std::memcpy(frame.picture, m_pColorPreview, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
+	}
+		
 	return frame;
 }
 
@@ -984,6 +1008,7 @@ bool LiveScanClient::CloseCamera()
 	{
 		log.LogFatal("Could not close camera");
 		SetStatusMessage(L"Device failed to close! Please restart Application!", 10000, true);
+		m_eClientStatus = STATUS_CAMERA_ERROR;
 		return false;
 	}
 
@@ -1001,6 +1026,7 @@ bool LiveScanClient::InitializeCamera()
 	{
 		log.LogDebug("Could not initialize camera");
 		SetStatusMessage(L"Device failed to initialize! Please restart Application!", 10000, true);
+		m_eClientStatus = STATUS_CAMERA_ERROR;
 		return false;
 	}
 
@@ -1210,7 +1236,7 @@ void LiveScanClient::SetStatusMessage(std::wstring message, int time, bool prior
 	statusMessage.priority = priority;
 }
 
-StatusMessage LiveScanClient::GetStatusTS()
+StatusMessage LiveScanClient::GetStatusMessageTS()
 {
 	std::lock_guard<std::mutex> lock(m_mStatus);
 
@@ -1224,6 +1250,14 @@ StatusMessage LiveScanClient::GetStatusTS()
 		StatusMessage emtpyMessage = StatusMessage();
 		return emtpyMessage;
 	}
+}
+
+DeviceStatus LiveScanClient::GetDeviceStatusTS()
+{
+	DeviceStatus deviceStatus;
+	deviceStatus.status = m_eClientStatus;
+	deviceStatus.name = configuration.serialNumber;
+	return deviceStatus;
 }
 
 bool LiveScanClient::PostSyncPointclouds()

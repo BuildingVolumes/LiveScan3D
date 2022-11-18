@@ -1,7 +1,6 @@
 #include "ClientManager.h"
 
-ClientManager::ClientManager(Log::LOGLEVEL level, bool virtualDevice):
-	m_nActiveClientIndex(0)
+ClientManager::ClientManager(Log::LOGLEVEL level, bool virtualDevice)
 {
 	m_eLogLevel = level;
 	m_bVirtualDevice = virtualDevice;
@@ -33,11 +32,6 @@ void ClientManager::AddClient()
 	//Save the new client and its thread so we can access it later
 	m_vClients.push_back(std::move(client));
 	m_vClientThreads.push_back(std::move(clientThread));
-}
-
-void ClientManager::SelectActiveClient(int index)
-{
-	m_nActiveClientIndex = index;
 }
 
 void ClientManager::RemoveClient(int index)
@@ -84,5 +78,10 @@ PreviewFrame ClientManager::GetClientDepth(int index)
 
 StatusMessage ClientManager::GetClientStatusMessage(int index)
 {
-	return m_vClients[index]->GetStatusTS();
+	return m_vClients[index]->GetStatusMessageTS();
+}
+
+DeviceStatus ClientManager::GetClientDeviceStatus(int index)
+{
+	return m_vClients[index]->GetDeviceStatusTS();
 }

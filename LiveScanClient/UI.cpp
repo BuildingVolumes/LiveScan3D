@@ -1,5 +1,6 @@
 #include "UI.h"
 
+
 UI::UI() :
 	m_hWnd(NULL),
 	m_nLastCounter(0),
@@ -10,6 +11,7 @@ UI::UI() :
 	m_fAverageFPS(30.0),
 	m_bVirtualDevice(0),
 	m_bShowDepth(0),
+	m_nTabSelected(0),
 	log(log.Get())
 
 {
@@ -33,28 +35,55 @@ UI::~UI()
 	SafeRelease(m_pD2DFactory);
 }
 
-void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice)
+void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 {
 	log.StartLog("Client", Log::LOGLEVEL_INFO, false);
 
-	m_cClientManager = new ClientManager(level, virtualDevice);
-	m_cClientManager->AddClient();
-
 	// Init Direct2D
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
+
+	try
+	{
+		m_pImgCameraError = cv::imread("resources/images/Status_CameraError.png");
+		m_pImgStarting = cv::imread("resources/images/Status_CameraStarting.png");
+		m_pImgCrash = cv::imread("resources/images/Status_Crash.png");
+		m_pImgPreviewDeactivated = cv::imread("resources/images/Status_PreviewDeactivated.png");
+	}
+
+	catch (cv::Exception e)
+	{
+		log.LogFatal(e.what());
+		SetStatusMessage(L"Failed to load resources", 10000, true);
+		return;
+	}
+	
+
+	m_cClientManager = new ClientManager(level, virtualDevice);
+	
+
+	//Add our first client tab and a tab which acts as a "add tab" button
+	LPWSTR addTabText = L"  +";	
+	m_uiPlusTab.pszText = addTabText;
+	m_uiPlusTab.cchTextMax = sizeof(addTabText);
+	m_uiPlusTab.iImage = -1;
+	m_uiPlusTab.mask = TCIF_TEXT;
+	TabCtrl_InsertItem(GetDlgItem(hWnd, IDC_TAB), 0, &m_uiPlusTab);
+
+	AddClient();	
 }
 
-void UI::Update()
+void UI::Update(bool force)
 {
 	std::chrono::milliseconds nowTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 	std::chrono::milliseconds msSinceLastUpdate = nowTime - m_tLastFrameTime;
 
-	if (msSinceLastUpdate.count() > 1000 / m_nUpdateFPS)
+	if (msSinceLastUpdate.count() > 1000 / m_nUpdateFPS || force)
 	{
 		ShowFPS();
 		ShowPreview();
 		ShowStatus();
 		CheckConnection();
+		UpdateDeviceStatus();
 
 		m_tLastFrameTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 	}	
@@ -66,21 +95,48 @@ void UI::ShowPreview()
 		delete[] m_pCurrentPreviewFrame.picture;
 
 	if(!m_bShowDepth)
-		m_pCurrentPreviewFrame = m_cClientManager->GetClientColor(m_cClientManager->m_nActiveClientIndex);
+		m_pCurrentPreviewFrame = m_cClientManager->GetClientColor(m_nTabSelected);
 	else
-		m_pCurrentPreviewFrame = m_cClientManager->GetClientDepth(m_cClientManager->m_nActiveClientIndex);
+		m_pCurrentPreviewFrame = m_cClientManager->GetClientDepth(m_nTabSelected);
 
-	if (m_pCurrentPreviewFrame.picture != NULL && m_pCurrentPreviewFrame.height * m_pCurrentPreviewFrame.width != 0)
+	//The camera my not have been initialized, so we use default viewport values instead
+	if (m_pCurrentPreviewFrame.width == 0)
+		m_pCurrentPreviewFrame.width = 1280;
+	if (m_pCurrentPreviewFrame.height == 0)
+		m_pCurrentPreviewFrame.height = 720;
+
+	ManagePreviewWindowInitialization(m_pCurrentPreviewFrame.width, m_pCurrentPreviewFrame.height);
+
+	if (tabs.size() > 0)
 	{
-		ManagePreviewWindowInitialization(m_pCurrentPreviewFrame.width, m_pCurrentPreviewFrame.height);
-		m_pD2DImageRenderer->Draw(reinterpret_cast<uint8_t*>(m_pCurrentPreviewFrame.picture), m_pCurrentPreviewFrame.width * m_pCurrentPreviewFrame.height * sizeof(RGBA));
-		//m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_cvPreviewDisabled.data), long(m_cvPreviewDisabled.total() * m_cvPreviewDisabled.elemSize()));
+		switch (tabs[m_nTabSelected].deviceStatus.status)
+		{
+		case STATUS_STARTING:
+			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgStartingResized.data), long(m_pImgStartingResized.total() * m_pImgStartingResized.elemSize()));
+			break;
+		case STATUS_CAMERA_ERROR:
+			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCameraErrorResized.data), long(m_pImgCameraErrorResized.total() * m_pImgCameraErrorResized.elemSize()));
+			break;
+		case STATUS_RUNNING:
+			if (m_pCurrentPreviewFrame.picture != NULL)
+			{
+				m_pD2DImageRenderer->Draw(reinterpret_cast<uint8_t*>(m_pCurrentPreviewFrame.picture), m_pCurrentPreviewFrame.width * m_pCurrentPreviewFrame.height * sizeof(RGBA));
+			}
+			break;
+		case STATUS_CRASH:
+			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCrashResized.data), long(m_pImgCrashResized.total() * m_pImgCrashResized.elemSize()));
+			break;
+		case STATUS_TERMINATED_NORMALLY:
+			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCrashResized.data), long(m_pImgCrashResized.total() * m_pImgCrashResized.elemSize())); //TODO: What happens here?
+			break;		
+		}			
 	}
+	
 }
 
 void UI::ShowFPS()
 {
-	m_fAverageFPS = m_cClientManager->GetClientFPS(0);
+	m_fAverageFPS = m_cClientManager->GetClientFPS(m_nTabSelected);
 	WCHAR szStatusMessage[64];
 	StringCchPrintf(szStatusMessage, _countof(szStatusMessage), L" FPS = %0.0f", m_fAverageFPS);
 	SetStatusMessage(szStatusMessage, 1000, false);
@@ -88,7 +144,7 @@ void UI::ShowFPS()
 
 void UI::ShowStatus()
 {
-	StatusMessage status = m_cClientManager->GetClientStatusMessage(m_cClientManager->m_nActiveClientIndex);
+	StatusMessage status = m_cClientManager->GetClientStatusMessage(m_nTabSelected);
 
 	if (status.time > 0)
 	{
@@ -98,11 +154,33 @@ void UI::ShowStatus()
 
 void UI::CheckConnection()
 {
-	if(m_cClientManager->GetClientConnected(m_cClientManager->m_nActiveClientIndex))
+	if(m_cClientManager->GetClientConnected(m_nTabSelected))
 		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Disconnect");
 
 	else
 		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Connect");
+}
+
+void UI::UpdateDeviceStatus()
+{
+	for (size_t i = 0; i < tabs.size(); i++)
+	{
+		DeviceStatus newStatus = m_cClientManager->GetClientDeviceStatus(i);
+
+		if (tabs[i].deviceStatus.name != newStatus.name)
+		{			
+			std::wstring newName = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(newStatus.name);
+			newName += L"        \0";
+			tabs[i].tabName = newName;
+			tabs[i].uiTab.pszText = const_cast<wchar_t*>(tabs[i].tabName.c_str());
+			tabs[i].uiTab.cchTextMax = tabs[i].tabName.size();
+			TabCtrl_SetItem(GetDlgItem(m_hWnd, IDC_TAB), i, &tabs[i].uiTab);
+
+			UpdateUILayout();
+		}
+
+		tabs[i].deviceStatus = newStatus;
+	}
 }
 
 
@@ -149,35 +227,113 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 		//Initialize Preview Resources
 		try
 		{
-			m_cvPreviewDisabled = cv::imread("resources/preview_disabled.png");
-			cv::resize(m_cvPreviewDisabled, m_cvPreviewDisabled, cv::Size(width, height), cv::INTER_AREA);
-			cv::cvtColor(m_cvPreviewDisabled, m_cvPreviewDisabled, cv::COLOR_BGR2BGRA);
+			m_pImgCameraErrorResized = cv::Mat(height, width, CV_8UC4);
+			m_pImgStartingResized = cv::Mat(height, width, CV_8UC4);
+			m_pImgCrashResized = cv::Mat(height, width, CV_8UC4);
+			m_pImgPreviewDeactivatedResized = cv::Mat(height, width, CV_8UC4);
+
+			cv::resize(m_pImgCameraError, m_pImgCameraErrorResized, cv::Size(width, height), cv::INTER_AREA);
+			cv::cvtColor(m_pImgCameraErrorResized, m_pImgCameraErrorResized, cv::COLOR_BGR2BGRA);
+
+			cv::resize(m_pImgStarting, m_pImgStartingResized, cv::Size(width, height), cv::INTER_AREA);
+			cv::cvtColor(m_pImgStartingResized, m_pImgStartingResized, cv::COLOR_BGR2BGRA);
+
+			cv::resize(m_pImgCrash, m_pImgCrashResized, cv::Size(width, height), cv::INTER_AREA);
+			cv::cvtColor(m_pImgCrashResized, m_pImgCrashResized, cv::COLOR_BGR2BGRA);
+
+			cv::resize(m_pImgPreviewDeactivated, m_pImgPreviewDeactivatedResized, cv::Size(width, height), cv::INTER_AREA);
+			cv::cvtColor(m_pImgPreviewDeactivatedResized, m_pImgPreviewDeactivatedResized, cv::COLOR_BGR2BGRA);
 		}
 
 		catch (cv::Exception e)
 		{
 			log.LogFatal(e.what());
-			SetStatusMessage(L"Failed to load resources", 10000, true);
+			SetStatusMessage(L"Failed to rescale resources", 10000, true);
 			return;
 		}		
 	}
 }
 
-
 void UI::HandleConnectButton(LPSTR address)
 {
-	m_cClientManager->ConnectClient(address, m_cClientManager->m_nActiveClientIndex);
+	m_cClientManager->ConnectClient(address, m_nTabSelected);
 	m_bWaitForConnection = true;
 }
 
-void UI::HandleAddClientButton()
+void UI::HandleTabSelection(int index)
 {
-	m_cClientManager->AddClient();
+	//The last tab is always the add tab button
+	if (index == tabs.size())
+		AddClient();
+
+	m_nTabSelected = index;
+
+	log.LogInfo("Selected Tab: " + to_string(index));
 }
 
-void UI::HandleRemoveClientButton()
+void UI::AddClient()
+{	
+	//Create a new Livescan Instance
+	m_cClientManager->AddClient();
+	ClientUI newClientUI;
+	tabs.push_back(newClientUI);
+
+	ClientUI* tab = &tabs[tabs.size() - 1];
+
+	//Create Name for client
+	std::wstring name = L"Loading Device..."; //Default name which should be updated to the Kinect Serial Number or nickname after it has initialized];
+	name += m_sCloseButtonSpace; //Add 4 spaces to the name to make place for the Close Button
+	tab->tabName = name;
+
+	//Create Tab on UI 	
+	tab->uiTab.pszText = const_cast<wchar_t*>(tab->tabName.c_str()); //We need to gurantee that the wstring exists longer than the tab
+	tab->uiTab.cchTextMax = tab->tabName.size();
+	tab->uiTab.iImage = -1;
+	tab->uiTab.mask = TCIF_TEXT;
+	TabCtrl_InsertItem(GetDlgItem(m_hWnd, IDC_TAB), tabs.size() - 1, &tab->uiTab);
+
+	//Create Close Button for Tab. Position will be handled by the layout function, as it is dynamic
+	HWND hwndButton = CreateWindow(L"BUTTON", L"X", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 0, 0, 0, 0, m_hWnd, NULL, (HINSTANCE)GetWindowLongPtr(m_hWnd, GWLP_HINSTANCE),NULL);
+	tab->tabCloseButton = hwndButton;
+
+	UpdateUILayout(); //Update the Layout, so that the new elements will be positioned correctly
+
+	//"Open" the newly created tab
+	m_nTabSelected = tabs.size() - 1;
+	TabCtrl_SetCurSel(GetDlgItem(m_hWnd, IDC_TAB), m_nTabSelected);
+
+	//Only allow max of 8 clients per LiveScanClientWindow
+	//This is a UI restrictions, as we can't fit more tabs into the window
+	if (tabs.size() == 8)
+	{
+		TabCtrl_DeleteItem(GetDlgItem(m_hWnd, IDC_TAB), 8);
+	}
+}
+
+void UI::RemoveClient(int index)
 {
-	m_cClientManager->RemoveClient(0);
+	//Save the currently selected tab
+	m_nTabSelected = TabCtrl_GetCurSel(GetDlgItem(m_hWnd, IDC_TAB));
+
+	TabCtrl_DeleteItem(GetDlgItem(m_hWnd, IDC_TAB), index);
+	DestroyWindow(tabs[index].tabCloseButton);
+	tabs.erase(tabs.begin() + index);
+
+	if (tabs.size() == 7)
+	{
+		TabCtrl_InsertItem(GetDlgItem(m_hWnd, IDC_TAB), tabs.size(), &m_uiPlusTab);
+	}
+
+	//In case the currently selected tab got deleted, we go to the next one
+	//If not possible, to the last
+	if (m_nTabSelected >= tabs.size())
+		m_nTabSelected = tabs.size() - 1;
+
+	TabCtrl_SetCurSel(GetDlgItem(m_hWnd, IDC_TAB), m_nTabSelected);
+
+	UpdateUILayout();
+
+	m_cClientManager->RemoveClient(index);
 }
 
 bool UI::SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce)
@@ -196,8 +352,93 @@ bool UI::SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bFo
 }
 
 
+//Win32 API doesn't handle rescaling automatically, so we have to position
+//and resize every UI element ourselves here
+void UI::UpdateUILayout()
+{
+	RECT r;
+	::GetWindowRect(m_hWnd, &r);
 
-//++++Windows API Entry+++++
+	int minWindowWidth = 1024;
+
+	int windowWidth = abs(r.right - r.left);
+	int windowHeight = abs(r.bottom - r.top);
+
+	if (windowWidth < minWindowWidth)
+		windowWidth = minWindowWidth;
+
+	int buttonWidth = 100;
+	int buttonHeight = 20;
+
+	int tabheight = 24;
+	int tabScrollReserved = 20;
+
+	int controlPanelHeight = 40;
+	int statusBarHeight = 20;
+
+	int paddingVertical = 5;
+	int paddingHorizontal = 7;
+
+	float aspectRatio = 1920 / 1080; // 16:9
+	int startB = 80;
+	int fixedHeight = 3 * buttonHeight + startB;
+
+	int heightFixedRatio = (windowWidth / 1.77);
+	int totalWindowHeight = tabheight + heightFixedRatio + controlPanelHeight + statusBarHeight + 40;
+
+
+	::SetWindowPos(m_hWnd, HWND_TOP, 0, 0, windowWidth, totalWindowHeight, SWP_NOMOVE);
+
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_TAB), HWND_TOP, 0, 0, windowWidth - tabScrollReserved, tabheight, NULL);
+
+	int allTabSize = 0;
+
+	for (size_t i = 0; i < tabs.size(); i++)
+	{
+		HDC hdc = GetDC(m_hWnd);
+		HFONT current_font = (HFONT)SendMessage(m_hWnd, WM_GETFONT, 0, 0);
+		HGDIOBJ old_font = SelectObject(hdc, current_font);
+		SIZE sizeText;
+		SIZE sizeButtonSpace;
+		GetTextExtentPoint32(hdc, tabs[i].uiTab.pszText, tabs[i].uiTab.cchTextMax, &sizeText);
+		GetTextExtentPoint32(hdc, m_sCloseButtonSpace.c_str(), m_sCloseButtonSpace.size(), &sizeButtonSpace);
+		SelectObject(hdc, old_font);
+		ReleaseDC(m_hWnd, hdc);
+
+		//Get size in pixels of tab name, so we know where to place the close button
+		int tabPadding = 12;
+		int tabNameSize = sizeText.cx - sizeButtonSpace.cx + tabPadding;
+		::SetWindowPos(tabs[i].tabCloseButton, HWND_TOP, allTabSize + tabNameSize, 2, 20, 20, NULL);
+		allTabSize += sizeText.cx + tabPadding;
+
+		//Hide the close button for the first tab
+		if (i == 0 && tabs.size() == 1)
+			ShowWindow(tabs[i].tabCloseButton, SW_HIDE);
+
+		else
+			ShowWindow(tabs[i].tabCloseButton, SW_SHOW);
+	}	
+
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), HWND_TOP, 0, tabheight, windowWidth, heightFixedRatio, NULL);
+
+	//Centered height of all buttons in control panel
+	int buttonBarPosY = tabheight + heightFixedRatio + controlPanelHeight / 2 - buttonHeight / 2;
+
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_STATIC), HWND_TOP, paddingHorizontal, buttonBarPosY + 2, buttonWidth, buttonHeight, NULL);
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_IP), HWND_TOP, paddingHorizontal + buttonWidth, buttonBarPosY, buttonWidth, buttonHeight, NULL);
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_CONNECT), HWND_TOP, paddingHorizontal * 3 + buttonWidth * 2, buttonBarPosY, buttonWidth, buttonHeight, NULL);
+
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_SWITCH), HWND_TOP, windowWidth - paddingHorizontal * 3 - buttonWidth, buttonBarPosY, buttonWidth, buttonHeight, NULL);
+
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_STATUS), HWND_TOP, 0, totalWindowHeight - statusBarHeight * 3, windowWidth, statusBarHeight, NULL);
+
+
+
+}
+
+//++++Windows 32 API Entry+++++
+
+//This section here handles the window creation, communication and destruction
 
 int APIENTRY wWinMain(
 	_In_ HINSTANCE hInstance,
@@ -292,14 +533,14 @@ int UI::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL loglevel, bool virt
 	ShowWindow(hWndApp, nCmdShow);
 
 	// HOGUE
-	::SetWindowPos(m_hWnd, HWND_TOP, g_winX, g_winY, g_winWidth, g_winHeight, NULL);
+	SetWindowPos(m_hWnd, HWND_TOP, g_winX, g_winY, g_winWidth, g_winHeight, NULL);
 
-	Initialize(loglevel, virtualDevice);
+	Initialize(loglevel, virtualDevice, m_hWnd);
 
 	// Main message loop
 	while (WM_QUIT != msg.message)
 	{
-		Update();
+		Update(false);
 
 		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
 		{
@@ -355,37 +596,17 @@ LRESULT CALLBACK UI::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	{
 		// Bind application window handle
 		m_hWnd = hWnd;
+		break;
 	}
-	break;
 	case WM_SIZING: {// HOGUE
-		/*	RECT r;
+			/*RECT r;
 			::GetWindowRect(m_hWnd, &r);
 			int w = abs(r.right - r.left);
 			int h = abs(r.bottom - r.top);
-			::SetWindowPos(m_hWnd, HWND_TOP, 0, 0, w, (w / 1.55) + 200, NULL);*/
+			::SetWindowPos(m_hWnd, HWND_TOP, 0, 0, w, (w / 1.77) + 200, NULL);*/
 	}
 	case WM_SIZE: {
-		// HOGUE: this "works" but is pretty dumb logic, needs fewer hardcoded things but it serves its purpose
-		RECT r;
-		::GetWindowRect(m_hWnd, &r);
-		int w = abs(r.right - r.left);
-		int h = abs(r.bottom - r.top);
-		int cw = 90;
-		int ch = 12;
-		float asp = 1920 / 1080;// pCapture->nColorFrameWidth / pCapture->nColorFrameHeight;
-		int h2 = w / asp;
-		int startB = 80;
-		int fixedHeight = 3 * ch + startB;
-
-		::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_CONNECT), HWND_TOP, 0, h - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
-		::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_SWITCH), HWND_TOP, 0, h - 2 * ch - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
-
-		::SetWindowPos(GetDlgItem(m_hWnd, IDC_IP), HWND_TOP, cw + cw / 2, h - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
-		::SetWindowPos(GetDlgItem(m_hWnd, IDC_STATIC), HWND_TOP, cw + cw / 2, h - 2 * ch - (ch / 2) - startB, cw, ch, SWP_NOSIZE);
-		::SetWindowPos(GetDlgItem(m_hWnd, IDC_STATUS), HWND_TOP, 0, h - 60, w, ch * 2, NULL);
-
-		::SetWindowPos(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), HWND_TOP, 0, 0, w, h - fixedHeight, NULL);
-
+		UpdateUILayout();
 		break;
 	}
 				// If the titlebar X is clicked, destroy app
@@ -394,8 +615,7 @@ LRESULT CALLBACK UI::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		break;
 	case WM_DESTROY:
 		
-		//TODO: Destroy all resources here
-		
+		//TODO: Destroy all resources here		
 		delete m_cClientManager;
 
 		// Quit the main message pump
@@ -404,29 +624,61 @@ LRESULT CALLBACK UI::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
 		// Handle button press
 	case WM_COMMAND:
-		if (IDC_BUTTON_CONNECT == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
-		{
-			char address[20];
-			GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
-			HandleConnectButton(address);
-		}
-		if (IDC_BUTTON_SWITCH == LOWORD(wParam) && BN_CLICKED == HIWORD(wParam))
-		{
-			m_bShowDepth = !m_bShowDepth;
 
-			if (m_bShowDepth)
+		//Static buttons
+		if (BN_CLICKED == HIWORD(wParam))
+		{
+			if (IDC_BUTTON_CONNECT == LOWORD(wParam))
 			{
-				SetDlgItemTextA(m_hWnd, IDC_BUTTON_SWITCH, "Show color");
+				char address[20];
+				GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
+				HandleConnectButton(address);
 			}
-			else
+
+			if (IDC_BUTTON_SWITCH == LOWORD(wParam))
 			{
-				SetDlgItemTextA(m_hWnd, IDC_BUTTON_SWITCH, "Show depth");
+				m_bShowDepth = !m_bShowDepth;
+
+				if (m_bShowDepth)
+				{
+					SetDlgItemTextA(m_hWnd, IDC_BUTTON_SWITCH, "Show color");
+				}
+				else
+				{
+					SetDlgItemTextA(m_hWnd, IDC_BUTTON_SWITCH, "Show depth");
+				}
 			}
 		}
+
+		//Dynamically created buttons
+		for (size_t i = 0; i < tabs.size(); i++)
+		{
+			if (HWND(lParam) == tabs[i].tabCloseButton)
+			{
+				RemoveClient(i);
+			}
+		}
+
+		
 
 		break;
+
+	case WM_NOTIFY:
+		switch (((LPNMHDR)lParam)->code)
+		{
+		case TCN_SELCHANGE:
+			if (((LPNMHDR)lParam)->idFrom == IDC_TAB)
+			{
+				int selectedTab = TabCtrl_GetCurSel(GetDlgItem(hWnd, IDC_TAB));
+				HandleTabSelection(selectedTab);
+				return TRUE;
+			}
+			break;
+		}
 	}
 
 	return FALSE;
 }
+
+
 

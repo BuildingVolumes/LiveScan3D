@@ -20,7 +20,7 @@
 
 	KinectConfiguration::KinectConfiguration()
 	{
-		serialNumber = "0000000000000";
+		serialNumber = "Unknown Device";
 		InitializeDefaults();
 	}
 

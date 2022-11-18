@@ -251,9 +251,3 @@ typedef struct PreviewFrame
 	int height;
 };
 
-typedef struct StatusMessage
-{
-    std::wstring message;
-	int time;
-	bool priority;
-};
