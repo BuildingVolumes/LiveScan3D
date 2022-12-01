@@ -5,17 +5,19 @@
 #include <stdio.h>
 #include <sstream>
 #include <fstream>
+#include <vector>
+#include <mutex>
+#include <ctime>
+#include "iostream"
 
+struct LogBuffer;
 
 class Log
 {
 public:
-	
-	static Log& Get()
-	{
-		static Log s_Instance;
-		return s_Instance;
-	}
+
+	Log() {}
+	~Log() { CloseLogFile(); }
 
 	enum LOGLEVEL
 	{
@@ -24,34 +26,44 @@ public:
 		LOGLEVEL_INFO,
 		LOGLEVEL_DEBUG,
 		LOGLEVEL_DEBUG_CAPTURE,
-		LOGLEVEL_ALL
-		
+		LOGLEVEL_ALL		
 	};
 
-	void LogTrace(std::string message);
-	void LogCaptureDebug(std::string message); //Capture Debug is logging stuff for every single picture taken. Might spam the log pretty fast
-	void LogDebug(std::string message);
-	void LogInfo(std::string message);
-	void LogWarning(std::string message);
-	void LogError(std::string message);
-	void LogFatal(std::string message);
+	int StartLog(int clientInstance, LOGLEVEL level, bool openConsole);
+	int RegisterLog();
+	void ChangeName(int id, std::string name);
+	void PullMessages();
 
-	bool StartLog(std::string serialNumber, LOGLEVEL level, bool openConsole);
+	void LogTrace(int id, std::string message);
+	void LogCaptureDebug(int id, std::string message); //Capture Debug is logging stuff for every single picture taken. Might spam the log pretty fast
+	void LogDebug(int id, std::string message);
+	void LogInfo(int id, std::string message);
+	void LogWarning(int id, std::string message);
+	void LogError(int id, std::string message);
+	void LogFatal(int id, std::string message);
+
 	
 
 private:
 
-	Log(){}
-	~Log() { CloseLogFile(); }
-	Log(const Log&) = delete;
+	
 
-	void AddLogEntry(std::string message, std::string loglevel);
-	void WriteAndFlushBuffer();
+	void AddLogEntry(int id, std::string message, std::string loglevel);
+	void WriteAndFlushBuffer(std::string text);
 	void CloseLogFile();
 
+	std::mutex registerMutex;
+	int clientNumber = 0;
+	std::vector<LogBuffer> logBuffers;
 	std::ofstream* logfile = nullptr;
-	std::string logBuffer = "";
 	LOGLEVEL logLevel = LOGLEVEL_INFO;
 	bool writeToConsole = false;
+};
+
+struct LogBuffer
+{
+	std::vector<std::string> messages;
+	std::mutex mutex;
+	std::string name = "Unknown";
 };
 

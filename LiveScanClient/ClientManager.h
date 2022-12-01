@@ -5,7 +5,7 @@ class ClientManager
 {
 public:
 
-	ClientManager(Log::LOGLEVEL level, bool virtualDevice);
+	ClientManager(Log* logger, bool virtualDevice);
 	~ClientManager();
 	
 	void AddClient();
@@ -25,7 +25,7 @@ private:
 	std::vector<LiveScanClient*> m_vClients;
 	std::vector<std::thread> m_vClientThreads;
 
-	Log::LOGLEVEL m_eLogLevel;
+	Log* log;
 	bool m_bVirtualDevice;
 
 };

@@ -2,7 +2,7 @@
 
 #include "SocketCS.h"
 #pragma comment(lib, "ws2_32.lib")
-#include <iostream>
+
 
 int Socket::nofSockets_= 0;
 

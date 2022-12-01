@@ -11,8 +11,7 @@ UI::UI() :
 	m_fAverageFPS(30.0),
 	m_bVirtualDevice(0),
 	m_bShowDepth(0),
-	m_nTabSelected(0),
-	log(log.Get())
+	m_nTabSelected(0)
 
 {
 	LARGE_INTEGER qpf = { 0 };
@@ -37,7 +36,8 @@ UI::~UI()
 
 void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 {
-	log.StartLog("Client", Log::LOGLEVEL_INFO, false);
+	logID = log.StartLog(0, Log::LOGLEVEL_INFO, false);
+	log.ChangeName(logID, "LiveScan Client");
 
 	// Init Direct2D
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
@@ -52,13 +52,14 @@ void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 
 	catch (cv::Exception e)
 	{
-		log.LogFatal(e.what());
+		log.LogFatal(logID, e.what());
 		SetStatusMessage(L"Failed to load resources", 10000, true);
 		return;
 	}
 	
+	//cv::setNumThreads(2);
 
-	m_cClientManager = new ClientManager(level, virtualDevice);
+	m_cClientManager = new ClientManager(&log, virtualDevice);
 	
 
 	//Add our first client tab and a tab which acts as a "add tab" button
@@ -74,7 +75,7 @@ void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 
 void UI::Update(bool force)
 {
-	std::chrono::milliseconds nowTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+	std::chrono::milliseconds nowTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 	std::chrono::milliseconds msSinceLastUpdate = nowTime - m_tLastFrameTime;
 
 	if (msSinceLastUpdate.count() > 1000 / m_nUpdateFPS || force)
@@ -84,8 +85,9 @@ void UI::Update(bool force)
 		ShowStatus();
 		CheckConnection();
 		UpdateDeviceStatus();
+		log.PullMessages();
 
-		m_tLastFrameTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+		m_tLastFrameTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 	}	
 }
 
@@ -206,7 +208,7 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 
 	if (initializationNeeded)
 	{
-		log.LogInfo("Initializing Preview Window");
+		log.LogInfo(logID, "Initializing Preview Window");
 
 		//if there already is a preview D2D Renderer, delete it
 		if (m_pD2DImageRenderer)
@@ -220,7 +222,7 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 		hr = m_pD2DImageRenderer->Initialize(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), m_pD2DFactory, width, height, width * sizeof(RGBA));
 		if (FAILED(hr))
 		{
-			log.LogFatal("Failed to initialize the Direct2D Draw device");
+			log.LogFatal(logID, "Failed to initialize the Direct2D Draw device");
 			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 		}
 
@@ -247,7 +249,7 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 
 		catch (cv::Exception e)
 		{
-			log.LogFatal(e.what());
+			log.LogFatal(logID, e.what());
 			SetStatusMessage(L"Failed to rescale resources", 10000, true);
 			return;
 		}		
@@ -267,8 +269,6 @@ void UI::HandleTabSelection(int index)
 		AddClient();
 
 	m_nTabSelected = index;
-
-	log.LogInfo("Selected Tab: " + to_string(index));
 }
 
 void UI::AddClient()
@@ -535,7 +535,7 @@ int UI::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL loglevel, bool virt
 	// HOGUE
 	SetWindowPos(m_hWnd, HWND_TOP, g_winX, g_winY, g_winWidth, g_winHeight, NULL);
 
-	Initialize(loglevel, virtualDevice, m_hWnd);
+	Initialize(loglevel, true, m_hWnd);
 
 	// Main message loop
 	while (WM_QUIT != msg.message)

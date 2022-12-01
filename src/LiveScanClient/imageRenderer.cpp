@@ -4,7 +4,6 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
-#include "stdafx.h"
 #include "ImageRenderer.h"
 
 /// <summary>

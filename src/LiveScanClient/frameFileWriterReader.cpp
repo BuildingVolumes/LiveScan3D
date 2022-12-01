@@ -5,9 +5,10 @@
 namespace fs = std::filesystem;
 
 
-FrameFileWriterReader::FrameFileWriterReader()
+FrameFileWriterReader::FrameFileWriterReader(Log* logger, int id)
 {
-
+	log = logger;
+	logID = id;
 }
 
 void FrameFileWriterReader::closeFileIfOpened()
@@ -15,7 +16,7 @@ void FrameFileWriterReader::closeFileIfOpened()
 	if (!m_pFileHandle)
 		return;
 
-	log.LogDebug("Closing current .bin file");
+	log->LogDebug(logID, "Closing current .bin file");
 
 	fclose(m_pFileHandle);
 	m_pFileHandle = nullptr;
@@ -28,8 +29,7 @@ void FrameFileWriterReader::closeAndDeleteFile()
 	if (!m_pFileHandle)
 		return;
 
-	log.LogDebug("Closing and deleting .bin file: ");
-	log.LogDebug(m_sBinFilePath);
+	log->LogDebug(logID, "Closing and deleting .bin file: " + m_sBinFilePath);
 
 	fclose(m_pFileHandle);
 	remove(m_sBinFilePath.c_str());
@@ -55,7 +55,7 @@ void FrameFileWriterReader::openCurrentBinFileForReading()
 {
 	closeFileIfOpened();
 
-	log.LogDebug("Opening current bin file for reading");
+	log->LogDebug(logID, "Opening current bin file for reading");
 
 	m_pFileHandle = fopen(m_sBinFilePath.c_str(), "rb");
 	m_bFileOpenedForReading = true;
@@ -72,8 +72,7 @@ void FrameFileWriterReader::openNewBinFileForReading(std::string path)
 
 	closeFileIfOpened();
 
-	log.LogDebug("Opening new .bin file for reading at path:");
-	log.LogDebug(path);
+	log->LogDebug(logID, "Opening new .bin file for reading at path: " + path);
 
 	m_pFileHandle = fopen(path.c_str(), "rb");
 
@@ -106,8 +105,7 @@ void FrameFileWriterReader::openNewBinFileForWriting(int deviceID, std::string p
 	m_sBinFilePath += filename;
 	m_pFileHandle = fopen(m_sBinFilePath.c_str(), "wb");
 
-	log.LogDebug("Opening new .bin file for writing at path:");
-	log.LogDebug(m_sBinFilePath);
+	log->LogDebug(logID, "Opening new .bin file for writing at path: " + m_sBinFilePath);
 
 	m_bFileOpenedForReading = false;
 	m_bFileOpenedForWriting = true;
@@ -124,8 +122,7 @@ void FrameFileWriterReader::openNewBinFileForWriting(int deviceID, std::string p
 /// <returns></returns>
 bool FrameFileWriterReader::readNextBinaryFrame(Point3s*& outPoints, RGBA*& outColors, int& outPointsSize, int& outTimestamp)
 {
-	log.LogCaptureDebug("Reading next binary frame. Frame number: ");
-	log.LogCaptureDebug(std::to_string(m_nCurrentReadFrameID));
+	log->LogCaptureDebug(logID, "Reading next binary frame. Frame number: "+ std::to_string(m_nCurrentReadFrameID));
 
 	if (!m_bFileOpenedForReading)
 		openCurrentBinFileForReading();
@@ -166,8 +163,7 @@ bool FrameFileWriterReader::readNextBinaryFrame(Point3s*& outPoints, RGBA*& outC
 /// <returns></returns>
 bool FrameFileWriterReader::writeNextBinaryFrame(Point3s* points, int pointsSize, RGBA* colors, uint64_t timestamp, int deviceID)
 {
-	log.LogCaptureDebug("Writing next binary frame with timestamp: ");
-	log.LogCaptureDebug(std::to_string(timestamp));
+	log->LogCaptureDebug(logID, "Writing next binary frame with timestamp: " + std::to_string(timestamp));
 
 	if (!m_bFileOpenedForWriting)
 		openNewBinFileForWriting(deviceID, "");
@@ -201,8 +197,7 @@ bool FrameFileWriterReader::writeNextBinaryFrame(Point3s* points, int pointsSize
 void FrameFileWriterReader::seekBinaryReaderToFrame(int frameID)
 {
 
-	log.LogDebug("Seeking .bin reader to frame: ");
-	log.LogDebug(std::to_string(frameID));
+	log->LogDebug(logID, "Seeking .bin reader to frame: " + std::to_string(frameID));
 
 	if (frameID > m_nCurrentReadFrameID)
 	{
@@ -288,8 +283,7 @@ bool FrameFileWriterReader::CreateRecordDirectory(std::string newDirToCreate, co
 
 	if (!CreateDir(generalOutputPath))
 	{
-		log.LogError("Failed to create recording out directory");
-		log.LogError(generalOutputPath.string());
+		log->LogError(logID, "Failed to create recording out directory: " + generalOutputPath.string());
 		return false;
 	}
 
@@ -298,8 +292,7 @@ bool FrameFileWriterReader::CreateRecordDirectory(std::string newDirToCreate, co
 
 	if (!CreateDir(takeDir))
 	{
-		log.LogError("Failed to create Take directory: ");
-		log.LogError(takeDir.string());
+		log->LogError(logID, "Failed to create Take directory: " + takeDir.string());
 		return false;
 	}
 
@@ -311,16 +304,14 @@ bool FrameFileWriterReader::CreateRecordDirectory(std::string newDirToCreate, co
 
 	if (!CreateDir(clientTakeDir))
 	{
-		log.LogError("Failed to create recording directory at path: ");
-		log.LogError(clientTakeDir.string());
+		log->LogError(logID, "Failed to create recording directory at path: " + clientTakeDir.string());
 		return false;
 
 	}
 
 	m_sFrameRecordingsDir = clientTakeDir.string();
 
-	log.LogInfo("Created new recording directory, path: ");
-	log.LogInfo(clientTakeDir.string());
+	log->LogInfo(logID, "Created new recording directory, path: " + clientTakeDir.string());
 
 	return true;
 }
@@ -340,8 +331,7 @@ void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, i
 	std::string filePath = m_sFrameRecordingsDir;
 	filePath += colorFileName;
 
-	log.LogCaptureDebug("Writing Color JPG file: ");
-	log.LogCaptureDebug(filePath);
+	log->LogCaptureDebug(logID, "Writing Color JPG file: " + filePath);
 
 	assert(buffer != NULL);
 
@@ -361,8 +351,7 @@ void FrameFileWriterReader::WriteCalibrationJSON(int deviceIndex, const std::vec
 	filename += std::to_string(deviceIndex);
 	filename += ".json";
 
-	log.LogInfo("Writing Calibration JSON file: ");
-	log.LogInfo(filename);
+	log->LogInfo(logID, "Writing Calibration JSON file: " + filename);
 
 	std::ofstream file(filename, std::ofstream::binary);
 	file.write(reinterpret_cast<const char*>(&calibration_buffer[0]), (long)calibration_size);
@@ -384,8 +373,7 @@ void FrameFileWriterReader::WriteDepthTiffFile(const k4a_image_t& im, int frameI
 	std::string filePath = m_sFrameRecordingsDir;
 	filePath += depthFileName;
 
-	log.LogCaptureDebug("Writing Depth tiff file: ");
-	log.LogCaptureDebug(filePath);
+	log->LogCaptureDebug(logID, "Writing Depth tiff file: " + filePath);
 
 	cv::Mat depthMat = cv::Mat(k4a_image_get_height_pixels(im), k4a_image_get_width_pixels(im), CV_16U, k4a_image_get_buffer(im), static_cast<size_t>(k4a_image_get_stride_bytes(im)));
 
@@ -408,8 +396,7 @@ void FrameFileWriterReader::WriteTimestampLog(std::vector<int> frames, std::vect
 	filename += std::to_string(deviceIndex);
 	filename += ".txt";
 
-	log.LogInfo("Writing Timestamp log to: ");
-	log.LogInfo(filename);
+	log->LogInfo(logID, "Writing Timestamp log to: " + filename);
 
 	if (frames.size() < 1)
 		return;
@@ -448,9 +435,8 @@ bool FrameFileWriterReader::RenameRawFramePair(int oldFrameIndex, int newFrameIn
 
 	catch (const fs::filesystem_error& ex)
 	{
-		std::ostringstream ss;
-		ss << "Error trying to rename: " << ex.path1() << ex.path2() << ex.what() << std::endl;
-		log.LogError(ss.str());
+		std::string error = "Error trying to rename: " + ex.path1().string() + ex.path2().string() + ex.what() + "\n";
+		log->LogError(logID, error);
 		return false;
 	}
 
@@ -507,8 +493,7 @@ std::string FrameFileWriterReader::GetBinFilePath()
 //Set the recording directory in which .bin files are stored/read from
 void FrameFileWriterReader::SetRecordingDirPath(std::string path)
 {
-	log.LogInfo("Setting the .bin read/write location to: ");
-	log.LogInfo(path);
+	log->LogInfo(logID, "Setting the .bin read/write location to: " + path);
 	m_sFrameRecordingsDir = path;
 }
 

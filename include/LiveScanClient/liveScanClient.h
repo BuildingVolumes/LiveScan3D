@@ -21,7 +21,6 @@
 #include "azureKinectCapture.h"
 #include "azureKinectCaptureVirtual.h"
 #include "frameFileWriterReader.h"
-#include "Log.h"
 #include <thread>
 #include <mutex>
 #include "filter.h"
@@ -58,7 +57,7 @@ public:
     LiveScanClient();
     ~LiveScanClient();
 
-	void RunClient(Log::LOGLEVEL loglevel, bool virtualDevice);
+	void RunClient(Log* logger, bool virtualDevice);
 	void CloseClient();
 	bool Connect(std::string ip);
 
@@ -150,8 +149,8 @@ private:
 	std::vector<int> m_vFrameID;
 	std::vector<int> m_vPostSyncedFrameID;
 
-	Log& log;
-	Log::LOGLEVEL m_loglevel;
+	Log* log;
+	int logID;
 
 	int m_nFrameIndex;
 

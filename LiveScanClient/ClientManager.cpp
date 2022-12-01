@@ -1,8 +1,8 @@
 #include "ClientManager.h"
 
-ClientManager::ClientManager(Log::LOGLEVEL level, bool virtualDevice)
+ClientManager::ClientManager(Log* logger, bool virtualDevice)
 {
-	m_eLogLevel = level;
+	log = logger;
 	m_bVirtualDevice = virtualDevice;
 }
 
@@ -27,7 +27,7 @@ void ClientManager::AddClient()
 {
 	//Create a new client and start it's update function in a new thread
 	LiveScanClient* client = new LiveScanClient();
-	std::thread clientThread(&LiveScanClient::RunClient, client, m_eLogLevel, m_bVirtualDevice);
+	std::thread clientThread(&LiveScanClient::RunClient, client, log, m_bVirtualDevice);
 
 	//Save the new client and its thread so we can access it later
 	m_vClients.push_back(std::move(client));

@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include "stdafx.h"
 #include <d2d1.h>
 #include "iCapture.h"
+
 
 class ImageRenderer
 {

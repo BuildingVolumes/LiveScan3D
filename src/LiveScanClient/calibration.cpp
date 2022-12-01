@@ -14,9 +14,7 @@
 //    }
 
 #include "calibration.h"
-#include "opencv2\opencv.hpp"
 
-#include <fstream>
 
 Calibration::Calibration()
 {

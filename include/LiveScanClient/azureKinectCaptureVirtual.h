@@ -1,6 +1,10 @@
 #pragma once
 #include "azureKinectCapture.h"
 #include <stdlib.h>
+#include <fstream>
+#include <iostream>
+#include <filesystem>
+
 
 class AzureKinectCaptureVirtual : public AzureKinectCapture
 {
@@ -10,7 +14,7 @@ public:
 
 	int GetAndLockDeviceIndex();
 	void ReleaseDeviceIndexLock();
-	bool Initialize(KinectConfiguration& configuration) override;
+	bool Initialize(KinectConfiguration& configuration, Log* logger, int loggerID) override;
 	bool AquireRawFrame() override;	
 	bool Close() override;
 	int GetSyncJackState() override;

@@ -15,6 +15,8 @@
 #pragma once
 #include "marker.h"
 #include "utils.h"
+#include "opencv2\opencv.hpp"
+#include <fstream>
 
 struct MarkerPose
 {

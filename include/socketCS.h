@@ -34,7 +34,7 @@
 
 
 #include <WinSock2.h>
-
+#include <iostream>
 #include <string>
 
 enum TypeSocket {BlockingSocket, NonBlockingSocket};

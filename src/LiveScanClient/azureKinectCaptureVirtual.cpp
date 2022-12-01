@@ -1,7 +1,4 @@
 #include "azureKinectCaptureVirtual.h"
-#include <fstream>
-#include <iostream>
-#include <filesystem>
 
 // This class simulates a Azure Kinect for Testing purposes. It is not meant to cover all parts of the hardware
 // but rather to provide a basic virtual device, so that you don't need to be connected to the hardware at all times
@@ -19,14 +16,17 @@ AzureKinectCaptureVirtual::~AzureKinectCaptureVirtual()
 	ReleaseDeviceIndexLock();
 }
 
-bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
+bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration, Log* logger, int loggerID)
 {
-	log.LogDebug("Starting Virtual Azure Kinect Device initialization");
+	log = logger;
+	logID = loggerID;
+
+	log->LogDebug(logID, "Starting Virtual Azure Kinect Device initialization");
 	bInitialized = false;
 
 	if (localDeviceIndex < 0)
 	{
-		log.LogFatal("Virtual Azure Kinect Device Index not set, can't initialize!");
+		log->LogFatal(logID, "Virtual Azure Kinect Device Index not set, can't initialize!");
 		return bInitialized;
 	}
 
@@ -41,7 +41,7 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 
 	else
 	{
-		log.LogFatal("Could not load calibration from disk for Virtual Azure Kinect Device!");
+		log->LogFatal(logID, "Could not load calibration from disk for Virtual Azure Kinect Device!");
 		return bInitialized;
 	}
 
@@ -65,19 +65,19 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 
 	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk())
 	{
-		log.LogFatal("Cannot open virtual device, images can't be loaded from the disk!");
+		log->LogFatal(logID, "Cannot open virtual device, images can't be loaded from the disk!");
 		return bInitialized;
 	}
 
 	if (m_vVirtualColorImageSequence.size() != m_vVirtualDepthImageSequence.size())
 	{
-		log.LogFatal("The amount of the virtual color and depth images need to be the same!");
+		log->LogFatal(logID, "The amount of the virtual color and depth images need to be the same!");
 		return bInitialized;
 	}
 
 	m_lLastFrameTimeus = GetTimeStamp();
 
-	log.LogInfo("Virtual Device Initialization successful!");
+	log->LogInfo(logID, "Virtual Device Initialization successful!");
 	bInitialized = true;
 	return bInitialized;
 }
@@ -98,7 +98,7 @@ void AzureKinectCaptureVirtual::SetConfiguration(KinectConfiguration& configurat
 
 bool AzureKinectCaptureVirtual::Close()
 {
-	log.LogInfo("Closing Virtual Azure Kinect device");
+	log->LogInfo(logID, "Closing Virtual Azure Kinect device");
 
 	if (!bInitialized)
 	{
@@ -135,7 +135,7 @@ bool AzureKinectCaptureVirtual::AquireRawFrame()
 {
 	if (!bInitialized)
 	{
-		log.LogCaptureDebug("Trying to aquire a Frame, but virtual camera is not initialized");
+		log->LogCaptureDebug(logID, "Trying to aquire a Frame, but virtual camera is not initialized");
 		return false;
 	}
 
@@ -236,7 +236,7 @@ bool AzureKinectCaptureVirtual::LoadColorImagesfromDisk()
 		imageDirPath += "3072p/";
 		break;
 	default:
-		log.LogFatal("No valid color resolution specified in config");
+		log->LogFatal(logID, "No valid color resolution specified in config");
 		return false;
 	}
 
@@ -279,8 +279,7 @@ bool AzureKinectCaptureVirtual::LoadColorImagesfromDisk()
 		{
 			if (imageIndex < 2)
 			{
-				log.LogFatal("Could not read minimum required color images for virtual Device! Did you install the test git submodule?");
-				log.LogFatal(imagePath);
+				log->LogFatal(logID, "Could not read minimum required color images for virtual Device! Did you install the test git submodule?: " + imagePath);
 				return false;
 			}
 
@@ -324,7 +323,7 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 		imageDirPath += "WFOV_2X2BINNED/";
 		break;
 	default:
-		log.LogFatal("No viable Depth resolution specified in config");
+		log->LogFatal(logID, "No viable Depth resolution specified in config");
 		return false;
 	}
 
@@ -351,8 +350,7 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 		{
 			if (imageIndex < 2)
 			{
-				log.LogFatal("Could not read minimum required depth images for virtual Device! Did you install the test git submodule?");
-				log.LogFatal(imagePath);
+				log->LogFatal(logID, "Could not read minimum required depth images for virtual Device! Did you install the test git submodule?: " + imagePath);
 				return false;
 			}
 

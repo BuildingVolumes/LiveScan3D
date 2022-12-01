@@ -1,5 +1,4 @@
 #include "azureKinectCapture.h"
-#include <chrono>
 
 
 
@@ -27,9 +26,11 @@ AzureKinectCapture::~AzureKinectCapture()
 /// </summary>
 /// <param name="configuration"></param>
 /// <returns>Returns true on success, false on error</returns>
-bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
+bool AzureKinectCapture::Initialize(KinectConfiguration& configuration, Log* logger, int loggerID)
 {
-	log.LogDebug("Starting Azure Kinect Device initialization");
+	log = logger;
+	logID = loggerID;
+	log->LogDebug(logID, "Starting Azure Kinect Device initialization");
 
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -51,7 +52,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 			if (deviceIdx >= count)
 			{
 				bInitialized = false;
-				log.LogError("Could not open an Azure Kinect device");
+				log->LogError(logID, "Could not open an Azure Kinect device");
 				return bInitialized;
 			}
 		}
@@ -60,12 +61,12 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	if (configuration.eSoftwareSyncState == Main)
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
-		log.LogInfo("Starting Azure Kinect as Main");
+		log->LogInfo(logID, "Starting Azure Kinect as Main");
 	}
 
 	else if (configuration.eSoftwareSyncState == Subordinate)
 	{
-		log.LogInfo("Starting Azure Kinect as Subordinate");
+		log->LogInfo(logID, "Starting Azure Kinect as Subordinate");
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
 		//Sets the offset on subordinate devices. Should be a multiple of 160, each subordinate having a different multiplier in ascending order.
 		//It avoids firing the Kinects lasers at the same time.		
@@ -74,7 +75,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	else
 	{
-		log.LogInfo("Starting Azure Kinect as Standalone");
+		log->LogInfo(logID, "Starting Azure Kinect as Standalone");
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_STANDALONE;
 		configuration.config.subordinate_delay_off_master_usec = 0;
 	}
@@ -84,14 +85,14 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	if (!bInitialized)
 	{
-		log.LogError("Could not start Azure Kinect Device");
+		log->LogError(logID, "Could not start Azure Kinect Device");
 		return bInitialized;
 	}
 
 	k4a_calibration_t calibration;
 	if (K4A_FAILED(k4a_device_get_calibration(kinectSensor, configuration.config.depth_mode, configuration.config.color_resolution, &calibration)))
 	{
-		log.LogError("Could not get Azure Kinect Device calibration");
+		log->LogError(logID, "Could not get Azure Kinect Device calibration");
 		bInitialized = false;
 		return bInitialized;
 	}
@@ -102,7 +103,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	if (autoExposureEnabled == false) {
 
-		log.LogDebug("Manual exposure enabled. Setting camera to auto exposure and adjust for one second as a workaround for a bug in exposure settings");
+		log->LogDebug(logID, "Manual exposure enabled. Setting camera to auto exposure and adjust for one second as a workaround for a bug in exposure settings");
 
 		k4a_device_set_color_control(kinectSensor, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
 
@@ -168,7 +169,7 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize);
 
-	log.LogInfo("Initialization successfull");
+	log->LogInfo(logID, "Initialization successfull");
 
 	return bInitialized;
 }
@@ -180,7 +181,7 @@ void AzureKinectCapture::SetConfiguration(KinectConfiguration& configuration)
 
 bool AzureKinectCapture::Close()
 {
-	log.LogInfo("Closing Azure Kinect device");
+	log->LogInfo(logID, "Closing Azure Kinect device");
 
 	if (!bInitialized)
 	{
@@ -217,7 +218,7 @@ bool AzureKinectCapture::AquireRawFrame() {
 
 	if (!bInitialized)
 	{
-		log.LogCaptureDebug("Trying to aquire a Frame, but camera is not initialized");
+		log->LogCaptureDebug(logID, "Trying to aquire a Frame, but camera is not initialized");
 		return false;
 	}
 
@@ -227,7 +228,7 @@ bool AzureKinectCapture::AquireRawFrame() {
 	if (captureResult != K4A_WAIT_RESULT_SUCCEEDED)
 	{
 		k4a_capture_release(capture);
-		log.LogCaptureDebug("Could not aquire frame from device");
+		log->LogCaptureDebug(logID, "Could not aquire frame from device");
 		return false;
 	}
 
@@ -344,9 +345,10 @@ void AzureKinectCapture::PointCloudImageToPoint3f(Point3f* pCameraSpacePoints)
 /// <param name="exposureStep">The Exposure Step between -11 and 1</param>
 void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureStep)
 {
-	std::ostringstream ss;
-	ss << "Setting Exposure. Auto exposure enabled: " << enableAutoExposure << " , exposure step: " << exposureStep;
-	log.LogDebug(ss.str());
+	std::string info = "Setting Exposure. Auto exposure enabled: " + std::to_string(enableAutoExposure) + " , exposure step: " + std::to_string(exposureStep);
+	log->LogDebug(logID, info);
+
+
 
 	if (bInitialized)
 	{
@@ -376,9 +378,8 @@ void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureS
 
 void AzureKinectCapture::SetWhiteBalanceState(bool enableAutoBalance, int kelvinValue)
 {
-	std::ostringstream ss;
-	ss << "Setting White Balance. Auto White Balance Enabled: " << enableAutoBalance << " , Kelvin (if manual): " << kelvin;
-	log.LogDebug(ss.str());
+	std::string info = "Setting White Balance. Auto White Balance Enabled: " + std::to_string(enableAutoBalance) + " , Kelvin (if manual): " + std::to_string(kelvin);
+	log->LogDebug(logID, info);
 
 	if (bInitialized)
 	{
@@ -432,7 +433,7 @@ int AzureKinectCapture::GetSyncJackState()
 /// <returns> Returns true when the calibration file got successfully retrieved from the sensor, false when an error has occured</returns>
 bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size)
 {
-	log.LogDebug("Getting intrinsics as JSON file");
+	log->LogDebug(logID, "Getting intrinsics as JSON file");
 
 	calibration_size = 0;
 	k4a_buffer_result_t buffer_result = k4a_device_get_raw_calibration(kinectSensor, NULL, &calibration_size);

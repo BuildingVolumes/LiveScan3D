@@ -74,7 +74,8 @@ private:
 	bool m_bShowDepth;
 	bool m_bWaitForConnection;
 
-	Log& log;
+	Log log;
+	int logID;
 	HWND m_hWnd;
 	INT64 m_nLastCounter;
 	double m_fFreq;

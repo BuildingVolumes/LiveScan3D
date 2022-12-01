@@ -1,14 +1,13 @@
 #include "Log.h"
-#include <ctime>
-#include "iostream"
 
-bool Log::StartLog(std::string serialNumber, LOGLEVEL level, bool openConsole) 
+
+int Log::StartLog(int clientInstance, LOGLEVEL level, bool openConsole) 
 {
 	CloseLogFile();
 
-	std::string filename = "Log_Client_";
-	filename += serialNumber.c_str();
-	filename += ".txt";
+	clientNumber = clientInstance;
+
+	std::string filename = "Log_Client_" + std::to_string(clientNumber) + ".txt";
 	logfile = new std::ofstream;
 	logfile->open(filename, std::ofstream::trunc);
 	logLevel = level;
@@ -26,79 +25,159 @@ bool Log::StartLog(std::string serialNumber, LOGLEVEL level, bool openConsole)
 		freopen("CONOUT$", "w", stderr);
 	}
 
-	LogInfo("Start of Logging");
+	//Main thread buffer
+	LogBuffer mainBuffer;
+	logBuffers.push_back(mainBuffer);
 
-	return true;
+	LogInfo(0, "Start of Logging");
+
+	return 0;
 }
 
-void Log::LogTrace(std::string message)
+/// <summary>
+/// The log is being accessed by multiple Threads. To keep the performance high and avoid to many mutex locks, each thread will be assinged its
+/// own message buffer. The buffer is then periodically read and flushed
+/// </summary>
+/// <param name="message"></param>
+int Log::RegisterLog()
 {
+	std::lock_guard<std::mutex> regMutex(registerMutex);
+
+	LogBuffer newBuffer;
+	logBuffers.push_back(newBuffer);
+	logBuffers[logBuffers.size() - 1].messages.push_back("[Client: " + std::to_string(logBuffers.size()) + "] " + "Starting Log");
+	return logBuffers.size();
+}
+
+void Log::ChangeName(int id, std::string name)
+{
+	logBuffers[id].mutex.lock();
+	logBuffers[id].name = name;
+	logBuffers[id].mutex.unlock();
+}
+
+
+void Log::LogTrace(int id, std::string message)
+{
+	logBuffers[id].mutex.lock();
+
 	if (logLevel >= LOGLEVEL_ALL)
-		AddLogEntry(message, "[TRACE]");	
+		AddLogEntry(id, message, "[TRACE]");
+
+	logBuffers[id].mutex.unlock();
 }
 
-void Log::LogCaptureDebug(std::string message)
+void Log::LogCaptureDebug(int id, std::string message)
 {
+	logBuffers[id].mutex.lock();
+
 	if (logLevel >= LOGLEVEL_DEBUG_CAPTURE)
-		AddLogEntry(message, "[CAPTURE DEBUG]");
+		AddLogEntry(id, message, "[CAPTURE DEBUG]");
+
+	logBuffers[id].mutex.unlock();
 }
 
-void Log::LogDebug(std::string message)
+void Log::LogDebug(int id, std::string message)
 {
+	logBuffers[id].mutex.lock();
+
 	if (logLevel >= LOGLEVEL_DEBUG)
-		AddLogEntry(message, "[DEBUG]");
+		AddLogEntry(id, message, "[DEBUG]");
+	
+	logBuffers[id].mutex.unlock();
+
 }
 
-void Log::LogInfo(std::string message)
+void Log::LogInfo(int id, std::string message)
 {
+	logBuffers[id].mutex.lock();
+
 	if (logLevel >= LOGLEVEL_INFO)
-		AddLogEntry(message, "[INFO]");
+		AddLogEntry(id, message, "[INFO]");
+
+	logBuffers[id].mutex.unlock();
 }
 
-void Log::LogWarning(std::string message) 
+void Log::LogWarning(int id, std::string message)
 {
+	logBuffers[id].mutex.lock();
+
 	if (logLevel >= LOGLEVEL_ERRORS)
-		AddLogEntry(message, "[WARNING]");
+		AddLogEntry(id, message, "[WARNING]");
+
+	logBuffers[id].mutex.unlock();
 }
 
-void Log::LogError(std::string message)
+void Log::LogError(int id, std::string message)
 {
+	logBuffers[id].mutex.lock();
+
 	if (logLevel >= LOGLEVEL_ERRORS)
-		AddLogEntry(message, "[ERROR]");
+		AddLogEntry(id, message, "[ERROR]");
+
+	logBuffers[id].mutex.unlock();
 }
 
-void Log::LogFatal(std::string message)
+void Log::LogFatal(int id, std::string message)
 {
+	logBuffers[id].mutex.lock();
+
 	if (logLevel >= LOGLEVEL_ERRORS)
-		AddLogEntry(message, "[FATAL]");
+		AddLogEntry(id, message, "[FATAL]");
+
+	logBuffers[id].mutex.unlock();
 }
 
-void Log::AddLogEntry(std::string message, std::string loglevel) 
+void Log::AddLogEntry(int id, std::string message, std::string loglevel)
 {
 	time_t t = time(0);
 	struct tm* now = localtime(&t);
 
-	std::ostringstream sstream;
-	sstream << "[" << now->tm_hour << ":" << now->tm_min << ":" << now->tm_sec << "] " << loglevel << ": " << message << std::endl;
-	logBuffer += sstream.str();
+	logBuffers[id].mutex.lock();
+	std::string newMessage = "[Client: " + logBuffers[id].name + "]";
+	logBuffers[id].mutex.unlock();
 
-	WriteAndFlushBuffer();
+	newMessage += "[" + std::to_string(now->tm_hour) + ":" + std::to_string(now->tm_min) + ":" + std::to_string(now->tm_sec) + "] ";
+	newMessage += loglevel + ": " + message + "\n";
+
+	logBuffers[id].mutex.lock();
+	logBuffers[id].messages.push_back(newMessage);
+	logBuffers[id].mutex.unlock();
 }
 
-void Log::WriteAndFlushBuffer() 
+void Log::PullMessages()
+{
+	std::string messages = "";
+
+	for (size_t i = 0; i < logBuffers.size(); i++)
+	{
+		logBuffers[i].mutex.lock();
+
+		for (size_t j = 0; j < logBuffers[j].messages.size(); j++)
+		{
+			messages += logBuffers[i].messages[j];
+		}
+
+		logBuffers[i].messages.clear();
+		logBuffers[i].mutex.unlock();
+
+	}
+
+	WriteAndFlushBuffer(messages);
+}
+
+void Log::WriteAndFlushBuffer(std::string text) 
 {
 	if (logfile) 
 	{
 		if (!logfile->fail() && logfile->is_open())
 		{
-			*logfile << logBuffer;
+			*logfile << text;
 			logfile->flush();
 		}
 
 		if (writeToConsole)
-			printf(logBuffer.c_str());
-
-		logBuffer = "";
+			printf(text.c_str());
 	}
 }
 

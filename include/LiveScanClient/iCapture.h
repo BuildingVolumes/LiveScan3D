@@ -19,6 +19,7 @@
 #include "k4a/k4a.h"
 #include "opencv2/core.hpp"
 #include <stdint.h>
+#include "Log.h" 
 
 struct Joint
 {
@@ -44,7 +45,7 @@ public:
 	ICapture();
 	virtual ~ICapture();
 
-	virtual bool Initialize(KinectConfiguration& configuration) = 0;
+	virtual bool Initialize(KinectConfiguration& configuration, Log* logger, int loggerID) = 0;
 	virtual void SetManualDeviceIndex(int index) = 0; //Only used for testing devices for now
 	virtual bool AquireRawFrame() = 0;
 	//virtual bool AquirePointcloudFrame() = 0;
