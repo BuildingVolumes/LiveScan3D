@@ -344,45 +344,51 @@ void LiveScanClient::UpdateFrame()
 
 void LiveScanClient::UpdatePreview()
 {
-	std::lock_guard<std::mutex> lock(m_mPreviewResources);
-
-	//Check if we need to reinitialize the memory
-	if (m_nPreviewWidth * m_nPreviewHeight != pCapture->nColorFrameHeight * pCapture->nColorFrameWidth || !m_pColorPreview || !m_pDepthPreview)
+	if (!m_bPreviewDisabled)
 	{
-		if (m_pColorPreview != NULL)
-			delete[] m_pColorPreview;
+		std::lock_guard<std::mutex> lock(m_mPreviewResources);
 
-		if (m_pDepthPreview != NULL)
-			delete[] m_pDepthPreview;
-
-		m_nPreviewWidth = pCapture->nColorFrameWidth;
-		m_nPreviewHeight = pCapture->nColorFrameHeight;
-
-		m_pColorPreview = new RGBA[m_nPreviewWidth * m_nPreviewHeight];
-		m_pDepthPreview = new RGBA[m_nPreviewWidth * m_nPreviewHeight];
-	}
-
-	//We copy the data into a secondary buffer so that we can use it thread safely, without blocking the pCapture resource too long
-	if (!pCapture->colorBGR.empty())
-	{
-		int size = pCapture->colorBGR.step * pCapture->colorBGR.size().height;
-		//Just copying, this makes the data actually BGR, not RGB as the type might indicates
-		std::memcpy(m_pColorPreview, pCapture->colorBGR.data, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
-	}
-
-	// Make sure we've received valid data
-	if (pCapture->transformedDepthImage != NULL)
-	{
-		uint16_t* pointCloudImageData = (uint16_t*)(void*)k4a_image_get_buffer(pCapture->transformedDepthImage);
-
-		for (int i = 0; i < m_nPreviewWidth * m_nPreviewHeight; i++)
+		//Check if we need to reinitialize the memory
+		if (m_nPreviewWidth * m_nPreviewHeight != pCapture->nColorFrameHeight * pCapture->nColorFrameWidth || !m_pColorPreview || !m_pDepthPreview)
 		{
-			uint8_t intensity = pointCloudImageData[i] / 40;
-			m_pDepthPreview[i].red = rainbowLookup[intensity][0];
-			m_pDepthPreview[i].green = rainbowLookup[intensity][1];
-			m_pDepthPreview[i].blue = rainbowLookup[intensity][2];
+			if (m_pColorPreview != NULL)
+				delete[] m_pColorPreview;
+
+			if (m_pDepthPreview != NULL)
+				delete[] m_pDepthPreview;
+
+			m_nPreviewWidth = pCapture->nColorFrameWidth;
+			m_nPreviewHeight = pCapture->nColorFrameHeight;
+
+			m_pColorPreview = new RGBA[m_nPreviewWidth * m_nPreviewHeight];
+			m_pDepthPreview = new RGBA[m_nPreviewWidth * m_nPreviewHeight];
+		}
+
+		//We copy the data into a secondary buffer so that we can use it thread safely, without blocking the pCapture resource too long
+		if (!pCapture->colorBGR.empty())
+		{
+
+			int size = pCapture->colorBGR.step * pCapture->colorBGR.size().height;
+			//Just copying, this makes the data actually BGR, not RGB as the type might indicates
+			std::memcpy(m_pColorPreview, pCapture->colorBGR.data, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
+		}
+
+		// Make sure we've received valid data
+		if (pCapture->transformedDepthImage != NULL)
+		{
+			uint16_t* pointCloudImageData = (uint16_t*)(void*)k4a_image_get_buffer(pCapture->transformedDepthImage);
+
+			for (int i = 0; i < m_nPreviewWidth * m_nPreviewHeight; i++)
+			{
+				uint8_t intensity = pointCloudImageData[i] / 40;
+				m_pDepthPreview[i].red = rainbowLookup[intensity][0];
+				m_pDepthPreview[i].green = rainbowLookup[intensity][1];
+				m_pDepthPreview[i].blue = rainbowLookup[intensity][2];
+			}
 		}
 	}
+
+	
 }
 
 
@@ -394,8 +400,9 @@ PreviewFrame LiveScanClient::GetDepthTS()
 	frame.width = m_nPreviewWidth;
 	frame.height = m_nPreviewHeight;
 	frame.picture = NULL;
+	frame.previewDisabled = m_bPreviewDisabled;
 
-	if (m_nPreviewHeight * m_nPreviewWidth > 0)
+	if (m_nPreviewHeight * m_nPreviewWidth > 0 && !m_bPreviewDisabled)
 	{
 		frame.picture = new RGBA[frame.height * frame.width];
 		std::memcpy(frame.picture, m_pDepthPreview, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
@@ -413,8 +420,9 @@ PreviewFrame LiveScanClient::GetColorTS()
 	frame.width = m_nPreviewWidth;
 	frame.height = m_nPreviewHeight;
 	frame.picture = NULL;
+	frame.previewDisabled = m_bPreviewDisabled;
 
-	if (m_nPreviewHeight * m_nPreviewWidth > 0)
+	if (m_nPreviewHeight * m_nPreviewWidth > 0 && !m_bPreviewDisabled)
 	{
 		frame.picture = new RGBA[frame.height * frame.width];
 		std::memcpy(frame.picture, m_pColorPreview, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));

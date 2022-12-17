@@ -53,6 +53,7 @@ private:
 	void UpdateDeviceStatus();
 
 	ClientManager* m_cClientManager;
+	int processID = 0;
 
 	// Direct2D
 	ImageRenderer* m_pD2DImageRenderer;

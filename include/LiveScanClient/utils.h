@@ -249,5 +249,6 @@ typedef struct PreviewFrame
 	RGBA* picture;
 	int width;
 	int height;
+	bool previewDisabled = true;
 };
 

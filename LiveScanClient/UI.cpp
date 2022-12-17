@@ -36,7 +36,33 @@ UI::~UI()
 
 void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 {
-	logID = log.StartLog(0, Log::LOGLEVEL_INFO, false);
+	//Create/Check system-wide mutexes to see if another Livescan Instance
+	//is already running and save our Instance ID. This is used so saved files
+	//(log files for example) don't overwrite each other	
+	bool searchForID = true;
+	while (searchForID)
+	{
+		std::wstring mutexNameWStr = L"LiveScanClientProcess_" + to_wstring(processID);
+		LPWSTR mutexName = const_cast<wchar_t*>(mutexNameWStr.c_str());
+
+		CreateMutex(NULL, TRUE, mutexName);
+		switch (GetLastError())
+		{
+		case ERROR_SUCCESS:
+			// Process was not running already, we got our ID!
+			searchForID = false;
+			break;
+		case ERROR_ALREADY_EXISTS:
+			// Process is running already, we increment the ID
+			processID++;
+			break;
+		default:
+			// Error occured, not sure whether process is running already.
+			break;
+		}
+	}
+
+	logID = log.StartLog(processID, Log::LOGLEVEL_INFO, false);
 	log.ChangeName(logID, "LiveScan Client");
 
 	// Init Direct2D
@@ -57,7 +83,10 @@ void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 		return;
 	}
 	
-	//cv::setNumThreads(2);
+
+	
+	
+	
 
 	m_cClientManager = new ClientManager(&log, virtualDevice);
 	
@@ -111,27 +140,37 @@ void UI::ShowPreview()
 
 	if (tabs.size() > 0)
 	{
-		switch (tabs[m_nTabSelected].deviceStatus.status)
+		if (!m_pCurrentPreviewFrame.previewDisabled)
 		{
-		case STATUS_STARTING:
-			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgStartingResized.data), long(m_pImgStartingResized.total() * m_pImgStartingResized.elemSize()));
-			break;
-		case STATUS_CAMERA_ERROR:
-			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCameraErrorResized.data), long(m_pImgCameraErrorResized.total() * m_pImgCameraErrorResized.elemSize()));
-			break;
-		case STATUS_RUNNING:
-			if (m_pCurrentPreviewFrame.picture != NULL)
+			switch (tabs[m_nTabSelected].deviceStatus.status)
 			{
-				m_pD2DImageRenderer->Draw(reinterpret_cast<uint8_t*>(m_pCurrentPreviewFrame.picture), m_pCurrentPreviewFrame.width * m_pCurrentPreviewFrame.height * sizeof(RGBA));
+			case STATUS_STARTING:
+				m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgStartingResized.data), long(m_pImgStartingResized.total() * m_pImgStartingResized.elemSize()));
+				break;
+			case STATUS_CAMERA_ERROR:
+				m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCameraErrorResized.data), long(m_pImgCameraErrorResized.total() * m_pImgCameraErrorResized.elemSize()));
+				break;
+			case STATUS_RUNNING:
+				if (m_pCurrentPreviewFrame.picture != NULL)
+				{
+					m_pD2DImageRenderer->Draw(reinterpret_cast<uint8_t*>(m_pCurrentPreviewFrame.picture), m_pCurrentPreviewFrame.width * m_pCurrentPreviewFrame.height * sizeof(RGBA));
+				}
+				break;
+			case STATUS_CRASH:
+				m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCrashResized.data), long(m_pImgCrashResized.total() * m_pImgCrashResized.elemSize()));
+				break;
+			case STATUS_TERMINATED_NORMALLY:
+				m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCrashResized.data), long(m_pImgCrashResized.total() * m_pImgCrashResized.elemSize())); //TODO: What happens here?
+				break;
 			}
-			break;
-		case STATUS_CRASH:
-			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCrashResized.data), long(m_pImgCrashResized.total() * m_pImgCrashResized.elemSize()));
-			break;
-		case STATUS_TERMINATED_NORMALLY:
-			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgCrashResized.data), long(m_pImgCrashResized.total() * m_pImgCrashResized.elemSize())); //TODO: What happens here?
-			break;		
-		}			
+		}
+
+		else
+		{
+			m_pD2DImageRenderer->Draw(reinterpret_cast<BYTE*>(m_pImgPreviewDeactivated.data), long(m_pImgPreviewDeactivated.total() * m_pImgPreviewDeactivated.elemSize()));
+		}
+
+		
 	}
 	
 }
