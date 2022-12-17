@@ -254,21 +254,23 @@ void FrameFileWriterReader::skipOneFrameBinaryReader()
 std::string FrameFileWriterReader::ReadIPFromFile()
 {
 	std::ifstream file;
-	file.open("lastIP.txt");
+	file.open("temp/lastIP.txt");
 	if (file.is_open())
 	{
 		char lastUsedIPAddress[20];
 		file.getline(lastUsedIPAddress, 20);
 		file.close();
-
 		return lastUsedIPAddress;
 	}
+
+	else
+		return "";
 }
 
 void FrameFileWriterReader::WriteIPToFile(std::string ip)
 {
 	std::ofstream file;
-	file.open("lastIP.txt");
+	file.open("temp/lastIP.txt");
 	file << ip.c_str();
 	file.close();
 }

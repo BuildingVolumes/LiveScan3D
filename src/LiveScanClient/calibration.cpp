@@ -135,7 +135,7 @@ void Calibration::UpdateClientPose()
 bool Calibration::LoadCalibration(const string& serialNumber)
 {
 	ifstream file;
-	file.open("calibration_" + serialNumber + ".txt");
+	file.open("temp/calibration_" + serialNumber + ".txt");
 	if (!file.is_open())
 		return false;
 
@@ -164,7 +164,7 @@ bool Calibration::LoadCalibration(const string& serialNumber)
 void Calibration::SaveCalibration(const string& serialNumber)
 {
 	ofstream file;
-	file.open("calibration_" + serialNumber + ".txt");
+	file.open("temp/calibration_" + serialNumber + ".txt");
 
 	for (int i = 0; i < 4; i++)
 	{

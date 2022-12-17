@@ -73,6 +73,18 @@ bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	log.RegisterBuffer(&logBuffer);
 	logBuffer.ChangeName("LiveScan Client");
 
+	//Setup directories
+	if (!std::filesystem::exists("temp/"))
+	{
+		if (!std::filesystem::create_directory("temp/"))
+		{
+			logBuffer.LogFatal("Failed to setup directories! Please restart application!");
+			MessageBox(NULL, L"Failed to setup directories! Please restart application!", L"Fatal Error", MB_ICONERROR | MB_OK);
+			return false;
+
+		}
+	}
+
 	// Init Direct2D
 	if (D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory) != S_OK)
 	{
