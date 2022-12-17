@@ -1,6 +1,6 @@
 #pragma once
 #include "azureKinectCapture.h"
-#include <stdlib.h>
+//#include <stdlib.h>
 #include <fstream>
 #include <iostream>
 #include <filesystem>
@@ -14,7 +14,7 @@ public:
 
 	int GetAndLockDeviceIndex();
 	void ReleaseDeviceIndexLock();
-	bool Initialize(KinectConfiguration& configuration, Log* logger, int loggerID) override;
+	bool Initialize(KinectConfiguration& configuration) override;
 	bool AquireRawFrame() override;	
 	bool Close() override;
 	int GetSyncJackState() override;
@@ -30,11 +30,11 @@ public:
 private:
 
 	k4a_calibration_t m_VirtualCalibration;
-
 	std::vector<k4a_image_t> m_vVirtualColorImageSequence;
 	std::vector<uint8_t*> m_vVirtualColorImagesBuffer;
-
 	std::vector<k4a_image_t> m_vVirtualDepthImageSequence;
+
+	HANDLE virtualDeviceSystemMutex; //Used to lock a virtual device on the system, so that no other thread/process uses it
 
 	long m_lLastFrameTimeus;
 };

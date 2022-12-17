@@ -13,21 +13,20 @@
 //        year={2015},
 //    }
 #pragma once
-#include "stdafx.h"
 #include "SocketCS.h" //Should always be on top, otherwise lots of definition errors
-#include "resource.h"
-#include "ImageRenderer.h"
-#include "calibration.h"
-#include "azureKinectCapture.h"
-#include "azureKinectCaptureVirtual.h"
-#include "frameFileWriterReader.h"
 #include <thread>
 #include <mutex>
-#include "filter.h"
 #include <chrono>
 #include <fstream>
-#include "zstd.h"
+#include "resource.h"
 #include <KinectConfiguration.h>
+#include "ImageRenderer.h"
+#include "calibration.h"
+#include "azureKinectCaptureVirtual.h"
+#include "frameFileWriterReader.h"
+#include "zstd.h"
+#include "filter.h"
+
 
 enum CLIENT_STATUS
 {
@@ -130,7 +129,7 @@ private:
 
 	int m_nExtrinsicsStyle;
 
-	FrameFileWriterReader m_framesFileWriterReader;
+	FrameFileWriterReader* m_framesFileWriterReader;
 
 	SocketClient *m_pClientSocket;
 	std::string m_sReceived;
@@ -149,8 +148,8 @@ private:
 	std::vector<int> m_vFrameID;
 	std::vector<int> m_vPostSyncedFrameID;
 
+	LogBuffer logBuffer;
 	Log* log;
-	int logID;
 
 	int m_nFrameIndex;
 

@@ -1,11 +1,8 @@
 #pragma once
 #include "ICapture.h"
 #include <opencv2/opencv.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/core.hpp>
 #include "turbojpeg/turbojpeg.h"
 #include <chrono>
-#include "Log.h"
 
 class AzureKinectCapture : public ICapture
 {
@@ -13,7 +10,8 @@ public:
 	AzureKinectCapture();
 	~AzureKinectCapture();
 
-	virtual bool Initialize(KinectConfiguration& configuration, Log* logger, int loggerID);
+	virtual bool Initialize(KinectConfiguration& configuration);
+	virtual void SetLogger(Log* logger);
 	virtual void SetManualDeviceIndex(int index);
 	virtual bool AquireRawFrame();
 	void DecodeRawColor();
@@ -37,9 +35,8 @@ protected:
 	k4a_image_t colorImageDownscaled = NULL;
 	k4a_transformation_t transformationColorDownscaled = NULL;
 	k4a_transformation_t transformation = NULL;  
+	LogBuffer logBuffer;
 	Log* log;
-	int logID;
-
 
 	int colorImageDownscaledWidth;
 	int colorImageDownscaledHeight;

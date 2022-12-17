@@ -31,7 +31,7 @@ public:
 	LRESULT CALLBACK        DlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	int                     Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL loglevel, bool virtualDevice);
 
-	void Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd);
+	bool Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd);
 
 	bool m_bVirtualDevice;
 
@@ -76,7 +76,7 @@ private:
 	bool m_bWaitForConnection;
 
 	Log log;
-	int logID;
+	LogBuffer logBuffer;
 	HWND m_hWnd;
 	INT64 m_nLastCounter;
 	double m_fFreq;

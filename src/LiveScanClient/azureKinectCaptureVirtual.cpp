@@ -16,17 +16,15 @@ AzureKinectCaptureVirtual::~AzureKinectCaptureVirtual()
 	ReleaseDeviceIndexLock();
 }
 
-bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration, Log* logger, int loggerID)
+bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 {
-	log = logger;
-	logID = loggerID;
 
-	log->LogDebug(logID, "Starting Virtual Azure Kinect Device initialization");
+	logBuffer.LogDebug("Starting Virtual Azure Kinect Device initialization");
 	bInitialized = false;
 
 	if (localDeviceIndex < 0)
 	{
-		log->LogFatal(logID, "Virtual Azure Kinect Device Index not set, can't initialize!");
+		logBuffer.LogFatal("Virtual Azure Kinect Device Index not set, can't initialize!");
 		return bInitialized;
 	}
 
@@ -41,7 +39,7 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration, L
 
 	else
 	{
-		log->LogFatal(logID, "Could not load calibration from disk for Virtual Azure Kinect Device!");
+		logBuffer.LogFatal("Could not load calibration from disk for Virtual Azure Kinect Device!");
 		return bInitialized;
 	}
 
@@ -65,19 +63,19 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration, L
 
 	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk())
 	{
-		log->LogFatal(logID, "Cannot open virtual device, images can't be loaded from the disk!");
+		logBuffer.LogFatal("Cannot open virtual device, images can't be loaded from the disk!");
 		return bInitialized;
 	}
 
 	if (m_vVirtualColorImageSequence.size() != m_vVirtualDepthImageSequence.size())
 	{
-		log->LogFatal(logID, "The amount of the virtual color and depth images need to be the same!");
+		logBuffer.LogFatal("The amount of the virtual color and depth images need to be the same!");
 		return bInitialized;
 	}
 
 	m_lLastFrameTimeus = GetTimeStamp();
 
-	log->LogInfo(logID, "Virtual Device Initialization successful!");
+	logBuffer.LogInfo("Virtual Device Initialization successful!");
 	bInitialized = true;
 	return bInitialized;
 }
@@ -98,7 +96,7 @@ void AzureKinectCaptureVirtual::SetConfiguration(KinectConfiguration& configurat
 
 bool AzureKinectCaptureVirtual::Close()
 {
-	log->LogInfo(logID, "Closing Virtual Azure Kinect device");
+	logBuffer.LogInfo("Closing Virtual Azure Kinect device");
 
 	if (!bInitialized)
 	{
@@ -135,7 +133,7 @@ bool AzureKinectCaptureVirtual::AquireRawFrame()
 {
 	if (!bInitialized)
 	{
-		log->LogCaptureDebug(logID, "Trying to aquire a Frame, but virtual camera is not initialized");
+		logBuffer.LogCaptureDebug("Trying to aquire a Frame, but virtual camera is not initialized");
 		return false;
 	}
 
@@ -236,7 +234,7 @@ bool AzureKinectCaptureVirtual::LoadColorImagesfromDisk()
 		imageDirPath += "3072p/";
 		break;
 	default:
-		log->LogFatal(logID, "No valid color resolution specified in config");
+		logBuffer.LogFatal("No valid color resolution specified in config");
 		return false;
 	}
 
@@ -279,7 +277,7 @@ bool AzureKinectCaptureVirtual::LoadColorImagesfromDisk()
 		{
 			if (imageIndex < 2)
 			{
-				log->LogFatal(logID, "Could not read minimum required color images for virtual Device! Did you install the test git submodule?: " + imagePath);
+				logBuffer.LogFatal("Could not read minimum required color images for virtual Device! Did you install the test git submodule?: " + imagePath);
 				return false;
 			}
 
@@ -323,7 +321,7 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 		imageDirPath += "WFOV_2X2BINNED/";
 		break;
 	default:
-		log->LogFatal(logID, "No viable Depth resolution specified in config");
+		logBuffer.LogFatal("No viable Depth resolution specified in config");
 		return false;
 	}
 
@@ -350,7 +348,7 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 		{
 			if (imageIndex < 2)
 			{
-				log->LogFatal(logID, "Could not read minimum required depth images for virtual Device! Did you install the test git submodule?: " + imagePath);
+				logBuffer.LogFatal("Could not read minimum required depth images for virtual Device! Did you install the test git submodule?: " + imagePath);
 				return false;
 			}
 
@@ -364,45 +362,41 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 }
 
 /// <summary>
-/// This function checks if any virtual devices are already in use, so that
+/// This function checks if any virtual devices are already in use by another instance/thread
 /// </summary>
 /// <returns></returns>
 int AzureKinectCaptureVirtual::GetAndLockDeviceIndex()
 {
 	int index = 0;
-	bool found = false;
-
-	while (!found && index < 4)
+	bool searchForID = true;
+	while (searchForID)
 	{
-		std::string path = "resources/testdata/virtualdevice/virtualdevice";
-		path += std::to_string(index);
-		path += "/device.locked";
+		std::wstring mutexNameWStr = L"LiveScan_VirtualDevice_" + std::to_wstring(index);
+		LPWSTR mutexName = const_cast<wchar_t*>(mutexNameWStr.c_str());
+		virtualDeviceSystemMutex = CreateMutex(NULL, FALSE, mutexName);
 
-		std::ifstream readLockfile(path, std::ios::in | std::ios::binary);
-		if (readLockfile.is_open())
+		switch (GetLastError())
 		{
+		case ERROR_SUCCESS:
+			searchForID = false;
+			break;
+		case ERROR_ALREADY_EXISTS:
+			CloseHandle(virtualDeviceSystemMutex);
 			index++;
-			//readLockfile.close();
-		}
-
-		else
-		{
-			found = true;
-			std::ofstream lockfile(path);
-			//lockfile.close();
-			return index;
+			break;
+		default:
+			// Error occured
+			return -1;
+			break;
 		}
 	}
-	
-	return -1;
+
+	return index;
 }
 
 void AzureKinectCaptureVirtual::ReleaseDeviceIndexLock()
 {
-	std::string path = "resources/testdata/virtualdevice/virtualdevice";
-	path += std::to_string(localDeviceIndex);
-	path += "/device.locked";
-	int sucess = remove(path.c_str());
+	CloseHandle(virtualDeviceSystemMutex);
 }
 
 //Setting the exposure is not yet simulated

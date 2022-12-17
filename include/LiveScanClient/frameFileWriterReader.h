@@ -19,7 +19,7 @@
 class FrameFileWriterReader
 {
 public:
-    FrameFileWriterReader(Log* log, int logID);
+    FrameFileWriterReader(Log* log);
 	void openNewBinFileForWriting(int deviceID, std::string prefix);
 	void openNewBinFileForReading(std::string path);
 	void openCurrentBinFileForReading();
@@ -68,7 +68,7 @@ private:
 
 	std::chrono::steady_clock::time_point recording_start_time;
 
+	LogBuffer logBuffer;
 	Log* log;
-	int logID;
 
 };

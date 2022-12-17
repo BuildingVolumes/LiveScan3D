@@ -3,12 +3,11 @@
 #include "stdafx.h"
 #include <string>
 #include <stdio.h>
-#include <sstream>
 #include <fstream>
 #include <vector>
 #include <mutex>
 #include <ctime>
-#include "iostream"
+#include <iostream>
 
 struct LogBuffer;
 
@@ -29,41 +28,50 @@ public:
 		LOGLEVEL_ALL		
 	};
 
-	int StartLog(int clientInstance, LOGLEVEL level, bool openConsole);
-	int RegisterLog();
-	void ChangeName(int id, std::string name);
-	void PullMessages();
-
-	void LogTrace(int id, std::string message);
-	void LogCaptureDebug(int id, std::string message); //Capture Debug is logging stuff for every single picture taken. Might spam the log pretty fast
-	void LogDebug(int id, std::string message);
-	void LogInfo(int id, std::string message);
-	void LogWarning(int id, std::string message);
-	void LogError(int id, std::string message);
-	void LogFatal(int id, std::string message);
-
-	
-
-private:
-
-	
-
-	void AddLogEntry(int id, std::string message, std::string loglevel);
+	bool StartLog(int clientInstance, LOGLEVEL level);
+	void PrintAllMessages();
+	void RegisterBuffer(LogBuffer* buffer);
+	void UnRegisterBuffer(LogBuffer* buffer);
 	void WriteAndFlushBuffer(std::string text);
 	void CloseLogFile();
+	
 
+private:	
+
+	
+
+	std::vector<LogBuffer*> buffers;
 	std::mutex registerMutex;
 	int clientNumber = 0;
-	std::vector<LogBuffer> logBuffers;
 	std::ofstream* logfile = nullptr;
 	LOGLEVEL logLevel = LOGLEVEL_INFO;
 	bool writeToConsole = false;
 };
 
-struct LogBuffer
+class LogBuffer
 {
+public:
+
+	void ChangeName(std::string name);
+	std::vector<std::string> GetMessageBuffer();
+	void ClearMessageBuffer();
+
+	void LogTrace(std::string message);
+	void LogCaptureDebug(std::string message); 
+	void LogDebug(std::string message);
+	void LogInfo(std::string message);
+	void LogWarning(std::string message);
+	void LogError(std::string message);
+	void LogFatal(std::string message);
+
+	std::mutex bufferMutex;
+
+private:
+
+	void AddLogEntry(std::string message, std::string loglevel);
+
 	std::vector<std::string> messages;
-	std::mutex mutex;
 	std::string name = "Unknown";
+	Log::LOGLEVEL logLevel = Log::LOGLEVEL_INFO;
 };
 

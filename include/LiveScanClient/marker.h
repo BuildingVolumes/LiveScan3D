@@ -15,7 +15,6 @@
 #pragma once
 
 #include "stdafx.h"
-#include <opencv2/opencv.hpp>
 #include "utils.h"
 #include "IMarker.h"
 

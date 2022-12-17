@@ -34,7 +34,7 @@ UI::~UI()
 	SafeRelease(m_pD2DFactory);
 }
 
-void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
+bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 {
 	//Create/Check system-wide mutexes to see if another Livescan Instance
 	//is already running and save our Instance ID. This is used so saved files
@@ -44,16 +44,17 @@ void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	{
 		std::wstring mutexNameWStr = L"LiveScanClientProcess_" + to_wstring(processID);
 		LPWSTR mutexName = const_cast<wchar_t*>(mutexNameWStr.c_str());
+		HANDLE mutex = CreateMutex(NULL, FALSE, mutexName);
 
-		CreateMutex(NULL, TRUE, mutexName);
 		switch (GetLastError())
 		{
 		case ERROR_SUCCESS:
-			// Process was not running already, we got our ID!
 			searchForID = false;
+			// Process was not running already, we got our ID!
 			break;
 		case ERROR_ALREADY_EXISTS:
 			// Process is running already, we increment the ID
+			CloseHandle(mutex);
 			processID++;
 			break;
 		default:
@@ -62,11 +63,22 @@ void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 		}
 	}
 
-	logID = log.StartLog(processID, Log::LOGLEVEL_INFO, false);
-	log.ChangeName(logID, "LiveScan Client");
+	//If needed, change loglevel here for the whole application
+	if (!log.StartLog(processID, Log::LOGLEVEL_INFO))
+	{
+		SetStatusMessage(L"Error creating log file! Please restart application", 1000000, true);
+		return false;
+	}
+
+	log.RegisterBuffer(&logBuffer);
+	logBuffer.ChangeName("LiveScan Client");
 
 	// Init Direct2D
-	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
+	if (D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory) != S_OK)
+	{
+		SetStatusMessage(L"Error creating D2D device! Please restart application", 1000000, true);
+		return false;
+	}
 
 	try
 	{
@@ -78,14 +90,10 @@ void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 
 	catch (cv::Exception e)
 	{
-		log.LogFatal(logID, e.what());
-		SetStatusMessage(L"Failed to load resources", 10000, true);
-		return;
+		logBuffer.LogFatal(e.what());
+		SetStatusMessage(L"Failed to load image resources", 100000, true);
+		return false;
 	}
-	
-
-	
-	
 	
 
 	m_cClientManager = new ClientManager(&log, virtualDevice);
@@ -100,6 +108,8 @@ void UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	TabCtrl_InsertItem(GetDlgItem(hWnd, IDC_TAB), 0, &m_uiPlusTab);
 
 	AddClient();	
+
+	return true;
 }
 
 void UI::Update(bool force)
@@ -114,7 +124,7 @@ void UI::Update(bool force)
 		ShowStatus();
 		CheckConnection();
 		UpdateDeviceStatus();
-		log.PullMessages();
+		log.PrintAllMessages();
 
 		m_tLastFrameTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 	}	
@@ -247,7 +257,7 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 
 	if (initializationNeeded)
 	{
-		log.LogInfo(logID, "Initializing Preview Window");
+		logBuffer.LogInfo("Initializing Preview Window");
 
 		//if there already is a preview D2D Renderer, delete it
 		if (m_pD2DImageRenderer)
@@ -261,7 +271,7 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 		hr = m_pD2DImageRenderer->Initialize(GetDlgItem(m_hWnd, IDC_VIDEOVIEW), m_pD2DFactory, width, height, width * sizeof(RGBA));
 		if (FAILED(hr))
 		{
-			log.LogFatal(logID, "Failed to initialize the Direct2D Draw device");
+			logBuffer.LogFatal("Failed to initialize the Direct2D Draw device");
 			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
 		}
 
@@ -288,7 +298,7 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 
 		catch (cv::Exception e)
 		{
-			log.LogFatal(logID, e.what());
+			logBuffer.LogFatal(e.what());
 			SetStatusMessage(L"Failed to rescale resources", 10000, true);
 			return;
 		}		
@@ -574,30 +584,33 @@ int UI::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL loglevel, bool virt
 	// HOGUE
 	SetWindowPos(m_hWnd, HWND_TOP, g_winX, g_winY, g_winWidth, g_winHeight, NULL);
 
-	Initialize(loglevel, true, m_hWnd);
-
-	// Main message loop
-	while (WM_QUIT != msg.message)
+	if (Initialize(loglevel, virtualDevice, m_hWnd))
 	{
-		Update(false);
-
-		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
+		// Main message loop
+		while (WM_QUIT != msg.message)
 		{
-			if (WM_QUIT == msg.message)
-			{
-				break;
-			}
-			// If a dialog message will be taken care of by the dialog proc
-			if (hWndApp && IsDialogMessageW(hWndApp, &msg))
-			{
-				continue;
-			}
+			Update(false);
 
-			TranslateMessage(&msg);
-			DispatchMessageW(&msg);
+			while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
+			{
+				if (WM_QUIT == msg.message)
+				{
+					break;
+				}
+				// If a dialog message will be taken care of by the dialog proc
+				if (hWndApp && IsDialogMessageW(hWndApp, &msg))
+				{
+					continue;
+				}
+
+				TranslateMessage(&msg);
+				DispatchMessageW(&msg);
+			}
 		}
 	}
 
+	else
+		return -1;
 
 	return static_cast<int>(msg.wParam);
 }
