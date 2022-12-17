@@ -8,6 +8,7 @@
 #include <mutex>
 #include <ctime>
 #include <iostream>
+#include <filesystem>
 
 struct LogBuffer;
 

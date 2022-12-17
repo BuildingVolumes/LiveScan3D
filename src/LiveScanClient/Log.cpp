@@ -12,7 +12,13 @@ bool Log::StartLog(int clientInstance, LOGLEVEL level)
 
 	clientNumber = clientInstance;
 
-	std::string filename = "Log_Client_" + std::to_string(clientNumber) + ".txt";
+	if (!std::filesystem::exists("logs/"))
+	{
+		if (!std::filesystem::create_directory("logs/"))
+			return false;
+	}
+
+	std::string filename = "logs/Log_Client_" + std::to_string(clientNumber) + ".txt";
 	logfile = new std::ofstream;
 	logfile->open(filename, std::ofstream::trunc);
 	logLevel = level;

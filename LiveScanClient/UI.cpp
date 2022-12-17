@@ -66,7 +66,7 @@ bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	//If needed, change loglevel here for the whole application
 	if (!log.StartLog(processID, Log::LOGLEVEL_INFO))
 	{
-		SetStatusMessage(L"Error creating log file! Please restart application", 1000000, true);
+		MessageBox(NULL, L"Failed to create log file, please restart application!", L"Fatal Error", MB_ICONERROR | MB_OK);
 		return false;
 	}
 
@@ -76,7 +76,8 @@ bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	// Init Direct2D
 	if (D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory) != S_OK)
 	{
-		SetStatusMessage(L"Error creating D2D device! Please restart application", 1000000, true);
+		logBuffer.LogFatal("Failed to intialized D2DDevice");
+		MessageBox(NULL, L"Error creating D2D device! Please restart application", L"Fatal Error", MB_ICONERROR | MB_OK);
 		return false;
 	}
 
@@ -91,7 +92,7 @@ bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	catch (cv::Exception e)
 	{
 		logBuffer.LogFatal(e.what());
-		SetStatusMessage(L"Failed to load image resources", 100000, true);
+		MessageBox(NULL, L"Failed to load image resources! Please restart application", L"Fatal Error", MB_ICONERROR | MB_OK);
 		return false;
 	}
 	
@@ -272,7 +273,8 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 		if (FAILED(hr))
 		{
 			logBuffer.LogFatal("Failed to initialize the Direct2D Draw device");
-			SetStatusMessage(L"Failed to initialize the Direct2D draw device.", 10000, true);
+			MessageBox(NULL, L"Failed to initialize the Direct2D Draw device", L"Fatal Error", MB_ICONERROR | MB_OK);
+
 		}
 
 		//Initialize Preview Resources
@@ -299,7 +301,7 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 		catch (cv::Exception e)
 		{
 			logBuffer.LogFatal(e.what());
-			SetStatusMessage(L"Failed to rescale resources", 10000, true);
+			MessageBox(NULL, L"Failed to rescale resources, please restart client!", L"Fatal Error", MB_ICONERROR | MB_OK);
 			return;
 		}		
 	}
@@ -584,33 +586,30 @@ int UI::Run(HINSTANCE hInstance, int nCmdShow, Log::LOGLEVEL loglevel, bool virt
 	// HOGUE
 	SetWindowPos(m_hWnd, HWND_TOP, g_winX, g_winY, g_winWidth, g_winHeight, NULL);
 
-	if (Initialize(loglevel, virtualDevice, m_hWnd))
+	if (!Initialize(loglevel, virtualDevice, m_hWnd))
+		return -1;
+
+	// Main message loop
+	while (WM_QUIT != msg.message)
 	{
-		// Main message loop
-		while (WM_QUIT != msg.message)
-		{
 			Update(false);
 
-			while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
+		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			if (WM_QUIT == msg.message)
 			{
-				if (WM_QUIT == msg.message)
-				{
-					break;
-				}
-				// If a dialog message will be taken care of by the dialog proc
-				if (hWndApp && IsDialogMessageW(hWndApp, &msg))
-				{
-					continue;
-				}
-
-				TranslateMessage(&msg);
-				DispatchMessageW(&msg);
+				break;
 			}
+			// If a dialog message will be taken care of by the dialog proc
+			if (hWndApp && IsDialogMessageW(hWndApp, &msg))
+			{
+				continue;
+			}
+
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
 		}
 	}
-
-	else
-		return -1;
 
 	return static_cast<int>(msg.wParam);
 }
