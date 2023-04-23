@@ -7,31 +7,16 @@
     <g id="Contour" transform="matrix(9.3645,0,0,9.86542,207.289,150.457)">
         <path d="M0,304L0,0L228,0L228,304L114,228L0,304Z"/>
     </g>
-    <g id="Cell-8" serif:id="Cell 8" transform="matrix(8.92894,0,0,9.86542,1021.14,136.921)">
-        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
-    </g>
     <g id="Cell-7" serif:id="Cell 7" transform="matrix(8.92894,0,0,9.86542,627.832,136.921)">
         <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
     </g>
     <g id="Cell-6" serif:id="Cell 6" transform="matrix(8.92894,0,0,9.86542,234.523,136.921)">
         <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
     </g>
-    <g id="Cell-5" serif:id="Cell 5" transform="matrix(8.92894,0,0,9.86542,1021.14,-277.426)">
-        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
-    </g>
     <g id="Cell-4" serif:id="Cell 4" transform="matrix(8.92894,0,0,9.86542,627.832,-277.426)">
         <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
     </g>
-    <g id="Cell-3-MarkerValue-1" serif:id="Cell 3 MarkerValue 1" transform="matrix(8.92894,0,0,9.86542,233.576,-277.426)">
-        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
-    </g>
-    <g id="Cell-2-MarkerValue-2" serif:id="Cell 2 MarkerValue 2" transform="matrix(8.92894,0,0,9.86542,1021.14,-694.585)">
-        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
-    </g>
     <g id="Cell-1-MarkerValue-4" serif:id="Cell 1 MarkerValue 4" transform="matrix(8.92894,0,0,9.86542,627.832,-694.585)">
-        <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
-    </g>
-    <g id="Cell-0-MarkerValue-8" serif:id="Cell 0 MarkerValue 8" transform="matrix(8.92894,0,0,9.86542,233.576,-694.585)">
         <rect x="51" y="137" width="43" height="41" style="fill:white;"/>
     </g>
     <g id="CenterPoint" transform="matrix(2.7875,0,0,2.93661,-1862.62,-1505.1)">
@@ -56,21 +41,6 @@
         <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
     </g>
     <g transform="matrix(1,0,0,1,1234.5,3081.15)">
-        <text id="ID_0" x="0px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">0</text>
-    </g>
-    <g transform="matrix(1,0,0,1,1234.5,3081.15)">
-        <text id="ID_1" x="0px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">1</text>
-    </g>
-    <g transform="matrix(1,0,0,1,1234.5,3081.15)">
-        <text id="ID_2" x="0px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">2</text>
-    </g>
-    <g transform="matrix(1,0,0,1,1234.5,3081.15)">
-        <text id="ID_3" x="0px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">3</text>
-    </g>
-    <g transform="matrix(1,0,0,1,1234.5,3081.15)">
         <text id="ID_4" x="0px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">4</text>
-    </g>
-    <g transform="matrix(1,0,0,1,1234.5,3081.15)">
-        <text id="ID_5" x="0px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">5</text>
     </g>
 </svg>

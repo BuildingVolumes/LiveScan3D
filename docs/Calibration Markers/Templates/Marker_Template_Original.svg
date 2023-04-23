@@ -43,4 +43,22 @@
     <g id="CenterAlighHorizontal" transform="matrix(7.59377e-17,1.24016,-1.24016,7.59377e-17,2484.04,581.171)">
         <rect x="997" y="957" width="2" height="92" style="fill:rgb(241,0,0);"/>
     </g>
+    <g transform="matrix(1,0,0,1,-25.3429,-152)">
+        <text id="ID_0" x="1225px" y="3407.15px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">0</text>
+    </g>
+    <g transform="matrix(1,0,0,1,-25.3429,-152)">
+        <text id="ID_1" x="1225px" y="3407.15px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">1</text>
+    </g>
+    <g transform="matrix(1,0,0,1,-25.3429,-152)">
+        <text id="ID_2" x="1225px" y="3407.15px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">2</text>
+    </g>
+    <g transform="matrix(1,0,0,1,-25.3429,-152)">
+        <text id="ID_3" x="1225px" y="3407.15px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">3</text>
+    </g>
+    <g transform="matrix(1,0,0,1,-25.3429,-152)">
+        <text id="ID_4" x="1225px" y="3407.15px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);">4</text>
+    </g>
+    <g transform="matrix(1,0,0,1,-25.3429,-152)">
+        <text id="ID_5" x="1225px" y="3407.15px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:144px;fill:rgb(184,184,184);fill-opacity:0.1;">5</text>
+    </g>
 </svg>
