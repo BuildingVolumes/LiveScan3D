@@ -194,8 +194,7 @@ namespace KinectServer
             //Disable the temporal hardware sync if all clients disconnected
             if(socketList.Count == 0)
             {
-                oServer.bTempHwSyncEnabled = false;
-                chHardwareSync.Checked = false;
+                Invoke(new Action(() => { chHardwareSync.Checked = false; }));          
             }
         }
 

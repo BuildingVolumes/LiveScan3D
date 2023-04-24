@@ -127,7 +127,7 @@ private:
     ID2D1Factory* m_pD2DFactory;
 
 	//Image Resources
-	std::vector<uchar>* emptyJPEGBuffer;
+	std::vector<uchar> emptyJPEGBuffer;
 	RGB* m_pRainbowColorDepth;
 	cv::Mat m_cvPreviewDisabled;
 	cv::Mat* emptyDepthMat;

@@ -196,9 +196,6 @@ LiveScanClient::~LiveScanClient()
 	// clean up Direct2D
 	SafeRelease(m_pD2DFactory);
 
-	delete emptyJPEGBuffer;
-	emptyJPEGBuffer = NULL;
-
 	if (emptyDepthMat)
 	{
 		emptyDepthMat->release();
@@ -367,7 +364,7 @@ void LiveScanClient::UpdateFrame()
 			success = PostSyncRawFrames();
 
 
-		if (m_eCaptureMode == CAPTURE_MODE::CM_RAW)
+		if (m_eCaptureMode == CAPTURE_MODE::CM_POINTCLOUD)
 			success = PostSyncPointclouds();
 
 		SendPostSyncConfirmation(success);
@@ -415,7 +412,6 @@ void LiveScanClient::UpdateFrame()
 			uint64_t timeStamp = pCapture->GetTimeStamp();
 			m_vFrameCount.push_back(m_nFrameIndex);
 			m_vFrameTimestamps.push_back(timeStamp);
-			m_nFrameIndex++;
 
 			if (m_eCaptureMode == CM_RAW)
 			{
@@ -430,6 +426,7 @@ void LiveScanClient::UpdateFrame()
 
 			m_bCaptureSingleFrame = false;
 			m_bConfirmCaptured = true;
+			m_nFrameIndex++;
 
 			//Save the time since the last capture to estimate FPS. While recording, we only save the time after having stored a frame, so that the user gets a grasp of how fast the recording is taking place
 			m_tOldFrameTime = m_tFrameTime;
@@ -568,6 +565,8 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 			m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 			m_pColorInColorSpace = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 			pCapture->SetExposureState(true, 0);
+			cv::imencode(".jpeg", cv::Mat(1, 1, CV_8UC3), emptyJPEGBuffer);
+
 		}
 		else
 		{
@@ -1618,7 +1617,7 @@ bool LiveScanClient::PostSyncRawFrames()
 		//-1 indicates that this device doesn't have a valid frame for this capture. To keep a good frame timing, we fill in an empty frame
 		if (m_vFrameID[i] == -1)
 		{
-			m_framesFileWriterReader.WriteColorJPGFile(emptyJPEGBuffer->data(), emptyJPEGBuffer->size(), m_vPostSyncedFrameID[i], "synced");
+			m_framesFileWriterReader.WriteColorJPGFile(emptyJPEGBuffer.data(), emptyJPEGBuffer.size(), m_vPostSyncedFrameID[i], "synced");
 			m_framesFileWriterReader.WriteDepthTiffFile(emptyDepthFrame, m_vPostSyncedFrameID[i], "synced");
 		}
 
