@@ -1,0 +1,24 @@
+Marker ID 0
+Translation	X: 0	Y: 0	Z: 0.1485
+Rotation	X: 0	Y: 0	Z: 0
+
+Marker ID 1
+Translation	X: -0.105	Y: 0	Z: 0
+Rotation	X: 0	Y: 90	Z: 0
+
+Marker ID 2
+Translation	X: 0	Y: 0	Z: -0.1485
+Rotation	X: 0	Y: 180	Z: 0
+
+Marker ID 3
+Translation	X: 0.105	Y: 0	Z: 0
+Rotation	X: 0	Y: -90	Z: 0
+
+Marker ID 4
+Translation	X: 0	Y: 0.1485	Z: 0
+Rotation	X: 90	Y: 0	Z: 0
+
+Marker ID 5
+Translation	X: 0	Y: 0	Z: 0
+Rotation	X: 0	Y: 0	Z: 0
+
