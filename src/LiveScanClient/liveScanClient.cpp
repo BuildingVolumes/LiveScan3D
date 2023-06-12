@@ -51,7 +51,8 @@ LiveScanClient::LiveScanClient() :
 	m_tOldFrameTime(0),
 	m_fAverageFPS(0),
 	m_nFPSFrameCounter(0),
-	m_nFPSUpdateCounter(0)
+	m_nFPSUpdateCounter(0),
+	m_bActiveClient(true)
 {
 	m_vBounds.push_back(-0.5);
 	m_vBounds.push_back(-0.5);
@@ -172,6 +173,16 @@ void LiveScanClient::CloseClient()
 	m_mRunning.unlock();
 }
 
+void LiveScanClient::SetClientActive(bool active)
+{
+	m_bActiveClient = active;
+}
+
+void LiveScanClient::SetPreviewMode(bool depth)
+{
+	m_bShowDepth = depth;
+}
+
 void LiveScanClient::UpdateFrame()
 {
 	//Writes the hardware sync status to the configuration file
@@ -278,7 +289,7 @@ void LiveScanClient::UpdateFrame()
 			generatePointcloud = true;
 		}
 
-		if (!m_bPreviewDisabled && !m_bShowDepth)
+		if (!m_bPreviewDisabled && !m_bShowDepth && m_bActiveClient)
 			generateRBGData = true;
 
 		if (!m_bPreviewDisabled && m_bShowDepth)
@@ -287,7 +298,7 @@ void LiveScanClient::UpdateFrame()
 		if (generateRBGData)
 		{
 			pCapture->DecodeRawColor();
-			pCapture->DownscaleColorImgToDepthImgSize();
+			//pCapture->DownscaleColorImgToDepthImgSize();
 		}
 
 		if (generateDepthToColorData)
@@ -341,9 +352,10 @@ void LiveScanClient::UpdateFrame()
 			m_bRequestLiveFrame = false;
 		}
 
-		UpdatePreview();
+		if(m_bActiveClient)
+			UpdatePreview();
+		
 		UpdateFPS();
-
 
 	}
 
@@ -351,7 +363,7 @@ void LiveScanClient::UpdateFrame()
 
 void LiveScanClient::UpdatePreview()
 {
-	if (!m_bPreviewDisabled)
+	if (!m_bPreviewDisabled) //TODO: Only update preview when we need it (When the client tab is active)
 	{
 		std::lock_guard<std::mutex> lock(m_mPreviewResources);
 
@@ -371,31 +383,35 @@ void LiveScanClient::UpdatePreview()
 			m_pDepthPreview = new RGBA[m_nPreviewWidth * m_nPreviewHeight];
 		}
 
-		//We copy the data into a secondary buffer so that we can use it thread safely, without blocking the pCapture resource too long
-		if (!pCapture->colorBGR.empty())
+		if (m_bShowDepth)
 		{
+			// Make sure we've received valid data
+			if (pCapture->transformedDepthImage != NULL)
+			{
+				uint16_t* pointCloudImageData = (uint16_t*)(void*)k4a_image_get_buffer(pCapture->transformedDepthImage);
 
-			int size = pCapture->colorBGR.step * pCapture->colorBGR.size().height;
-			//Just copying, this makes the data actually BGR, not RGB as the type might indicates
-			std::memcpy(m_pColorPreview, pCapture->colorBGR.data, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
+				for (int i = 0; i < m_nPreviewWidth * m_nPreviewHeight; i++)
+				{
+					uint8_t intensity = pointCloudImageData[i] / 40;
+					m_pDepthPreview[i].red = rainbowLookup[intensity][0];
+					m_pDepthPreview[i].green = rainbowLookup[intensity][1];
+					m_pDepthPreview[i].blue = rainbowLookup[intensity][2];
+				}
+			}
 		}
 
-		// Make sure we've received valid data
-		if (pCapture->transformedDepthImage != NULL)
+		else
 		{
-			uint16_t* pointCloudImageData = (uint16_t*)(void*)k4a_image_get_buffer(pCapture->transformedDepthImage);
-
-			for (int i = 0; i < m_nPreviewWidth * m_nPreviewHeight; i++)
+			//We copy the data into a secondary buffer so that we can use it thread safely, without blocking the pCapture resource too long
+			if (!pCapture->colorBGR.empty())
 			{
-				uint8_t intensity = pointCloudImageData[i] / 40;
-				m_pDepthPreview[i].red = rainbowLookup[intensity][0];
-				m_pDepthPreview[i].green = rainbowLookup[intensity][1];
-				m_pDepthPreview[i].blue = rainbowLookup[intensity][2];
+
+				int size = pCapture->colorBGR.step * pCapture->colorBGR.size().height;
+				//Just copying, this makes the data actually BGR, not RGB as the type might indicates
+				std::memcpy(m_pColorPreview, pCapture->colorBGR.data, m_nPreviewWidth * m_nPreviewHeight * sizeof(RGBA));
 			}
 		}
 	}
-
-	
 }
 
 

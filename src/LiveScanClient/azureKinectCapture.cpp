@@ -267,14 +267,16 @@ void AzureKinectCapture::DecodeRawColor() {
 	nColorFrameHeight = k4a_image_get_height_pixels(colorImageMJPG);
 	nColorFrameWidth = k4a_image_get_width_pixels(colorImageMJPG);
 
-	colorBGR = cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
+	if(colorBGR.cols != nColorFrameWidth || colorBGR.rows != nColorFrameHeight) //If we use downscaling again, we need to seperate the downscaled and non-downscaled images into seperate buffers
+		colorBGR = cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
 
 	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR.data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
 }
 
 void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
 
-	//Resize the k4a_image to the precalculated size. Takes quite along time, maybe there is a faster algorithm?
+	//Resize the k4a_image to the precalculated size, so that we later save on resources while transforming the image
+	//Nice idea, however resizing takes so long, that it's not worth it. 
 	cv::resize(colorBGR, colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
 
 	nColorFrameHeight = colorBGR.rows;
@@ -306,7 +308,7 @@ void AzureKinectCapture::MapDepthToColor()
 		k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * (int)sizeof(uint16_t), &transformedDepthImage);
 	}
 
-	k4a_result_t res = k4a_transformation_depth_image_to_color_camera(transformationColorDownscaled, depthImage16Int, transformedDepthImage);
+	k4a_result_t res = k4a_transformation_depth_image_to_color_camera(transformation, depthImage16Int, transformedDepthImage);
 
 }
 

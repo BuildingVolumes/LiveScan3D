@@ -11,6 +11,8 @@ public:
 	void AddClient();
 	void RemoveClient(int index);
 	void ConnectClient(std::string adress, int index);
+	void SetActiveClient(int index);
+	void SetPreviewMode(bool depth);
 
 	float GetClientFPS(int index);
 	std::string GetClientIP(int index);

@@ -59,6 +59,8 @@ public:
 	void RunClient(Log* logger, bool virtualDevice);
 	void CloseClient();
 	bool Connect(std::string ip);
+	void SetClientActive(bool active);
+	void SetPreviewMode(bool depth);
 
 	//Below are thread-safe functions to get different resources from this client
 	float GetFPSTS();
@@ -106,6 +108,7 @@ private:
 	bool m_bPreviewDisabled;
 	bool m_bRequestLiveFrame;
 	bool m_bShowDepth;
+	bool m_bActiveClient;
 
 	bool m_bFrameCompression;
 	int m_iCompressionLevel;

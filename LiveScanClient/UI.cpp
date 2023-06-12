@@ -332,6 +332,9 @@ void UI::HandleTabSelection(int index)
 		AddClient();
 
 	m_nTabSelected = index;
+	m_cClientManager->SetActiveClient(index);
+
+
 }
 
 void UI::AddClient()
@@ -701,6 +704,7 @@ LRESULT CALLBACK UI::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 			if (IDC_BUTTON_SWITCH == LOWORD(wParam))
 			{
 				m_bShowDepth = !m_bShowDepth;
+				m_cClientManager->SetPreviewMode(m_bShowDepth);
 
 				if (m_bShowDepth)
 				{

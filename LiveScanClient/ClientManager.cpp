@@ -50,6 +50,25 @@ void ClientManager::ConnectClient(std::string adress, int index)
 	m_vClients[index]->Connect(adress);
 }
 
+void ClientManager::SetActiveClient(int index)
+{
+	for (int i = 0; i < m_vClients.size(); i++)
+	{
+		if (i == index)
+			m_vClients[i]->SetClientActive(true);
+		else
+			m_vClients[i]->SetClientActive(false);
+	}
+}
+
+void ClientManager::SetPreviewMode(bool depth)
+{
+	for (int i = 0; i < m_vClients.size(); i++)
+	{
+		m_vClients[i]->SetPreviewMode(depth);
+	}
+}
+
 
 float ClientManager::GetClientFPS(int index)
 {
