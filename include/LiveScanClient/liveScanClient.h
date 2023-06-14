@@ -161,6 +161,8 @@ private:
 	RGBA* m_pDepthPreview;
 	int m_nPreviewWidth;
 	int m_nPreviewHeight;
+	Point3f* m_pAllVertices;
+	int m_nAllVerticesSize;
    
 	//Image Resources
 	std::vector<uchar>* emptyJPEGBuffer;

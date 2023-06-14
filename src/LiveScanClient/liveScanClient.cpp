@@ -52,7 +52,10 @@ LiveScanClient::LiveScanClient() :
 	m_fAverageFPS(0),
 	m_nFPSFrameCounter(0),
 	m_nFPSUpdateCounter(0),
-	m_bActiveClient(true)
+	m_bActiveClient(true),
+	m_nAllVerticesSize(0)
+
+
 {
 	m_vBounds.push_back(-0.5);
 	m_vBounds.push_back(-0.5);
@@ -305,7 +308,10 @@ void LiveScanClient::UpdateFrame()
 			pCapture->MapDepthToColor();
 
 		if (generatePointcloud)
+		{
 			pCapture->GeneratePointcloud();
+			StoreFrame(pCapture->pointCloudImage, &pCapture->colorBGR);
+		}
 
 
 		if (m_bCaptureFrames || m_bCaptureSingleFrame)
@@ -322,7 +328,6 @@ void LiveScanClient::UpdateFrame()
 
 			else if (m_eCaptureMode == CM_POINTCLOUD)
 			{
-				StoreFrame(pCapture->pointCloudImage, &pCapture->colorBGR);
 				SavePointcloudFrame(timeStamp);
 			}
 
@@ -347,7 +352,6 @@ void LiveScanClient::UpdateFrame()
 
 		if (m_bRequestLiveFrame)
 		{
-			StoreFrame(pCapture->pointCloudImage, &pCapture->colorBGR);
 			SendFrame(m_vLastFrameVertices, m_vLastFrameVerticesSize, m_vLastFrameRGB, true);
 			m_bRequestLiveFrame = false;
 		}
@@ -1141,49 +1145,65 @@ void LiveScanClient::SendFrame(Point3s* vertices, int verticesSize, RGBA* RGB, b
 	}
 }
 
+/// <summary>
+/// The goal in this function is to eliminate all vertices from the pointcloud
+/// that are either invalid (depth of 0), or out of bounds, so that we don't
+/// write them to disk, and uneccessarily bloat the file size
+/// </summary>
 void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage)
 {
 	logBuffer.LogTrace("Storing Frame");
 
-	unsigned int nVertices = pCapture->nColorFrameHeight * pCapture->nColorFrameWidth;
+	int allVerticesNewSize = pCapture->nColorFrameHeight * pCapture->nColorFrameWidth;
+
+	if (m_nAllVerticesSize != allVerticesNewSize)
+	{
+		m_nAllVerticesSize = allVerticesNewSize;
+		delete[] m_pAllVertices;
+		m_pAllVertices = new Point3f[m_nAllVerticesSize];
+	}
 
 	int16_t* pointCloudImageData = (int16_t*)(void*)k4a_image_get_buffer(pointcloudImage);
 	Point3f invalidPoint = Point3f(0, 0, 0, true);
-	Point3f* allVertices = new Point3f[nVertices];
+	Point3f temp= Point3f(0,0,0);
+
+	Matrix4x4 scale = Matrix4x4(
+		0.001f, 0.0f, 0.0f, 0.0f, 
+		0.0f, 0.001f, 0.0f, 0.0f, 
+		0.0f, 0.0f, 0.001f, 0.0f, 
+		0.0f, 0.0f, 0.0f, 1.0f);
+
+	Matrix4x4 toWorld =  calibration.worldTransform * scale;
+
 	int goodVerticesCount = 0;
 
-	for (unsigned int vertexIndex = 0; vertexIndex < nVertices; vertexIndex++)
+	for (unsigned int vertexIndex = 0; vertexIndex < m_nAllVerticesSize; vertexIndex++)
 	{
 		//As the resizing function doesn't return a valid RGB-Reserved value which indicates that this pixel is invalid,
 		//we cut all vertices under a distance of 0.0001mm, as the invalid vertices always have a Z-Value of 0
 		if (pointCloudImageData[3 * vertexIndex + 2] >= 0.0001) // TODO: Needed? && colorInDepth->data[vertexIndex] == 255)
 		{
-			Point3f temp;
-
-			temp.X = pointCloudImageData[3 * vertexIndex + 0] / 1000.0f;
-			temp.Y = pointCloudImageData[3 * vertexIndex + 1] / 1000.0f;
-			temp.Z = pointCloudImageData[3 * vertexIndex + 2] / 1000.0f;
-
-			if (calibration.bCalibrated)
-			{
-				temp = calibration.worldTransform * temp;
-			}
+			temp.X = pointCloudImageData[3 * vertexIndex + 0];
+			temp.Y = pointCloudImageData[3 * vertexIndex + 1];
+			temp.Z = pointCloudImageData[3 * vertexIndex + 2];
+		
+			temp = toWorld * temp;
 
 			if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]
 				|| temp.Y < m_vBounds[1] || temp.Y > m_vBounds[4]
 				|| temp.Z < m_vBounds[2] || temp.Z > m_vBounds[5])
 			{
-				allVertices[vertexIndex] = invalidPoint;
+				m_pAllVertices[vertexIndex] = invalidPoint;
 				continue;
 			}
 
-			allVertices[vertexIndex] = temp;
+			m_pAllVertices[vertexIndex] = temp;
 			goodVerticesCount++;
 		}
 
 		else
 		{
-			allVertices[vertexIndex] = invalidPoint;
+			m_pAllVertices[vertexIndex] = invalidPoint;
 		}
 	}
 
@@ -1198,24 +1218,22 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 	uchar* colorValues = colorImage->data;
 
 	//Copy all valid vertices into a clean vector 
-	for (unsigned int i = 0; i < nVertices; i++)
+	for (unsigned int i = 0; i < m_nAllVerticesSize; i++)
 	{
-		if (!allVertices[i].Invalid)
+		if (!m_pAllVertices[i].Invalid)
 		{
 			RGBA color;
 			color.red = colorValues[i * 4];
 			color.green = colorValues[(i * 4) + 1];
 			color.blue = colorValues[(i * 4) + 2];
 
-			m_vLastFrameVertices[validVerticesShortCounter] = allVertices[i];
+			m_vLastFrameVertices[validVerticesShortCounter] = m_pAllVertices[i];
 			m_vLastFrameRGB[validVerticesShortCounter] = color;
 			validVerticesShortCounter++;
 		}
 	}
 
 	m_vLastFrameVerticesSize = validVerticesShortCounter;
-
-	delete[] allVertices;
 }
 
 void LiveScanClient::UpdateFPS()

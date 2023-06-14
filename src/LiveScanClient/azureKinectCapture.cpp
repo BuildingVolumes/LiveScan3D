@@ -277,6 +277,7 @@ void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
 
 	//Resize the k4a_image to the precalculated size, so that we later save on resources while transforming the image
 	//Nice idea, however resizing takes so long, that it's not worth it. 
+	//Might only be useful for very high res color recordings in Pointcloud Mode, but that doesn't make sense
 	cv::resize(colorBGR, colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
 
 	nColorFrameHeight = colorBGR.rows;
@@ -322,7 +323,7 @@ void AzureKinectCapture::GeneratePointcloud() {
 		k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * 3 * (int)sizeof(int16_t), &pointCloudImage);
 	}
 
-	k4a_transformation_depth_image_to_point_cloud(transformationColorDownscaled, transformedDepthImage, K4A_CALIBRATION_TYPE_COLOR, pointCloudImage);
+	k4a_transformation_depth_image_to_point_cloud(transformation, transformedDepthImage, K4A_CALIBRATION_TYPE_COLOR, pointCloudImage);
 }
 
 

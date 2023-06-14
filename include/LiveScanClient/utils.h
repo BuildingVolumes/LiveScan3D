@@ -177,9 +177,9 @@ public:
 
 		for (int i = 0; i < 4; i++)
 		{
-			for (int j = 0; j < 4; j++)
+			for (int k = 0; k < 4; k++)
 			{
-				for (int k = 0; k < 4; k++)
+				for (int j = 0; j < 4; j++)
 				{
 					resultM.mat[i][j] += this->mat[i][k] * rhs.mat[k][j];
 				}
@@ -192,25 +192,11 @@ public:
 	//Overload multiply operator to allow multiplication with vectors/points
 	friend Point3f operator*(const Matrix4x4& lhs, const Point3f& v)
 	{
-		float inputV[4];
-		float resultV[4] {0,0,0,0};
+		Point3f output = Point3f(0,0,0);
 
-		//We need to add one more component to the Vector, to make it the same size as the Matrix
-		inputV[0] = v.X;
-		inputV[1] = v.Y;
-		inputV[2] = v.Z;
-		inputV[3] = 1;
-
-		for (int i = 0; i < 4; i++)
-		{
-			for (int k = 0; k < 4; k++)
-			{
-				resultV[i] += lhs.mat[i][k] * inputV[k];
-			}	
-		}
-
-		Point3f output = Point3f(resultV[0], resultV[1], resultV[2]);
-
+		output.X += lhs.mat[0][0] * v.X + lhs.mat[0][1] * v.Y + lhs.mat[0][2] * v.Z + lhs.mat[0][3];
+		output.Y += lhs.mat[1][0] * v.X + lhs.mat[1][1] * v.Y + lhs.mat[1][2] * v.Z + lhs.mat[1][3];
+		output.Z += lhs.mat[2][0] * v.X + lhs.mat[2][1] * v.Y + lhs.mat[2][2] * v.Z + lhs.mat[2][3];
 		return output;
 	}
 
