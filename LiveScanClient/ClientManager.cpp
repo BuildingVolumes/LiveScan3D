@@ -54,8 +54,6 @@ void ClientManager::RemoveClient(int index)
 		activeClient = m_vClients.size() - 1;
 		m_vClients[activeClient]->SetClientActive(true);
 	}
-
-
 }
 
 void ClientManager::ConnectClient(std::string adress, int index)

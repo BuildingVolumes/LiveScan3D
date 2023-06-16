@@ -1487,10 +1487,12 @@ namespace KinectServer
                 allDone.WaitOne();
             }
 
-            if (eSocketListChanged != null)
-            {
-                eSocketListChanged(lClientSockets);
-            }
+            //if (eSocketListChanged != null)
+            //{
+            //    eSocketListChanged(lClientSockets);
+            //}
+
+            Log.LogInfo("Listening thread ended");
         }
 
         private void ReceivingWorker()
