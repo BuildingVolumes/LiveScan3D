@@ -1,7 +1,4 @@
 #include "KinectConfiguration.h"
-#include <k4a/k4atypes.h>
-#include <utils.h>
-#include <Log.h>
 
 
 	std::string sSerialNumber;
@@ -16,11 +13,11 @@
 	int m_nColorCameraWidth;
 	bool filter_depth_map;
 	int filter_depth_map_size = 5;
-	const byte serialNumberSize = 13;
+	const int serialNumberSize = 13;
 
 	KinectConfiguration::KinectConfiguration()
 	{
-		serialNumber = "0000000000000";
+		serialNumber = "Unknown Device";
 		InitializeDefaults();
 	}
 
@@ -111,12 +108,6 @@
 		i++;
 		filter_depth_map_size = int(received[i]);
 		//update const byteLength when changing this.
-
-		std::ostringstream stream;
-		stream << "Setting configuration: depthMode = " << depthMode << ", Software Sync State = " << eSoftwareSyncState
-			   << ", Sync Offset = " << nSyncOffset << ", GlobalDeviceIndex = " << nGlobalDeviceIndex;
-		Log::Get().LogDebug(stream.str());
-
 	}
 
 	void KinectConfiguration::InitializeDefaults()
@@ -131,7 +122,7 @@
 		nGlobalDeviceIndex = 0;
 		nSyncOffset = 0;
 		eSoftwareSyncState = Standalone;
-		eHardwareSyncState = Unknown;
+		eHardwareSyncState = UnknownState;
 		filter_depth_map = false;
 		filter_depth_map_size = 5;
 	}

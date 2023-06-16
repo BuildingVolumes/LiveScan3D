@@ -20,12 +20,12 @@
 
 using namespace std;
 
-struct RGB
+struct RGBA
 {
 	unsigned char R, G, B;
 };
 
-void savePLY(std::string filename, std::vector<Point3f> vertices, std::vector<RGB> colors)
+void savePLY(std::string filename, std::vector<Point3f> vertices, std::vector<RGBA> colors)
 {
 
 	unsigned int numVertices = vertices.size();
@@ -70,7 +70,7 @@ void savePLY(std::string filename, std::vector<Point3f> vertices, std::vector<RG
 	fclose(meshFile);
 }
 
-void loadPLY(string filename, vector<Point3f> &verts, vector<RGB> &colors)
+void loadPLY(string filename, vector<Point3f> &verts, vector<RGBA> &colors)
 {
 	FILE *f;
 	int nVerts;
@@ -91,7 +91,7 @@ void loadPLY(string filename, vector<Point3f> &verts, vector<RGB> &colors)
 		fgets(buffer, 100, f);
 
 		Point3f point;
-		RGB rgb;
+		RGBA rgb;
 		int R, G, B;
 		sscanf_s(buffer, "%f %f %f %d %d %d\n", &point.X, &point.Y, &point.Z, &R, &G, &B);
 		
@@ -111,7 +111,7 @@ void loadPLY(string filename, vector<Point3f> &verts, vector<RGB> &colors)
 int main()
 {
 	vector<Point3f> verts1, verts2;
-	vector<RGB> colors1, colors2;
+	vector<RGBA> colors1, colors2;
 
 	loadPLY("../test1.ply", verts1, colors1);
 	loadPLY("../test2.ply", verts2, colors2);

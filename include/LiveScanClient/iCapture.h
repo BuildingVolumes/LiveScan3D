@@ -14,11 +14,11 @@
 //    }
 #pragma once
 
-#include "utils.h"
-#include <k4a/k4atypes.h>
 #include <KinectConfiguration.h>
 #include "k4a/k4a.h"
-#include "opencv2/core.hpp"
+#include "opencv2/opencv.hpp"
+//#include <stdint.h>
+#include "Log.h" 
 
 struct Joint
 {
@@ -45,6 +45,7 @@ public:
 	virtual ~ICapture();
 
 	virtual bool Initialize(KinectConfiguration& configuration) = 0;
+	virtual void SetLogger(Log* log) = 0;
 	virtual void SetManualDeviceIndex(int index) = 0; //Only used for testing devices for now
 	virtual bool AquireRawFrame() = 0;
 	//virtual bool AquirePointcloudFrame() = 0;
@@ -76,7 +77,7 @@ public:
 	std::vector<uint8_t> calibrationBuffer;
 	size_t nCalibrationSize;
 
-	BYTE* pBodyIndex;
+    uint8_t* pBodyIndex;
 	std::vector<Body> vBodies;
 	std::string serialNumber;
 };

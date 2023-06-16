@@ -1,16 +1,10 @@
 #pragma once
 #include "azureKinectCapture.h"
-#include "stdafx.h"
-#include "ICapture.h"
-#include <k4a/k4a.h>
-#include <k4a/k4atypes.h>
-#include <opencv2/opencv.hpp>
-#include "utils.h"
-#include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
-#include "turbojpeg/turbojpeg.h"
-#include "Log.h"
-#include <stdlib.h>
+//#include <stdlib.h>
+#include <fstream>
+#include <iostream>
+#include <filesystem>
+
 
 class AzureKinectCaptureVirtual : public AzureKinectCapture
 {
@@ -36,11 +30,11 @@ public:
 private:
 
 	k4a_calibration_t m_VirtualCalibration;
-
 	std::vector<k4a_image_t> m_vVirtualColorImageSequence;
 	std::vector<uint8_t*> m_vVirtualColorImagesBuffer;
-
 	std::vector<k4a_image_t> m_vVirtualDepthImageSequence;
+
+	HANDLE virtualDeviceSystemMutex; //Used to lock a virtual device on the system, so that no other thread/process uses it
 
 	long m_lLastFrameTimeus;
 };

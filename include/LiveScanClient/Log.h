@@ -1,20 +1,23 @@
 #pragma once
 
+#include "stdafx.h"
 #include <string>
 #include <stdio.h>
-#include <sstream>
 #include <fstream>
+#include <vector>
+#include <mutex>
+#include <ctime>
+#include <iostream>
+#include <filesystem>
 
+struct LogBuffer;
 
 class Log
 {
 public:
-	
-	static Log& Get()
-	{
-		static Log s_Instance;
-		return s_Instance;
-	}
+
+	Log() {}
+	~Log() { CloseLogFile(); }
 
 	enum LOGLEVEL
 	{
@@ -23,34 +26,53 @@ public:
 		LOGLEVEL_INFO,
 		LOGLEVEL_DEBUG,
 		LOGLEVEL_DEBUG_CAPTURE,
-		LOGLEVEL_ALL
-		
+		LOGLEVEL_ALL		
 	};
 
+	bool StartLog(int clientInstance, LOGLEVEL level);
+	void PrintAllMessages();
+	void RegisterBuffer(LogBuffer* buffer);
+	void UnRegisterBuffer(LogBuffer* buffer);
+	void WriteAndFlushBuffer(std::string text);
+	void CloseLogFile();
+	
+
+private:	
+
+	
+
+	std::vector<LogBuffer*> buffers;
+	std::mutex registerMutex;
+	int clientNumber = 0;
+	std::ofstream* logfile = nullptr;
+	LOGLEVEL logLevel = LOGLEVEL_INFO;
+	bool writeToConsole = false;
+};
+
+class LogBuffer
+{
+public:
+
+	void ChangeName(std::string name);
+	std::vector<std::string> GetMessageBuffer();
+	void ClearMessageBuffer();
+
 	void LogTrace(std::string message);
-	void LogCaptureDebug(std::string message); //Capture Debug is logging stuff for every single picture taken. Might spam the log pretty fast
+	void LogCaptureDebug(std::string message); 
 	void LogDebug(std::string message);
 	void LogInfo(std::string message);
 	void LogWarning(std::string message);
 	void LogError(std::string message);
 	void LogFatal(std::string message);
 
-	bool StartLog(std::string serialNumber, LOGLEVEL level, bool openConsole);
-	
+	std::mutex bufferMutex;
 
 private:
 
-	Log(){}
-	~Log() { CloseLogFile(); }
-	Log(const Log&) = delete;
-
 	void AddLogEntry(std::string message, std::string loglevel);
-	void WriteAndFlushBuffer();
-	void CloseLogFile();
 
-	std::ofstream* logfile = nullptr;
-	std::string logBuffer = "";
-	LOGLEVEL logLevel = LOGLEVEL_INFO;
-	bool writeToConsole = false;
+	std::vector<std::string> messages;
+	std::string name = "Unknown";
+	Log::LOGLEVEL logLevel = Log::LOGLEVEL_INFO;
 };
 

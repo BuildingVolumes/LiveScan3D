@@ -13,7 +13,7 @@ namespace KinectServer
         [DllImport("kernel32.dll", EntryPoint = "AllocConsole", SetLastError = true, CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         private static extern int AllocConsole();
 
-        const string logFilePath = "Server_Log.txt";
+        const string logFilePath = "logs/Log_Server.txt";
 
         public enum LogLevel { All, DebugCapture, Debug, Normal, None}
 
@@ -39,6 +39,9 @@ namespace KinectServer
 
             try
             {
+                if (!Directory.Exists("logs"))
+                    Directory.CreateDirectory("logs");
+
                 fileStream = new FileStream(logFilePath, FileMode.Create);
                 streamWriter = new StreamWriter(fileStream);
             }

@@ -8,8 +8,10 @@
 
 #pragma once
 
+#include "stdafx.h"
 #include <d2d1.h>
 #include "iCapture.h"
+
 
 class ImageRenderer
 {
@@ -42,7 +44,7 @@ public:
     /// <param name="pImage">image data in RGBX format</param>
     /// <param name="cbImage">size of image data in bytes</param>
     /// <returns>indicates success or failure</returns>
-    HRESULT Draw(BYTE* pImage, unsigned long cbImage, std::vector<Body> &bodies);
+    HRESULT Draw(uint8_t* pImage, unsigned long cbImage);
 
     int GetRenderWidth();
     int GetRenderHeight();

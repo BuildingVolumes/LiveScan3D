@@ -32,12 +32,9 @@
 // This library version has been altered from the original.
 //
 
-#ifndef SOCKET_H
-#define SOCKET_H
-
 
 #include <WinSock2.h>
-
+#include <iostream>
 #include <string>
 
 enum TypeSocket {BlockingSocket, NonBlockingSocket};
@@ -103,7 +100,3 @@ class SocketSelect {
   private:
     fd_set fds_;
 }; 
-
-
-
-#endif

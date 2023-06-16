@@ -99,13 +99,27 @@ namespace KinectServer
                 return;
             }
 
+            //Setup directories
+            try
+            {
+                if (!Directory.Exists("temp"))
+                    Directory.CreateDirectory("temp");
+            }
+
+            catch(Exception)
+            {
+                ShowFatalWindowAndQuit("Could not create working directories, please restart Application!");
+            }
+
+
+
 
             Stream settingsStream = null;
             //This tries to read the settings from "settings.bin", if it failes the settings stay at default values.
             try
             {
                 IFormatter formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                settingsStream = new FileStream("settings.bin", FileMode.Open, FileAccess.Read);
+                settingsStream = new FileStream("temp/settings.bin", FileMode.Open, FileAccess.Read);
                 oSettings = (KinectSettings)formatter.Deserialize(settingsStream);
 
                 //Set settings that should not be loaded from the save
@@ -169,7 +183,7 @@ namespace KinectServer
             //The current settings are saved to a files.
             IFormatter formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
 
-            Stream stream = new FileStream("settings.bin", FileMode.Create, FileAccess.Write);
+            Stream stream = new FileStream("temp/settings.bin", FileMode.Create, FileAccess.Write);
             formatter.Serialize(stream, oSettings);
             stream.Close();
 

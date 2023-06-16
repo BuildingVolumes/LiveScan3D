@@ -144,7 +144,7 @@ namespace KinectServer
         public int GetNewTakeIndex(string takeName)
         {
             Dictionary<String, int> takeDict = new Dictionary<string, int>();
-            string jsonPath = "takes.json";
+            string jsonPath = "temp/takes.json";
             string jsonContent = string.Empty;
 
             if (File.Exists(jsonPath))

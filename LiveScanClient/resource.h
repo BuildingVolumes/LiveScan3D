@@ -11,6 +11,9 @@
 #define IDC_BUTTON_SWITCH               1013
 #define IDC_STATUS2                     1014
 #define IDC_BUTTON_INIT_SUB             1018
+#define IDC_TAB                         1020
+#define IDC_BUTTON2                     1022
+#define IDC_BUTTON_TAB_CLOSE            1022
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -20,7 +23,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        101
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1019
+#define _APS_NEXT_CONTROL_VALUE         1023
 #define _APS_NEXT_SYMED_VALUE           102
 #endif
 #endif
