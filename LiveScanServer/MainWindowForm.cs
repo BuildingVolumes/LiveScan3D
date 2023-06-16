@@ -68,6 +68,8 @@ namespace KinectServer
         {
             InitializeComponent();
             OpenGLWorker.RunWorkerAsync();
+
+            this.Icon = Properties.Resources.Server_Icon;
         }
 
         private void MainWindowForm_Load(object sender, EventArgs e)
@@ -206,9 +208,9 @@ namespace KinectServer
         private void ClientConnectionChanged(List<KinectSocket> socketList)
         {
             //Disable the temporal hardware sync if all clients disconnected
-            if(socketList.Count == 0)
+            if (socketList.Count == 0)
             {
-                Invoke(new Action(() => { chHardwareSync.Checked = false; }));          
+                Invoke(new Action(() => { chHardwareSync.Checked = false; }));
             }
         }
 

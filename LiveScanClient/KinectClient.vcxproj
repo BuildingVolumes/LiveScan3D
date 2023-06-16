@@ -149,7 +149,7 @@
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d  "$(ProjectDir)external\*.dll" "$(OutDir)"
-xcopy /y /d /i /t  "$(ProjectDir)resources\" "$(OutDir)resources\"
+xcopy /y /i /e  "$(ProjectDir)resources\" "$(OutDir)resources\"
 </Command>
       <Message>Copying external DLLs</Message>
     </PreBuildEvent>
@@ -173,7 +173,7 @@ xcopy /y /d /i /t  "$(ProjectDir)resources\" "$(OutDir)resources\"
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d  "$(ProjectDir)external\*.dll" "$(OutDir)"
-xcopy /y /d /s  "$(ProjectDir)resources\" "$(OutDir)resources\"
+xcopy /y /i /e  "$(ProjectDir)resources\" "$(OutDir)resources\"
 xcopy /y /d /s /i  "$(SolutionDir)TestData\virtualdevice" "$(OutDir)resources\testdata\virtualdevice"
 </Command>
       <Message>Copying external DLLs and resources</Message>
@@ -202,7 +202,7 @@ xcopy /y /d /s /i  "$(SolutionDir)TestData\virtualdevice" "$(OutDir)resources\te
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d  "$(ProjectDir)external\*.dll" "$(OutDir)"
-xcopy /y /d /i /t  "$(ProjectDir)resources\" "$(OutDir)resources\"
+xcopy /y /i /e  "$(ProjectDir)resources\" "$(OutDir)resources\"
 </Command>
       <Message>Copying external DLLs</Message>
     </PreBuildEvent>
@@ -230,8 +230,8 @@ xcopy /y /d /i /t  "$(ProjectDir)resources\" "$(OutDir)resources\"
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d  "$(ProjectDir)external\*.dll" "$(OutDir)"
-xcopy /y /d /i /t  "$(ProjectDir)resources\" "$(OutDir)resources\"
-</Command>
+xcopy /y /i /e  "$(ProjectDir)resources\" "$(OutDir)resources\"
+xcopy /y /d /s /i  "$(SolutionDir)TestData\virtualdevice" "$(OutDir)resources\testdata\virtualdevice"</Command>
       <Message>Copying external DLLs</Message>
     </PreBuildEvent>
   </ItemDefinitionGroup>

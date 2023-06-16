@@ -47,6 +47,7 @@ namespace LiveScanPlayer
             OpenGLWorker.RunWorkerAsync();
             updateWorker.RunWorkerAsync();
             lFrameFilesListView.Columns.Add("Files:", 300);
+            this.Icon = Properties.Resources.Player_Icon;
         }
 
         private void PlayerWindowForm_Load(object sender, EventArgs e)

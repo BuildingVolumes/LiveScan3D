@@ -42,6 +42,9 @@
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Server_Icon.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -159,6 +162,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Marker_5_thumb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="App_Server_Icon.ico" />
+    <None Include="Resources\Icon_Server.ico" />
+    <None Include="Resources\Server_Icon.ico" />
+    <None Include="Resources\Server_Icon.bmp" />
+    <Content Include="Server_Icon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
