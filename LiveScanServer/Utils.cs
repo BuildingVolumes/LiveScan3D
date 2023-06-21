@@ -185,12 +185,6 @@ namespace KinectServer
         restartingClients = 6
     }
 
-    public enum captureMode
-    {
-        raw = 0,
-        pointcloud = 1
-    }
-
 
     public enum TrackingState
     {
