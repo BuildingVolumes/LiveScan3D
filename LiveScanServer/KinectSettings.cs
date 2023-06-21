@@ -46,6 +46,9 @@ namespace KinectServer
         public enum ExtrinsicsStyle { None = 0, Open3D = 1, OpenMVS = 2}
         public ExtrinsicsStyle eExtrinsicsFormat = ExtrinsicsStyle.Open3D;
 
+        public enum SyncMode { off = 0, Network = 1, Hardware = 2 }
+        public SyncMode eSyncMode = SyncMode.off;
+
         public string takePath;
 
         public bool bNetworkSync = false;

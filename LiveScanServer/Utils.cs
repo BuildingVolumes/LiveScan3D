@@ -174,6 +174,24 @@ namespace KinectServer
 
     }
 
+    public enum appState 
+    { 
+        idle = 0,
+        recording = 1,
+        syncing = 2,
+        saving = 3,
+        calibrating = 4,
+        refinining = 5,
+        restartingClients = 6
+    }
+
+    public enum captureMode
+    {
+        raw = 0,
+        pointcloud = 1
+    }
+
+
     public enum TrackingState
     {
         TrackingState_NotTracked = 0,

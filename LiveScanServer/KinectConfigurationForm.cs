@@ -12,9 +12,7 @@ namespace KinectServer
 {
     public partial class KinectConfigurationForm : Form
     {
-        KinectServer oServer;
-        int socketID;
-        
+        LiveScanServer liveScanServer;        
         KinectSocket kinectSocket;
         public KinectConfiguration displayedConfiguration;
        
@@ -25,18 +23,15 @@ namespace KinectServer
             CreateColorResList();
         }
 
-        public void Initialize(KinectServer kServer, int socketID)
+        public void Initialize(LiveScanServer liveScanServer, KinectSocket socket, )
         {
             oServer = kServer;
-            this.socketID = socketID;
-            kinectSocket = oServer.GetKinectSocketByIndex(socketID);
             this.Text = "Loading Configuration...";
             this.Update();
 
-            kinectSocket.RequestConfiguration();
-            kinectSocket.configurationUpdated += UpdateFormItemsFromConfiguration;
         }
 
+        //TODO: We need to update the configuration if it has changed
         private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
         {
             // Invoke UI logic on the same thread.

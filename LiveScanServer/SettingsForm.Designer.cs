@@ -78,7 +78,6 @@
             this.lbZ = new System.Windows.Forms.Label();
             this.lbY = new System.Windows.Forms.Label();
             this.lbX = new System.Windows.Forms.Label();
-            this.UpdateClientsBackgroundWorker = new System.ComponentModel.BackgroundWorker();
             this.tooltips = new System.Windows.Forms.ToolTip(this.components);
             this.grClient.SuspendLayout();
             this.gbICP.SuspendLayout();
@@ -697,7 +696,6 @@
         private System.Windows.Forms.GroupBox exportGroup;
         private System.Windows.Forms.ComboBox cbExtrinsicsFormat;
         private System.Windows.Forms.Label lExtrinsics;
-        private System.ComponentModel.BackgroundWorker UpdateClientsBackgroundWorker;
         private System.Windows.Forms.GroupBox gbICP;
         private System.Windows.Forms.PictureBox pMarkerThumb;
         private System.Windows.Forms.PictureBox pInfoICP;

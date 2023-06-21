@@ -39,9 +39,6 @@ namespace KinectServer
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
         public event SocketListChangedHandler eSocketListChanged;
 
-        public bool bTempHwSyncEnabled = false;
-        public bool bPointCloudMode = true;
-
         object oClientSocketLock = new object();
         object oFrameRequestLock = new object();
         const float networkTimeout = 5f;

@@ -79,6 +79,9 @@ namespace KinectServer
         public event SocketChangedHandler eChanged;
 
         public Action<KinectConfiguration> configurationUpdated;
+
+        //UI
+        public bool visible;
         
         public KinectSocket(Socket clientSocket)
         {
