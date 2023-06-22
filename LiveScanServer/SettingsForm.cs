@@ -92,10 +92,31 @@ namespace KinectServer
         void UpdateSettings()
         {
             Cursor.Current = Cursors.WaitCursor;
-            liveScanServer.SettingsChanged(settings);
+
+            //Get the latest settings state
+            KinectSettings currentSettings = liveScanServer.GetState().settings;
+            settings = ApplySettings(currentSettings);
+            liveScanServer.SetSettings(settings);
             UpdateUI(settings); // TODO: Neccessary?
+
             Log.LogDebug("Updating settings on clients");
             Cursor.Current = Cursors.Default;
+        }
+
+        KinectSettings ApplySettings(KinectSettings currentSettings)
+        {
+            //Only apply settings the we can actually change in this UI
+            currentSettings.nExposureStep = settings.nExposureStep;
+            currentSettings.bMergeScansForSave = settings.bMergeScansForSave;
+            currentSettings.aMaxBounds = settings.aMaxBounds;
+            currentSettings.aMinBounds = settings.aMinBounds;
+            currentSettings.lMarkerPoses = settings.lMarkerPoses;
+            currentSettings.bSaveAsBinaryPLY = settings.bSaveAsBinaryPLY;
+            currentSettings.iCompressionLevel = settings.iCompressionLevel;
+            currentSettings.nNumICPIterations = settings.nNumICPIterations;
+            currentSettings.nNumRefineIters = settings.nNumRefineIters;
+
+             return currentSettings;
         }
 
         void UpdateMarkerFields()

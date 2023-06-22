@@ -16,29 +16,27 @@ namespace KinectServer
         KinectSocket kinectSocket;
         public KinectConfiguration displayedConfiguration;
        
-        public KinectConfigurationForm()
+        public KinectConfigurationForm(LiveScanServer liveScanServer, KinectConfiguration configuration)
         {
             InitializeComponent();
+
+            this.liveScanServer = liveScanServer;
+            this.Text = "Loading Configuration...";
+
             CreateDepthResList();
             CreateColorResList();
-        }
 
-        public void Initialize(LiveScanServer liveScanServer, KinectSocket socket, )
-        {
-            oServer = kServer;
-            this.Text = "Loading Configuration...";
-            this.Update();
-
+            displayedConfiguration = configuration;
+            UpdateUI(displayedConfiguration);
         }
 
         //TODO: We need to update the configuration if it has changed
-        private void UpdateFormItemsFromConfiguration(KinectConfiguration kc)
+        private void UpdateUI(KinectConfiguration kc)
         {
             // Invoke UI logic on the same thread.
             this.BeginInvoke(
                 new Action(() =>
                 {
-                    displayedConfiguration = kc;
                     this.Text = "Configuration for device: " + kc.SerialNumber;
                     this.Update(); 
                     cbFilterDepthMap.Checked = kc.FilterDepthMap;
@@ -57,6 +55,8 @@ namespace KinectServer
                         colorRes = 4;
 
                     lbColorRes.SelectedIndex = colorRes - 1;
+
+                    this.Update();
                 }
         ));
         }
@@ -70,7 +70,6 @@ namespace KinectServer
                 "WFOV 512 x 512",
                 "WFOV 1024 x 1024 (15 FPS)"
             };
-
 
             lbDepthRes.Items.Clear();
             lbDepthRes.Items.AddRange(depthModes);
@@ -97,45 +96,53 @@ namespace KinectServer
         {
             Log.LogDebug("User changed configuration for device: " + kinectSocket.configuration.SerialNumber);
 
-            if(oServer.SetAndConfirmConfig(kinectSocket, displayedConfiguration))
-            {
-                if (oServer.bTempHwSyncEnabled)
-                    oServer.RestartWithTemporalSyncPattern();
+            Cursor.Current = Cursors.WaitCursor;
 
-                else
-                    oServer.RestartClient(kinectSocket);
-            }       
+            KinectConfiguration currentConfig = null;
+            LiveScanState currentState = liveScanServer.GetState();
+
+            //Search for our Config in all configs
+            for (int i = 0; i < currentState.clients.Count; i++)
+            {
+                if (displayedConfiguration.SerialNumber == currentState.clients[i].configuration.SerialNumber)
+                    currentConfig = currentState.clients[i].configuration;
+            }
+
+            if(currentConfig == null)
+            {
+                Log.LogError("Configuration could not be updated, the client is probably disconnected, serial: " + displayedConfiguration.SerialNumber);
+                MessageBox.Show("Configuration could not be updated, the client is probably disconnected", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            displayedConfiguration = ApplyConfiguration(currentConfig, displayedConfiguration);
+            liveScanServer.SetConfiguration(displayedConfiguration);
+
+            Cursor.Current = Cursors.Default;
+
         }
 
         private void btApplyAll_Click(object sender, EventArgs e)
         {
-            Log.LogDebug("User changed configuration all devices");
+            Log.LogDebug("User changed configuration for all devices");
 
-            //Every config might contain individual settings, so we can't just apply one config to all 
-
-            oServer.GetConfigurations(oServer.GetClientSockets());
-
-            List<KinectSocket> sockets = oServer.GetClientSockets();
-            bool socketError = false;
-
-            foreach (KinectSocket socket in sockets)
+            LiveScanState currentState = liveScanServer.GetState();
+            for (int i = 0; i < currentState.clients.Count; i++)
             {
-                socket.configuration.eDepthRes = displayedConfiguration.eDepthRes;
-                socket.configuration.eColorRes = displayedConfiguration.eColorRes;
-                socket.configuration.FilterDepthMap = displayedConfiguration.FilterDepthMap;
-                socket.configuration.FilterDepthMapSize = displayedConfiguration.FilterDepthMapSize;
-                if (!oServer.SetAndConfirmConfig(socket, socket.configuration))
-                    socketError = true;
+                displayedConfiguration = ApplyConfiguration(currentState.clients[i].configuration, displayedConfiguration);
+                liveScanServer.SetConfiguration(displayedConfiguration);
             }
+        }
 
-            if (!socketError)
-            {
-                if (oServer.bTempHwSyncEnabled)
-                    oServer.RestartWithTemporalSyncPattern();
+        //Only applies values that can be changed in this UI
+        KinectConfiguration ApplyConfiguration(KinectConfiguration applyTo, KinectConfiguration applyFrom)
+        {
+            applyTo.FilterDepthMap = applyFrom.FilterDepthMap;
+            applyTo.FilterDepthMapSize = applyFrom.FilterDepthMapSize;
+            applyTo.eDepthRes = applyFrom.eDepthRes;
+            applyTo.eColorRes = applyFrom.eColorRes;
 
-                else
-                    oServer.RestartAllClients();
-            }
+            return applyTo;
         }
 
         private void lbDepthRes_SelectedIndexChanged(object sender, EventArgs e)
@@ -176,13 +183,11 @@ namespace KinectServer
 
         public void CloseConfiguration()
         {
-            Invoke(new Action(() => { Close(); })); //So that we can close the form from other threads aswell
+            Invoke(new Action(() => { Close(); })); //So that we can close the form from other threads as well
         }
 
         private void KinectSettingsForm_FormClosed(object sender, FormClosedEventArgs e)
         {
-            oServer.SetKinectSettingsForm(socketID, null);
-            kinectSocket.configurationUpdated -= UpdateFormItemsFromConfiguration;
         }
     }
 }

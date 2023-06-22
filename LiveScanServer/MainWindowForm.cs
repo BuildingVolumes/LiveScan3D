@@ -75,7 +75,6 @@ namespace KinectServer
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {         
             tLiveViewTimer.Stop();
-            updateWorker.CancelAsync();          
             oOpenGLWindow.Unload(); 
         }
 
@@ -187,6 +186,11 @@ namespace KinectServer
             trManualExposure.Value = newState.settings.nExposureStep;
             trManualExposure.Enabled = !newState.settings.bAutoExposureEnabled;
 
+            if(newState.settings.eSyncMode == KinectSettings.SyncMode.Hardware)
+            {
+                rExposureManual.Checked = true;
+                trManualExposure.Enabled = true;
+            }
 
             //White Balance
             rWhiteBalanceAuto.Checked = newState.settings.bAutoWhiteBalanceEnabled;
@@ -250,34 +254,6 @@ namespace KinectServer
             else
                 settingsForm.Focus();
         }
-
-        
-
-        //Opens the live view window
-        private void OpenGLWorker_DoWork(object sender, DoWorkEventArgs e)
-        {
-            Log.LogInfo("Live View started");
-
-            oOpenGLWindow = new OpenGLWindow();
-
-            //The variables below are shared between this class and the OpenGLWindow.
-            lock (lAllVertices)
-            {
-                oOpenGLWindow.vertices = lAllVertices;
-                oOpenGLWindow.colors = lAllColors;
-                oOpenGLWindow.cameraPoses = lAllCameraPoses;
-                oOpenGLWindow.markerPoses = lAllMarkerPoses;
-                oOpenGLWindow.settings = oSettings;
-                oOpenGLWindow.viewportSettings = viewportSettings;
-                oOpenGLWindow.viewportSettings.colorMode = EColorMode.BGR;
-            }
-        }
-
-        private void OpenGLWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-        }
-
-        
 
         //This is used for: starting/stopping the recording worker, stopping the saving worker
         private void btRecord_Click(object sender, EventArgs e)
@@ -363,83 +339,45 @@ namespace KinectServer
             }
 
             int index = gvClients.SelectedRows[0].Index;
+            
             if (configurationForm == null)
             {
                 configurationForm = new KinectConfigurationForm();
             }
-            //
-            form.Initialize(oServer, gvClients.SelectedRows[0].Index);
-            form.Show();
-            form.Focus();
+
+            configurationForm.Initialize(oServer, gvClients.SelectedRows[0].Index);
+            configurationForm.Show();
+            configurationForm.Focus();
             oServer.SetKinectSettingsForm(gvClients.SelectedRows[0].Index, form);
         }
 
         private void chHardwareSync_Clicked(object sender, EventArgs e)
         {
-            if (chNetworkSync.Checked)
-            {
-                chNetworkSync.Checked = false;
-                oSettings.bNetworkSync = false;
-            }
+            if (chHardwareSync.Checked && !chNetworkSync.Checked)
+                liveScanServer.SetSyncMode(KinectSettings.SyncMode.Hardware);
+            if (!chHardwareSync.Checked && !chNetworkSync.Checked)
+                liveScanServer.SetSyncMode(KinectSettings.SyncMode.off);
 
-            SettingsChanged();
         }
 
         private void chNetworkSync_Clicked(object sender, EventArgs e)
         {
-            if (chHardwareSync.Checked)
-            {
-                chHardwareSync.Checked = false;
-            }
-
-            oSettings.bNetworkSync = chNetworkSync.Checked;
-            SettingsChanged();
+            if (chNetworkSync.Checked && !chHardwareSync.Checked)
+                liveScanServer.SetSyncMode(KinectSettings.SyncMode.Network);
+            if (!chNetworkSync.Checked && !chHardwareSync.Checked)
+                liveScanServer.SetSyncMode(KinectSettings.SyncMode.off);
         }
 
         private void rExposureAuto_Clicked(object sender, EventArgs e)
         {
             if (rExposureAuto.Checked)
-            {
-                oSettings.bAutoExposureEnabled = true;
-                trManualExposure.Enabled = false;
-            }
-
-            SettingsChanged();
+                liveScanServer.SetExposureMode(true);
         }
 
         private void rExposureManual_Clicked(object sender, EventArgs e)
         {
-            if (rExposureManual.Checked)
-            {
-                oSettings.bAutoExposureEnabled = false;
-                trManualExposure.Enabled = true;
-            }
-
-            SettingsChanged();
-        }
-
-        public void LockExposureForSync(bool locked)
-        {
-            if (locked)
-            {
-                rExposureAuto.Enabled = false;
-                rExposureManual.Enabled = false;
-                rExposureManual.Checked = true;
-                rExposureAuto.Checked = false;
-                trManualExposure.Enabled = true;
-                trManualExposure.Value = -5;
-            }
-
-            else
-            {
-                rExposureAuto.Enabled = true;
-                rExposureManual.Enabled = true;
-                rExposureManual.Checked = true;
-                rExposureAuto.Checked = false;
-                trManualExposure.Enabled = true;
-            }
-
-
+            if (rExposureAuto.Checked)
+                liveScanServer.SetExposureMode(false);
         }
 
         /// <summary>
@@ -472,9 +410,7 @@ namespace KinectServer
                         //Clamp Exposure Step between -11 and 1
                         int exposureStep = trManualExposure.Value;
                         int exposureStepClamped = exposureStep < -11 ? -11 : exposureStep > 1 ? 1 : exposureStep;
-                        oSettings.nExposureStep = exposureStepClamped;
-
-                        SettingsChanged();
+                        liveScanServer.SetExposureValue(exposureStepClamped);
 
                         scrollTimerExposure.Dispose();
                         scrollTimerExposure = null;
@@ -491,37 +427,32 @@ namespace KinectServer
 
         private void cbEnablePreview_Clicked(object sender, EventArgs e)
         {
-            oSettings.bPreviewEnabled = chEnablePreview.Checked;
-            SettingsChanged();
+            liveScanServer.SetClientPreview(chEnablePreview.Checked);
         }
 
         private void rExportRaw_Clicked(object sender, EventArgs e)
         {
-            if (rExportRaw.Checked)
-            {
-                chMergeScans.Enabled = false;
-                oSettings.eExportMode = KinectSettings.ExportMode.RawFrames;
-            }
-
-            SettingsChanged();
+            liveScanServer.SetExportMode(KinectSettings.ExportMode.RawFrames);
         }
 
         private void rExportPointclouds_Clicked(object sender, EventArgs e)
         {
-            if (rExportPointclouds.Checked)
-            {
-                chMergeScans.Enabled = true;
-                oSettings.eExportMode = KinectSettings.ExportMode.Pointcloud;
-            }
-
-            SettingsChanged();
-
+            liveScanServer.SetExportMode(KinectSettings.ExportMode.Pointcloud);
         }
 
         private void chMergeScans_CheckedChanged(object sender, EventArgs e)
         {
-            oSettings.bMergeScansForSave = chMergeScans.Checked;
-            SettingsChanged();
+           liveScanServer.SetMergeScans(chMergeScans.Checked);
+        }
+
+        private void rWhiteBalanceAuto_CheckedChanged(object sender, EventArgs e)
+        {
+            liveScanServer.SetWhiteBalanceMode(true);
+        }
+
+        private void rWhiteBalanceManual_CheckedChanged(object sender, EventArgs e)
+        {
+            liveScanServer.SetWhiteBalanceMode(false);
         }
 
         private void tbWhiteBalance_Scroll(object sender, EventArgs e)
@@ -544,9 +475,7 @@ namespace KinectServer
                         // scrolling has stopped so we are good to go ahead and do stuff
                         scrollTimerWhiteBalance.Stop();
 
-                        oSettings.nKelvin = trWhiteBalance.Value;
-
-                        SettingsChanged();
+                        liveScanServer.SetWhiteBalanceValue(trWhiteBalance.Value);
 
                         scrollTimerWhiteBalance.Dispose();
                         scrollTimerWhiteBalance = null;
@@ -559,28 +488,6 @@ namespace KinectServer
                 };
                 scrollTimerWhiteBalance.Start();
             }
-        }
-
-        private void rWhiteBalanceAuto_CheckedChanged(object sender, EventArgs e)
-        {
-            if (rWhiteBalanceAuto.Checked)
-            {
-                oSettings.bAutoWhiteBalanceEnabled = true;
-                trWhiteBalance.Enabled = false;
-            }
-
-            SettingsChanged();
-        }
-
-        private void rWhiteBalanceManual_CheckedChanged(object sender, EventArgs e)
-        {
-            if (rWhiteBalanceManual.Checked)
-            {
-                oSettings.bAutoWhiteBalanceEnabled = false;
-                trWhiteBalance.Enabled = true;
-            }
-
-            SettingsChanged();
         }
 
         #region LivePreviewRender

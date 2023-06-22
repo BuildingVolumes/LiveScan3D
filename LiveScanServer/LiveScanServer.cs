@@ -127,6 +127,8 @@ namespace KinectServer
             if (oTransferServer != null)
                 oTransferServer.StopServer();
 
+            updateWorker.CancelAsync();
+
             Log.LogInfo("Programm termined normally, exiting");
             Log.CloseLog();
         }
@@ -317,22 +319,27 @@ namespace KinectServer
             }
         }
 
-        public void SetHardwareSync(bool enabled)
+        public void SetSyncMode(KinectSettings.SyncMode syncMode)
+        {
+            //Todo: Don't forget to set exposure mode to manual
+        }
+
+        public void SetExposureMode(bool auto)
         {
 
         }
 
-        public void SetNetworkSync(bool enabled)
+        public void SetExposureValue(int value)
         {
 
         }
 
-        public void SetAutoExposure(bool enabled)
+        public void SetWhiteBalanceMode(bool auto)
         {
 
         }
 
-        public void SetManualExposure(bool enabled)
+        public void SetWhiteBalanceValue(int kelvin)
         {
 
         }
@@ -342,24 +349,31 @@ namespace KinectServer
 
         }
 
-        public void SetExportMode()
+        public void SetExportMode(KinectSettings.ExportMode exportMode)
         {
 
         }
 
-        public void SetMergeScans()
+        public void SetMergeScans(bool merge)
         {
 
         }
 
-        public void SetAutoExposure()
+        public LiveScanState GetState()
         {
-
+            //Todo: Update settings & Clients here;
+            return state;
         }
 
-        public void SetWhiteBalance()
+        public void SetSettings(KinectSettings newSettings)
         {
+            //Todo: Need to lock settings?
+            state.settings = newSettings;
+        }
 
+        public void SetConfiguration(KinectConfiguration configuration)
+        {
+            //Restart often needed to change color/depth res
         }
 
         #endregion
@@ -752,17 +766,7 @@ namespace KinectServer
         #endregion
 
 
-        public LiveScanState GetState()
-        {
-            //Todo: Update settings & Clients here;
-            return state;
-        }
-
-        public void SettingsChanged(KinectSettings newSettings)
-        {
-            //Todo: Need to lock settings?
-            state.settings = newSettings;
-        }
+     
     }
 
 
