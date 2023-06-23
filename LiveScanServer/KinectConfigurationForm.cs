@@ -14,9 +14,10 @@ namespace KinectServer
     {
         LiveScanServer liveScanServer;        
         KinectSocket kinectSocket;
-        public KinectConfiguration displayedConfiguration;
+        KinectConfiguration displayedConfiguration;
+        public string serialnumber;
        
-        public KinectConfigurationForm(LiveScanServer liveScanServer, KinectConfiguration configuration)
+        public KinectConfigurationForm(LiveScanServer liveScanServer, string serialnumber)
         {
             InitializeComponent();
 
@@ -26,35 +27,40 @@ namespace KinectServer
             CreateDepthResList();
             CreateColorResList();
 
-            displayedConfiguration = configuration;
-            UpdateUI(displayedConfiguration);
+            this.serialnumber = serialnumber;
+            UpdateUI();
         }
 
         //TODO: We need to update the configuration if it has changed
-        private void UpdateUI(KinectConfiguration kc)
+        public void UpdateUI()
         {
             // Invoke UI logic on the same thread.
             this.BeginInvoke(
                 new Action(() =>
                 {
-                    this.Text = "Configuration for device: " + kc.SerialNumber;
+                    KinectConfiguration newConfig = liveScanServer.GetConfigFromSerial(serialnumber);
+
+                    this.Text = "Configuration for device: " + newConfig.SerialNumber;
                     this.Update(); 
-                    cbFilterDepthMap.Checked = kc.FilterDepthMap;
-                    nDepthFilterSize.Value = kc.FilterDepthMapSize;
+                    cbFilterDepthMap.Checked = newConfig.FilterDepthMap;
+                    nDepthFilterSize.Value = newConfig.FilterDepthMapSize;
                     
                     //Disable changing depth map filtering if we are in raw frames mode.
                     //Depth filtering only works in point cloud mode.
 
-                    lbDepthRes.SelectedIndex = (int)kc.eDepthRes - 1;
+                    lbDepthRes.SelectedIndex = (int)newConfig.eDepthRes - 1;
 
                     //Swab some values so that the list looks neater (4:3 and 16:9 split)
-                    int colorRes = (int)kc.eColorRes;
+                    int colorRes = (int)newConfig.eColorRes;
                     if (colorRes == 4)
                         colorRes = 5;
                     else if (colorRes == 5)
                         colorRes = 4;
 
                     lbColorRes.SelectedIndex = colorRes - 1;
+
+                    displayedConfiguration = newConfig;
+
 
                     this.Update();
                 }
@@ -98,28 +104,11 @@ namespace KinectServer
 
             Cursor.Current = Cursors.WaitCursor;
 
-            KinectConfiguration currentConfig = null;
-            LiveScanState currentState = liveScanServer.GetState();
-
-            //Search for our Config in all configs
-            for (int i = 0; i < currentState.clients.Count; i++)
-            {
-                if (displayedConfiguration.SerialNumber == currentState.clients[i].configuration.SerialNumber)
-                    currentConfig = currentState.clients[i].configuration;
-            }
-
-            if(currentConfig == null)
-            {
-                Log.LogError("Configuration could not be updated, the client is probably disconnected, serial: " + displayedConfiguration.SerialNumber);
-                MessageBox.Show("Configuration could not be updated, the client is probably disconnected", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
+            KinectConfiguration currentConfig = liveScanServer.GetConfigFromSerial(serialnumber);
             displayedConfiguration = ApplyConfiguration(currentConfig, displayedConfiguration);
             liveScanServer.SetConfiguration(displayedConfiguration);
 
             Cursor.Current = Cursors.Default;
-
         }
 
         private void btApplyAll_Click(object sender, EventArgs e)
@@ -133,6 +122,8 @@ namespace KinectServer
                 liveScanServer.SetConfiguration(displayedConfiguration);
             }
         }
+
+        
 
         //Only applies values that can be changed in this UI
         KinectConfiguration ApplyConfiguration(KinectConfiguration applyTo, KinectConfiguration applyFrom)

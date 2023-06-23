@@ -29,20 +29,8 @@ namespace KinectServer
 {
     public partial class MainWindowForm : Form
     {
-        //Those three four are shared with the OpenGL class and are used to exchange data with it.
-        //Vertices from all of the sensors
-        List<float> lAllVertices = new List<float>();
-        //Color data from all of the sensors
-        List<byte> lAllColors = new List<byte>();
-        //Sensor poses from all of the sensors
-        List<Matrix4x4> lAllCameraPoses = new List<Matrix4x4>();
-        //Marker poses from all of the sensors
-        List<Matrix4x4> lAllMarkerPoses = new List<Matrix4x4>();
-        //Viewport settings
-        ViewportSettings viewportSettings = new ViewportSettings();
-
-        System.Windows.Forms.Timer tLiveViewTimer;      
-        System.Timers.Timer oStatusBarTimer = new System.Timers.Timer();     
+        System.Windows.Forms.Timer tLiveViewTimer;
+        System.Timers.Timer oStatusBarTimer = new System.Timers.Timer();
 
         //Settings
         private System.Windows.Forms.Timer scrollTimerExposure = null;
@@ -61,21 +49,19 @@ namespace KinectServer
         public MainWindowForm()
         {
             InitializeComponent();
-            OpenGLWorker.RunWorkerAsync();
             liveScanServer = new LiveScanServer(this);
-
             this.Icon = Properties.Resources.Server_Icon;
         }
 
         private void MainWindowForm_Load(object sender, EventArgs e)
         {
-            UpdateUI(liveScanServer.GetState());      
+            UpdateUI(liveScanServer.GetState());
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
-        {         
+        {
             tLiveViewTimer.Stop();
-            oOpenGLWindow.Unload(); 
+            oOpenGLWindow.Unload();
         }
 
         public void UpdateUI(LiveScanState newState)
@@ -93,27 +79,35 @@ namespace KinectServer
             //Calibration Button
             if (newState.appState == appState.calibrating)
             {
-                btCalibrate.Text = "Calibrating...";
-                btCalibrate.Enabled = false;
+                btCalibrate.Text = "Stop calibration";
+                btCalibrate.Enabled = true;
             }
-            else
+
+            else if (newState.appState == appState.idle)
             {
                 btCalibrate.Text = "Calibrate";
                 btCalibrate.Enabled = true;
             }
 
+            else
+                btCalibrate.Enabled = false;
+
 
             //Refine Calibration Button
             if (newState.appState == appState.refinining)
             {
-                btRefineCalib.Text = "Refining Calibration...";
-                btRefineCalib.Enabled = false;
+                btRefineCalib.Text = "Stop Refinement";
+                btRefineCalib.Enabled = true;
             }
-            else
+
+            else if(newState.appState == appState.idle)
             {
                 btRefineCalib.Text = "Refine Calibration";
                 btRefineCalib.Enabled = true;
             }
+
+            else
+            btRefineCalib.Enabled = false;
 
 
             //Capture Button
@@ -123,7 +117,7 @@ namespace KinectServer
                 btRecord.Text = " Start Capture";
                 btRecord.Enabled = true;
             }
-            else if(newState.appState == appState.recording)
+            else if (newState.appState == appState.recording)
             {
                 btRecord.Image = Properties.Resources.stop;
                 btRecord.Text = " Stop capture";
@@ -186,10 +180,18 @@ namespace KinectServer
             trManualExposure.Value = newState.settings.nExposureStep;
             trManualExposure.Enabled = !newState.settings.bAutoExposureEnabled;
 
-            if(newState.settings.eSyncMode == KinectSettings.SyncMode.Hardware)
+            if (newState.settings.eSyncMode == KinectSettings.SyncMode.Hardware)
             {
                 rExposureManual.Checked = true;
+                rExposureManual.Enabled = false;
+                rExposureAuto.Enabled = false;
                 trManualExposure.Enabled = true;
+            }
+
+            else
+            {
+                rExposureManual.Enabled = true;
+                rExposureAuto.Enabled = true;
             }
 
             //White Balance
@@ -204,6 +206,16 @@ namespace KinectServer
             rExportRaw.Checked = newState.settings.eExportMode == KinectSettings.ExportMode.RawFrames;
             chMergeScans.Checked = newState.settings.bMergeScansForSave;
 
+            //Stats
+            lFPS.Text = newState.previewWindowFPS.ToString() + " FPS";
+
+            //Update other windows, if open
+            if (settingsForm != null)
+                settingsForm.UpdateUI(newState.settings);
+
+            if (configurationForm != null)
+                configurationForm.UpdateUI();
+
             liveScanState = newState;
 
         }
@@ -216,12 +228,15 @@ namespace KinectServer
             {
                 case MessageBoxIcon.Error:
                     title = "Error!";
+                    Log.LogError(message);
                     break;
                 case MessageBoxIcon.Warning:
                     title = "Warning";
+                    Log.LogWarning(message);
                     break;
                 case MessageBoxIcon.Information:
                     title = "Info";
+                    Log.LogInfo(message);
                     break;
                 default:
                     break;
@@ -238,7 +253,13 @@ namespace KinectServer
                     Close();
             }));
         }
-             
+
+        public void ShowStatus(string message, int durationMs = 5000)
+        {
+            SetStatusBarOnTimer(message, durationMs);
+            Log.LogDebugCapture(message);
+        }
+
         //Opens the settings form
         private void btSettings_Click(object sender, EventArgs e)
         {
@@ -258,23 +279,23 @@ namespace KinectServer
         //This is used for: starting/stopping the recording worker, stopping the saving worker
         private void btRecord_Click(object sender, EventArgs e)
         {
-            liveScanServer.RecordButtonClicked();
+            liveScanServer.RecordButtonClicked(txtSeqName.Text);
         }
 
         private void btCalibrate_Click(object sender, EventArgs e)
         {
-            liveScanServer.Calibrate();
+            liveScanServer.CalibrateButtonClicked();
         }
 
         private void btRefineCalib_Click(object sender, EventArgs e)
         {
-            liveScanServer.RefineCalibration();
+            liveScanServer.RefineCalibrationButtonClicked();
         }
 
-        public void SetStatusBarOnTimer(string message, int milliseconds)
+        private void SetStatusBarOnTimer(string message, int milliseconds)
         {
             //Thread save change of UI Element
-            Invoke(new Action(() => { statusLabel.Text = message; }));            
+            Invoke(new Action(() => { statusLabel.Text = message; }));
 
             oStatusBarTimer.Stop();
             oStatusBarTimer = new System.Timers.Timer();
@@ -307,14 +328,14 @@ namespace KinectServer
             {
                 if (socketList[i].configuration != null)
                 {
-                  gridViewRows.Add(new string[]
-                  { 
+                    gridViewRows.Add(new string[]
+                    {
                     socketList[i].configuration.globalDeviceIndex.ToString(),
                     socketList[i].configuration.SerialNumber,
                     socketList[i].GetIP(),
                     socketList[i].bCalibrated.ToString(),
                     socketList[i].configuration.eSoftwareSyncState.ToString()
-                  });
+                    });
                 }
 
             }
@@ -339,16 +360,15 @@ namespace KinectServer
             }
 
             int index = gvClients.SelectedRows[0].Index;
-            
-            if (configurationForm == null)
-            {
-                configurationForm = new KinectConfigurationForm();
-            }
 
-            configurationForm.Initialize(oServer, gvClients.SelectedRows[0].Index);
+            if (configurationForm != null)
+                configurationForm.Close();
+
+            string serialNumber = liveScanState.clients[gvClients.SelectedRows[0].Index].configuration.SerialNumber;
+            configurationForm = new KinectConfigurationForm(liveScanServer, serialNumber);
+
             configurationForm.Show();
             configurationForm.Focus();
-            oServer.SetKinectSettingsForm(gvClients.SelectedRows[0].Index, form);
         }
 
         private void chHardwareSync_Clicked(object sender, EventArgs e)
@@ -442,7 +462,7 @@ namespace KinectServer
 
         private void chMergeScans_CheckedChanged(object sender, EventArgs e)
         {
-           liveScanServer.SetMergeScans(chMergeScans.Checked);
+            liveScanServer.SetMergeScans(chMergeScans.Checked);
         }
 
         private void rWhiteBalanceAuto_CheckedChanged(object sender, EventArgs e)
@@ -506,15 +526,23 @@ namespace KinectServer
 
             // We have to update the embedded GL window ourselves
             tLiveViewTimer = new System.Windows.Forms.Timer();
-            tLiveViewTimer.Tick += (senderer, ea) => {Render();};
+            tLiveViewTimer.Tick += (senderer, ea) => { Render(); };
             tLiveViewTimer.Interval = 16;   // 60 fps
             tLiveViewTimer.Start();
 
             glLiveView_Resize(glLiveView, EventArgs.Empty);
 
-            oOpenGLWindow.Load();
 
-            RestartUpdateWorker();
+            lock (oOpenGLWindow.settings)
+                oOpenGLWindow.settings = liveScanState.settings;
+
+            oOpenGLWindow.vertices = liveScanServer.lAllVertices;
+            oOpenGLWindow.colors = liveScanServer.lAllColors;
+            oOpenGLWindow.cameraPoses = liveScanServer.lAllCameraPoses;
+            oOpenGLWindow.markerPoses = liveScanServer.lAllMarkerPoses;
+            oOpenGLWindow.viewportSettings = liveScanServer.viewportSettings;
+
+            oOpenGLWindow.Load();
         }
 
         private void glLiveView_Resize(object sender, EventArgs e)
@@ -524,7 +552,7 @@ namespace KinectServer
             if (glLiveView.ClientSize.Height == 0)
                 glLiveView.ClientSize = new System.Drawing.Size(glLiveView.ClientSize.Width, 1);
 
-            if(oOpenGLWindow != null)
+            if (oOpenGLWindow != null)
                 oOpenGLWindow.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
         }
 
@@ -564,15 +592,6 @@ namespace KinectServer
         private void glLiveView_KeyDown(object sender, KeyEventArgs e)
         {
             oOpenGLWindow.OnKeyDown(sender, e);
-        }
-
-        private void UpdateFPSCounter(int fps)
-        {
-            // Invoke UI logic on the same thread.
-            lFPS.BeginInvoke(new Action(() =>
-            {
-                lFPS.Text = fps.ToString() + " FPS";
-            }));
         }
 
         #endregion
