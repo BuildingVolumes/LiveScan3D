@@ -160,8 +160,10 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 
 	size_t serialNoSize;
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
-	serialNumber = std::string(serialNoSize, '\0');
+	serialNumber = std::string(serialNoSize, '*');
+	serialNumber.pop_back(); //Remove last character, aka the null terminator
 	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
+
 	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 
 	localDeviceIndex = deviceIdx;

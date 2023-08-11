@@ -55,7 +55,6 @@ LiveScanClient::LiveScanClient() :
 	m_bActiveClient(true),
 	m_nAllVerticesSize(0)
 
-
 {
 	m_vBounds.push_back(-0.5);
 	m_vBounds.push_back(-0.5);
@@ -117,6 +116,7 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 	m_bRunning = true;
 
 	m_framesFileWriterReader = new FrameFileWriterReader(log);
+	cv::imencode(".jpg", cv::Mat(1, 1, CV_8UC3), emptyJPEGBuffer);
 
 	// Get and initialize the default Kinect sensor as standalone
 	configuration = *new KinectConfiguration();
@@ -124,7 +124,7 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 	bool res = pCapture->Initialize(configuration);
 	if (res)
 	{
-		logBuffer.ChangeName("Device: " + pCapture->serialNumber);
+		logBuffer.ChangeName("Device: " + pCapture->serialNumber + " ");
 		logBuffer.LogInfo("Device could be opened successfully");
 
 		m_sLastUsedIP = m_framesFileWriterReader->ReadIPFromFile();
@@ -1234,11 +1234,9 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 
 void LiveScanClient::UpdateFPS()
 {
-	std::lock_guard<std::mutex> lock(m_mFPS);
+
 
 	long difference = std::chrono::duration_cast<std::chrono::milliseconds>(m_tFrameTime - m_tOldFrameTime).count();
-
-	logBuffer.LogInfo(to_string(difference));
 
 	if (difference > 0)
 		m_nFPSUpdateCounter += difference;
@@ -1251,6 +1249,7 @@ void LiveScanClient::UpdateFPS()
 		//Calculate a moving average of the FPS, so it isn't all over the place
 		float alpha = 0.2f;
 
+		std::lock_guard<std::mutex> lock(m_mFPS);
 		m_fAverageFPS = alpha * m_fAverageFPS + (1.0f - alpha) * m_nFPSFrameCounter;
 
 		//The UI accesses m_fAverageFPS to display it

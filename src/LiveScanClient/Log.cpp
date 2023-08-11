@@ -52,7 +52,7 @@ void Log::RegisterBuffer(LogBuffer* buffer)
 }
 
 /// <summary>
-/// When the Object that contains the LogBuffer that has been previously registered, always unregister it here
+/// When the Object containing LogBuffer is being destroyed, always unregister the logbuffer 
 /// before destroying the object, otherwise a nullpointer exeption may occur 
 /// </summary>
 /// <param name="buffer"></param>
@@ -226,7 +226,7 @@ void LogBuffer::AddLogEntry(std::string message, std::string loglevel)
 	time_t t = time(0);
 	struct tm* now = localtime(&t);
 
-	std::string newMessage = "[" + name + "] ";
+	std::string newMessage = std::string("[") + name + std::string("]");
 
 	std::string hour = std::to_string(now->tm_hour);
 	std::string min = std::to_string(now->tm_min);
