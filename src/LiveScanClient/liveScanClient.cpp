@@ -15,7 +15,6 @@
 
 #include "LiveScanClient.h"
 
-std::mutex m_mSocketThreadMutex;
 
 LiveScanClient::LiveScanClient() :
 
@@ -93,7 +92,7 @@ LiveScanClient::~LiveScanClient()
 
 void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 {
-	std::thread t1(&LiveScanClient::SocketThreadFunction, this);
+	std::thread socketThread(&LiveScanClient::SocketThreadFunction, this);
 
 	log = logger;
 	log->RegisterBuffer(&logBuffer);
@@ -114,6 +113,7 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 
 	m_mRunning.lock();
 	m_bRunning = true;
+	m_mRunning.unlock();
 
 	m_framesFileWriterReader = new FrameFileWriterReader(log);
 	cv::imencode(".jpg", cv::Mat(1, 1, CV_8UC3), emptyJPEGBuffer);
@@ -139,27 +139,22 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 	{
 		logBuffer.LogFatal("Device could not be opened successfully");
 		SetStatusMessage(L"Error: Device could not be initialized!", 10000, true);
+		m_mRunning.lock();
 		m_bRunning = false;
+		m_mRunning.unlock();
 		m_eClientStatus = STATUS_CAMERA_ERROR;
 	}
 
-	bool running = m_bRunning;
-	m_mRunning.unlock();
 
-	while (running)
+	while (m_bRunning)
 	{
 		UpdateFrame();
-
-		//Should this thread/client still be running?
-		m_mRunning.lock();
-		running = m_bRunning;
-		m_mRunning.unlock();
 	}
 
 	m_framesFileWriterReader->WriteIPToFile(m_sLastUsedIP);
 
 	m_bSocketThread = false;
-	t1.join();
+	socketThread.join();
 
 	if (m_eClientStatus != STATUS_CAMERA_ERROR && m_eClientStatus != STATUS_CRASH)
 		m_eClientStatus = STATUS_TERMINATED_NORMALLY;
@@ -271,10 +266,8 @@ void LiveScanClient::UpdateFrame()
 	//We always need to capture the raw frame data
 	if (pCapture->AquireRawFrame())
 	{
-		//std::this_thread::sleep_for(50ms);
-
 		//We lock the network thread so it that the requirement variables don't change while we process the frame 
-		std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+		std::lock_guard<std::mutex> lock(m_mSocketThread);
 
 		//To optimize our use of system resources, we only process what is needed
 		bool generateRBGData = false;
@@ -504,7 +497,7 @@ void LiveScanClient::SocketThreadFunction()
 
 bool LiveScanClient::Connect(std::string ip)
 {
-	std::lock_guard<std::mutex> lockSocket(m_mSocketThreadMutex);
+	std::lock_guard<std::mutex> lockSocket(m_mSocketThread);
 
 	m_sLastUsedIP = ip;
 
@@ -557,7 +550,7 @@ bool LiveScanClient::GetConnectedTS()
 void LiveScanClient::HandleSocket()
 {
 	char byteToSend;
-	std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+	std::lock_guard<std::mutex> lock(m_mSocketThread);
 
 	if (!m_bConnected)
 	{
@@ -817,7 +810,6 @@ void LiveScanClient::HandleSocket()
 
 		else if (received[i] == MSG_CREATE_DIR) //Creates a dir on the client. Message also marks the start of the recording
 		{
-
 			i++;
 			int stringLength = *(int*)(received.c_str() + i); //Get the length of the following string
 			i += sizeof(int);

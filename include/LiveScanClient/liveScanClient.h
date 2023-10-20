@@ -75,6 +75,7 @@ public:
 	std::mutex m_mPreviewResources;
 	std::mutex m_mFPS;
 	std::mutex m_mStatus;
+	std::mutex m_mSocketThread;
 
 private:
 	Calibration calibration;
