@@ -1,0 +1,144 @@
+# Configuration
+baseURL: "https://example.com"
+title: "LiveScan3D"
+
+enableRobotsTXT: true
+enableGitInfo: true
+enableEmoji: false
+hasCJKLanguage: true
+
+# services:
+#   googleAnalytics:
+#     ID: G-MEASUREMENT_ID
+
+outputs:
+  home: [HTML]
+  page: [HTML]
+  section: [HTML, RSS]
+
+module:
+  hugoVersion:
+    extended: true
+    min: "0.112.0"
+
+  imports:
+    path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+enableInlineShortcodes: true
+
+menu:
+  main:
+    - identifier: download
+      name: Download
+      pageRef: /download
+      weight: 1
+    - identifier: documentation
+      name: Documentation
+      pageRef: /docs
+      weight: 2
+    - identifier: news
+      name: News
+      pageRef: /news
+      weight: 3
+    - identifier: about
+      name: About
+      pageRef: /about
+      weight: 4
+    - identifier: support
+      name: Support
+      pageRef: /support
+      weight: 5
+    - name: Search
+      weight: 6
+      params:
+        type: search
+    - name: GitHub
+      weight: 7
+      url: "https://github.com/BuildingVolumes/LiveScan3D"
+      params:
+        icon: github
+
+  sidebar:
+    - identifier: more
+      name: More
+      params:
+        type: separator
+      weight: 1
+    - identifier: support
+      name: "Support"
+      pageRef: "/support"
+      weight: 2
+
+params:
+  description: A open source volumetric video capture tool
+
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    logo:
+      path: images/logo.svg
+      dark: images/logo-dark.svg
+      # width: 40
+      # height: 20
+      # link: /
+    width: wide
+
+  page:
+    # full (100%), wide (90rem), normal (1280px)
+    width: wide
+
+  theme:
+    # light | dark | system
+    default: system
+    displayToggle: true
+
+  footer:
+    enable: true
+    displayCopyright: false
+    displayPoweredBy: true
+    width: wide
+
+  displayUpdatedDate: true
+  dateFormat: "January 2, 2006"
+
+  # Search
+  # flexsearch is enabled by default
+  search:
+    enable: true
+    type: flexsearch
+
+    flexsearch:
+      # index page by: content | summary | heading | title
+      index: content
+
+  editURL:
+    enable: false
+    base: "https://github.com/imfing/hextra/edit/main/exampleSite/content"
+
+  blog:
+    list:
+      displayTags: true
+
+  comments:
+    enable: false
+    type: giscus
+
+    # https://giscus.app/
+    giscus:
+      repo: imfing/hextra
+      repoId: R_kgDOJ9fJag
+      category: General
+      categoryId: DIC_kwDOJ9fJas4CY7gW
+      # mapping: pathname
+      # strict: 0
+      # reactionsEnabled: 1
+      # emitMetadata: 0
+      # inputPosition: top
+      # lang: en
