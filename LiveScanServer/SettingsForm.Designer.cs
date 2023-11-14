@@ -1,4 +1,4 @@
-﻿namespace KinectServer
+﻿namespace LiveScanServer
 {
     partial class SettingsForm
     {
@@ -142,7 +142,7 @@
             // 
             // pInfoICP
             // 
-            this.pInfoICP.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoICP.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pInfoICP.Location = new System.Drawing.Point(150, 26);
             this.pInfoICP.Name = "pInfoICP";
             this.pInfoICP.Size = new System.Drawing.Size(15, 15);
@@ -153,7 +153,7 @@
             // 
             // pInfoRefinement
             // 
-            this.pInfoRefinement.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoRefinement.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pInfoRefinement.Location = new System.Drawing.Point(363, 25);
             this.pInfoRefinement.Name = "pInfoRefinement";
             this.pInfoRefinement.Size = new System.Drawing.Size(15, 15);
@@ -198,7 +198,7 @@
             // 
             // pInfoExtrinsics
             // 
-            this.pInfoExtrinsics.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoExtrinsics.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pInfoExtrinsics.Location = new System.Drawing.Point(181, 22);
             this.pInfoExtrinsics.Name = "pInfoExtrinsics";
             this.pInfoExtrinsics.Size = new System.Drawing.Size(15, 15);
@@ -325,7 +325,7 @@
             // 
             // pInfoTranslation
             // 
-            this.pInfoTranslation.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoTranslation.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pInfoTranslation.Location = new System.Drawing.Point(350, 63);
             this.pInfoTranslation.Name = "pInfoTranslation";
             this.pInfoTranslation.Size = new System.Drawing.Size(15, 15);
@@ -336,7 +336,7 @@
             // 
             // pInfoRotation
             // 
-            this.pInfoRotation.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoRotation.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pInfoRotation.Location = new System.Drawing.Point(350, 37);
             this.pInfoRotation.Name = "pInfoRotation";
             this.pInfoRotation.Size = new System.Drawing.Size(15, 15);
@@ -501,7 +501,7 @@
             // 
             // pInfoMaxBounds
             // 
-            this.pInfoMaxBounds.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoMaxBounds.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pInfoMaxBounds.Location = new System.Drawing.Point(225, 63);
             this.pInfoMaxBounds.Name = "pInfoMaxBounds";
             this.pInfoMaxBounds.Size = new System.Drawing.Size(15, 15);
@@ -512,7 +512,7 @@
             // 
             // PInfoMinBounds
             // 
-            this.PInfoMinBounds.Image = global::KinectServer.Properties.Resources.info_box;
+            this.PInfoMinBounds.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.PInfoMinBounds.Location = new System.Drawing.Point(225, 36);
             this.PInfoMinBounds.Name = "PInfoMinBounds";
             this.PInfoMinBounds.Size = new System.Drawing.Size(15, 15);

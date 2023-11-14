@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace KinectServer.Properties {
+namespace LiveScanServer.Properties {
     using System;
     
     

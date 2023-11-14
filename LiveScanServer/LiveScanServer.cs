@@ -4,17 +4,30 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace KinectServer
-{
+namespace LiveScanServer
+{    public class LiveScanState
+    {
+        public appState appState;
+        public ClientSettings settings;
+        public List<ClientSocket> clients;
+        public string stateIndicatorSuffix;
+        public float previewWindowFPS = 0;
+
+        public LiveScanState()
+        {
+            appState = appState.idle;
+            settings = new ClientSettings();
+            clients = new List<ClientSocket>();
+        }
+    }
+
     public class LiveScanServer
     {
         [DllImport("ICP.dll")]
@@ -22,19 +35,12 @@ namespace KinectServer
 
         MainWindowForm UI;
         LiveScanState state;
-        KinectServer oServer;
+        ClientCommunication oServer;
         //TransferServer oTransferServer;
 
-        Thread previewWorker;
-        Thread syncWorker;
-        Thread captureWorker;
-        Thread saveWorker;
-        Thread refineWorker;
-
-        bool cancelPreviewWorker = false;
-        bool cancelCaptureWorker = false;
-        bool cancelSaveWorker = false;
-        bool cancelrefineWorker = false;
+        BackgroundWorker previewWorker;
+        BackgroundWorker processingWorker;
+        bool processingWorkerComplete = false;
 
 
         //Those three four are shared with the OpenGL class and are used to exchange data with it.
@@ -48,6 +54,10 @@ namespace KinectServer
         public List<Matrix4x4> lAllMarkerPoses = new List<Matrix4x4>();
         //Viewport settings
         public ViewportSettings viewportSettings = new ViewportSettings();
+
+        //TODO: Protect anything that the threads are touching with locks, especially the state
+        //TODO: While app is not in idle state, other actions that change the state should not be able to run!
+
 
         public LiveScanServer(MainWindowForm UI)
         {
@@ -79,6 +89,23 @@ namespace KinectServer
                 return;
             }
 
+            Setup();
+            
+            oServer = new ClientCommunication(this);
+            oServer.eSocketListChanged += new SocketListChangedHandler(ClientListChanged);
+            oServer.SetMainWindowForm(UI);
+
+            PreviewWorker();
+
+            if (!oServer.StartServer()) //If another Livescan Instance is already open, we terminate the app here
+                Terminate();
+
+            //oTransferServer.StartServer();
+            Log.LogInfo("Starting Server");
+        }
+
+        private void Setup()
+        {
             //Setup directories
             try
             {
@@ -91,17 +118,19 @@ namespace KinectServer
                 UI.ShowMessageBox(MessageBoxIcon.Error, "Could not create working directories, please restart Application!", true);
             }
 
+            state = new LiveScanState();
+
             Stream settingsStream = null;
             //This tries to read the settings from "settings.bin", if it fails, the settings stay at default values.
             try
             {
                 IFormatter formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
                 settingsStream = new FileStream("temp/settings.bin", FileMode.Open, FileAccess.Read);
-                oSettings = (KinectSettings)formatter.Deserialize(settingsStream);
+                state.settings = (ClientSettings)formatter.Deserialize(settingsStream);
 
                 //Set settings that should not be loaded from the save
-                oSettings.bAutoExposureEnabled = false;
-                oSettings.nExposureStep = -5;
+                state.settings.bAutoExposureEnabled = false;
+                state.settings.nExposureStep = -5;
 
                 settingsStream.Dispose();
 
@@ -115,22 +144,11 @@ namespace KinectServer
                     settingsStream.Dispose();
             }
 
-            oSettings.AddDefaultMarkers();
-            oServer = new KinectServer(oSettings);
-            oServer.eSocketListChanged += new SocketListChangedHandler(ClientListChanged);
-            oServer.SetMainWindowForm(this);
+            state.settings.AddDefaultMarkers();
 
-            //oTransferServer = new TransferServer();
-            //oTransferServer.lVertices = lAllVertices;
-            //oTransferServer.lColors = lAllColors;
-
-            StartPreviewWorker();
-
-            if (!oServer.StartServer()) //If another Livescan Instance is already open, we terminate the app here
-                return;
-
-            //oTransferServer.StartServer();
-            Log.LogInfo("Starting Server");
+            previewWorker = new BackgroundWorker();
+            previewWorker.WorkerSupportsCancellation = true;
+            previewWorker.DoWork += new DoWorkEventHandler(PreviewWorker);
         }
 
         public void Terminate()
@@ -139,62 +157,66 @@ namespace KinectServer
             IFormatter formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
 
             Stream stream = new FileStream("temp/settings.bin", FileMode.Create, FileAccess.Write);
-            formatter.Serialize(stream, oSettings);
+            formatter.Serialize(stream, state.settings);
             stream.Close();
 
             if (oServer != null)
                 oServer.StopServer();
 
-            //if (oTransferServer != null)
-            //    oTransferServer.StopServer();
-
-
+            PreviewWorker_Cancel();
+            ProcessingWorker_Cancel();
 
             Log.LogInfo("Programm termined normally, exiting");
             Log.CloseLog();
+
         }
 
-        public void StateChanged()
-        {
+        public void UpdateUI()
+        { 
             UI.UpdateUI(state);
         }
 
-        public void ClientListChanged(List<KinectSocket> socketList)
+        public void ClientListChanged(List<ClientSocket> socketList)
         {
             state.clients = socketList;
-            StateChanged();
+            UpdateUI();
         }
 
         public LiveScanState GetState()
         {
-            //Todo: Update settings & Clients here;
             return state;
         }
 
-        public void SetSettings(KinectSettings newSettings)
+        public void SetState(LiveScanState newState)
+        {
+            state = newState;
+        }
+
+        public void SetSettings(ClientSettings newSettings)
         {
             //Todo: Need to lock settings?
             state.settings = newSettings;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
 
         }
 
-        public void SetConfiguration(KinectConfiguration newConfig)
+        public void SetConfiguration(ClientConfiguration newConfig)
         {
-            KinectConfiguration currentConfig = GetConfigFromSerial(newConfig.SerialNumber);
+            ClientConfiguration currentConfig = GetConfigFromSerial(newConfig.SerialNumber);
 
             bool restartClient = false;
             bool restartAllClients = false;
 
             if (currentConfig.eDepthRes != newConfig.eDepthRes || currentConfig.eColorRes != newConfig.eColorRes)
-                if (state.settings.eSyncMode == KinectSettings.SyncMode.Hardware)
+                if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
                     restartAllClients = true;
                 else
                     restartClient = true;
 
 
             oServer.SetAndConfirmConfig(newConfig);
+            //TODO: Implement error handling
 
             Cursor.Current = Cursors.WaitCursor;
 
@@ -205,12 +227,12 @@ namespace KinectServer
 
             Cursor.Current = Cursors.Default;
 
-            StateChanged();
+            UpdateUI();
         }
 
-        public KinectConfiguration GetConfigFromSerial(string serialnumber)
+        public ClientConfiguration GetConfigFromSerial(string serialnumber)
         {
-            KinectConfiguration config = null;
+            ClientConfiguration config = null;
 
             //Search for our Config in all configs
             for (int i = 0; i < state.clients.Count; i++)
@@ -226,29 +248,42 @@ namespace KinectServer
         }
 
 
-        #region UIInput
+        #region Actions
 
-        public void CalibrateButtonClicked()
+        public void Calibrate()
         {
             if (state.appState == appState.idle)
             {
                 Log.LogInfo("Starting Calibration");
-                oServer.Calibrate();
+
+                if (!oServer.Calibrate(true))
+                {
+                    UI.ShowMessageBox(MessageBoxIcon.Information, "No clients connected!");
+                    return;
+                }
+
+                ProcessingWorker_Cancel();
+                processingWorker = new BackgroundWorker();
+                processingWorker.WorkerSupportsCancellation = true;
+                processingWorker.DoWork += new DoWorkEventHandler(CalibrationWorker);
+                processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(CalibrationWorker_Completed);
+
                 state.appState = appState.calibrating;
+                UpdateUI();
             }
 
-            if (state.appState == appState.calibrating)
+            else if (state.appState == appState.calibrating)
             {
                 Log.LogInfo("Canceled Calibration");
-                oServer.StopCalibration();
+                ProcessingWorker_Cancel();
+                oServer.Calibrate(false);
                 state.appState = appState.idle;
+                UpdateUI();
             }
-
-            StateChanged();
 
         }
 
-        public void RefineCalibrationButtonClicked()
+        public void RefineCalibration()
         {
             if (state.appState == appState.idle)
             {
@@ -264,26 +299,26 @@ namespace KinectServer
                     return;
                 }
 
-                refineWorker = new Thread(new ThreadStart(RefineWorker));
-                refineWorker.Start();
+                ProcessingWorker_Cancel();
+                processingWorker = new BackgroundWorker();
+                processingWorker.WorkerSupportsCancellation = true;
+                processingWorker.DoWork += new DoWorkEventHandler(RefinementWorker);
+                processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(RefinementWorker_Completed);
 
                 state.appState = appState.refinining;
             }
 
-            if (state.appState == appState.refinining)
+            else if (state.appState == appState.refinining)
             {
                 Log.LogInfo("Calibration refinement canceled by user");
-                cancelrefineWorker = true;
-                refineWorker.Join();
-                cancelrefineWorker = false;
-
+                ProcessingWorker_Cancel();
                 state.appState = appState.idle;
             }
 
-            StateChanged();
+            UpdateUI();
         }
 
-        public void RecordButtonClicked(string sequenceName)
+        public void Capture(string sequenceName)
         {
             //Start recording
             if (state.appState == appState.idle)
@@ -295,7 +330,7 @@ namespace KinectServer
                 }
 
                 //Stop the update worker to reduce the load on the clients
-                StopPreviewWorker();
+                PreviewWorker_Cancel();
 
                 string takePath = oServer.CreateTakeDirectories(sequenceName);
 
@@ -309,141 +344,176 @@ namespace KinectServer
                 Utils.SaveExtrinsics(state.settings.eExtrinsicsFormat, takePath, oServer.GetClientSockets());
 
                 Log.LogInfo("Starting Recording");
-                captureWorker = new Thread(new ThreadStart(CaptureWorker));
-                captureWorker.Start();
+
+                ProcessingWorker_Cancel();
+                processingWorker = new BackgroundWorker();
+                processingWorker.WorkerSupportsCancellation = true;
+                processingWorker.DoWork += new DoWorkEventHandler(CaptureWorker);
+                processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(CaptureWorker_Complete);
 
                 state.settings.takePath = takePath;
                 state.appState = appState.recording;
+                UpdateUI();
             }
 
             //Stop recording
             else if (state.appState == appState.recording)
             {
-                cancelCaptureWorker = true;
-                captureWorker.Join();
-                cancelCaptureWorker = false;
+                ProcessingWorker_Cancel();
 
                 //After recording has been terminated it is time to begin sorting the frames.
-                if (state.settings.eSyncMode == KinectSettings.SyncMode.Hardware)
-                {
-                    Log.LogInfo("Starting to synchronize recording");
-                    syncWorker = new Thread(new ThreadStart(SyncWorker));
-                    syncWorker.Start();
-                    state.appState = appState.syncing;
-                }
-
-                //If sync wasn't enabled, we go straight to saving the files
-                else
-                {
-                    if (state.settings.eExportMode == KinectSettings.ExportMode.Pointcloud)
-                    {
-                        Log.LogInfo("Starting to save frames ");
-                        saveWorker = new Thread(new ThreadStart(SavingWorker));
-                        saveWorker.Start();
-                        state.appState = appState.saving;
-                    }
-
-                    else
-                    {
-                        StartPreviewWorker();
-                        state.appState = appState.idle;
-                    }
-
-                }
+                Log.LogInfo("Starting to synchronize recording");
+               
+                state.appState = appState.syncing;
+                UpdateUI();
             }
-
-            //If we are saving frames right now, this button stops saving.
-            else if (state.appState == appState.saving)
-            {
-                Log.LogInfo("User canceled frame saving");
-                cancelSaveWorker = true;
-                saveWorker.Join();
-                cancelSaveWorker = false;
-
-                StartPreviewWorker();
-                state.appState = appState.idle;
-            }
-
-            StateChanged();
         }
 
-        public void SetSyncMode(KinectSettings.SyncMode syncMode)
+
+
+        public void SetSyncMode(ClientSettings.SyncMode syncMode)
         {
-            if (syncMode != state.settings.eSyncMode)
+            if (syncMode == state.settings.eSyncMode)
                 return;
 
-            bool hwSyncWasEnabled = state.settings.eSyncMode == KinectSettings.SyncMode.Hardware;
+            bool hwSyncWasEnabled = state.settings.eSyncMode == ClientSettings.SyncMode.Hardware;
 
             state.settings.eSyncMode = syncMode;
-            oServer.SendSettings();
+            oServer.SendCurrentSettings();
 
+            Cursor.Current = Cursors.Default;
             //Check if we need to restart the cameras
-            if (syncMode == KinectSettings.SyncMode.Hardware)
+            if (syncMode == ClientSettings.SyncMode.Hardware)
                 if (!oServer.EnableTemporalSync())
-                    state.settings.eSyncMode = KinectSettings.SyncMode.off;
+                    state.settings.eSyncMode = ClientSettings.SyncMode.Off;
 
-                else if (syncMode == KinectSettings.SyncMode.off && hwSyncWasEnabled)
+                else if (syncMode == ClientSettings.SyncMode.Off && hwSyncWasEnabled)
                     oServer.DisableTemporalSync();
 
             Cursor.Current = Cursors.Default;
-            StateChanged();
+            UpdateUI();
         }
 
         public void SetExposureMode(bool auto)
         {
             state.settings.bAutoExposureEnabled = auto;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
         }
 
         public void SetExposureValue(int step)
         {
             state.settings.nExposureStep = step;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
         }
 
         public void SetWhiteBalanceMode(bool auto)
         {
             state.settings.bAutoWhiteBalanceEnabled = auto;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
         }
 
         public void SetWhiteBalanceValue(int kelvin)
         {
             state.settings.nKelvin = kelvin;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
         }
 
         public void SetClientPreview(bool enabled)
         {
             state.settings.bPreviewEnabled = enabled;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
         }
 
-        public void SetExportMode(KinectSettings.ExportMode exportMode)
+        public void SetExportMode(ClientSettings.ExportMode exportMode)
         {
             state.settings.eExportMode = exportMode;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
         }
 
         public void SetMergeScans(bool merge)
         {
             state.settings.bMergeScansForSave = merge;
-            oServer.SendSettings();
-            StateChanged();
+            oServer.SendCurrentSettings();
+            UpdateUI();
         }
 
 
         #endregion
 
-        #region WorkerThreads
+        #region Workers
 
-        private void RefineWorker()
+        private void ProcessingWorker_Start(DoWorkEventHandler worker, RunWorkerCompletedEventHandler workerCompleted)
+        {
+            processingWorker = new BackgroundWorker();
+            processingWorker.WorkerSupportsCancellation = true;
+            processingWorker.DoWork += new DoWorkEventHandler(worker);
+            processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(workerCompleted);
+            processingWorkerComplete = false;
+        }
+
+        private void ProcessingWorker_Cancel()
+        {
+            if (processingWorker == null)
+                return;
+
+            if (!processingWorker.IsBusy)
+                return;
+
+            processingWorker.CancelAsync();
+
+            while (!processingWorkerComplete)
+            {
+                Thread.Sleep(1);
+            }
+
+            processingWorker.Dispose()
+        }
+
+
+        private void CalibrationWorker(object sender, DoWorkEventArgs e)
+        {
+            Log.LogInfo("Waiting for calibration to finish");
+
+            bool allCalibrated = false;
+
+            while (!calibrationWorker.CancellationPending && !allCalibrated)
+            {
+                allCalibrated = true;
+                Log.LogInfo("Calibrating...");
+                Thread.Sleep(10);
+
+                Log.LogInfo("Client count = " + state.clients.Count);
+
+                for (int i = 0; i < state.clients.Count; i++)
+                {
+                    Log.LogDebug("Client " + state.clients[i].configuration.SerialNumber + " calibrated = " + state.clients[i].bCalibrated);
+                    if (!state.clients[i].bCalibrated)
+                        allCalibrated = false;
+                }
+
+
+            }
+
+            Log.LogInfo("Calibration complete");
+
+            return;
+        }
+
+        private void CalibrationWorker_Completed(object sender, RunWorkerCompletedEventArgs e)
+        {
+            Log.LogInfo("Calibration completed or canceled!");
+            state.appState = appState.idle;
+            processingWorkerComplete = true;
+            UpdateUI();
+        }
+
+        private void RefinementWorker(object sender, DoWorkEventArgs e)
         {
             Log.LogInfo("Start ICP pose refinement");
 
@@ -472,7 +542,7 @@ namespace KinectServer
             //Use ICP to refine the sensor poses.
             //This part is explained in more detail in our article (name on top of this file).
 
-            for (int refineIter = 0; refineIter < oSettings.nNumRefineIters; refineIter++)
+            for (int refineIter = 0; refineIter < state.settings.nNumRefineIters; refineIter++)
             {
                 for (int i = 0; i < lAllFrameVertices.Count; i++)
                 {
@@ -493,7 +563,7 @@ namespace KinectServer
                     Marshal.Copy(verts1, 0, pVerts1, verts1.Length);
                     Marshal.Copy(verts2, 0, pVerts2, verts2.Length);
 
-                    ICP(pVerts1, pVerts2, otherFramesVertices.Count / 3, lAllFrameVertices[i].Count / 3, Rs[i], Ts[i], oSettings.nNumICPIterations);
+                    ICP(pVerts1, pVerts2, otherFramesVertices.Count / 3, lAllFrameVertices[i].Count / 3, Rs[i], Ts[i], state.settings.nNumICPIterations);
 
                     Marshal.Copy(pVerts2, verts2, 0, verts2.Length);
                     lAllFrameVertices[i].Clear();
@@ -539,93 +609,35 @@ namespace KinectServer
                 }
 
                 oServer.lRefinementTransforms = icpTransforms;
-                oServer.UpdateMarkerTransforms();
-                oServer.SendRefinementData();
+
             }
         }
 
-        private void SavingWorker()
+        private void RefinementWorker_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
+            refineWorker.Join();
+            cancelrefineWorker = false;
 
+            oServer.UpdateMarkerTransforms();
+            oServer.SendRefinementData();
 
-            Log.LogInfo("Start saving Pointcloud frames");
-            Log.LogInfo("Merging Pointclouds: " + state.settings.bMergeScansForSave);
-
-            //Saving is downloading the frames from clients and saving them locally.
-            int nFrames = 0;
-
-            if (state.settings.takePath == null)
-                return;
-
-            //This loop is running till it is either cancelled, or till there are no more stored frames.
-            while (!cancelSaveWorker)
-            {
-                List<List<byte>> lFrameBGRAllDevices = new List<List<byte>>();
-                List<List<float>> lFrameVertsAllDevices = new List<List<float>>();
-
-                bool success = oServer.GetStoredFrame(lFrameBGRAllDevices, lFrameVertsAllDevices);
-
-                //This indicates that there are no more stored frames.
-                if (!success)
-                    break;
-
-                nFrames++;
-                int nVerticesTotal = 0;
-                for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
-                {
-                    nVerticesTotal += lFrameVertsAllDevices[i].Count;
-                }
-
-                List<byte> lFrameBGR = new List<byte>();
-                List<Single> lFrameVerts = new List<Single>();
-
-                UI.ShowStatus("Saving frame " + (nFrames).ToString() + ".", 5000);
-                for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
-                {
-                    lFrameBGR.AddRange(lFrameBGRAllDevices[i]);
-                    lFrameVerts.AddRange(lFrameVertsAllDevices[i]);
-
-                    //This is ran if the frames from each client are to be placed in separate files.
-                    if (state.settings.bMergeScansForSave)
-                    {
-                        string outputFilename = state.settings.takePath + "\\" + nFrames.ToString().PadLeft(5, '0') + i.ToString() + ".ply";
-                        Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameBGRAllDevices[i], EColorMode.BGR, state.settings.bSaveAsBinaryPLY);
-                    }
-                }
-
-                //This is ran if the frames from all clients are to be placed in a single file.
-                if (!state.settings.bMergeScansForSave)
-                {
-                    string outputFilename = state.settings.takePath + "\\" + nFrames.ToString().PadLeft(5, '0') + ".ply";
-                    Utils.saveToPly(outputFilename, lFrameVerts, lFrameBGR, EColorMode.BGR, state.settings.bSaveAsBinaryPLY);
-                }
-            }
-
-
+            processingWorkerComplete = true;
+            state.appState = appState.idle;
+            UpdateUI();
         }
 
-        private void savingWorker_Completed()
-        {
-            Log.LogInfo("Saving complete!");
-            oServer.ClearStoredFrames();
-            bSaving = false;
-
-            //TODO: Restart Update worker when saving has terminated
-
-            CaptureComplete();
-        }
+        
 
         //Performs recording which is synchronized or unsychronized frame capture.
         //The frames are downloaded from the clients and saved once recording is finished.
-
-        private void CaptureWorker()
+        private void CaptureWorker(object sender, DoWorkEventArgs e)
         {
             oServer.ClearStoredFrames();
 
             oServer.SendAndConfirmPreRecordProcess();
 
             //If we don't use a server-controlled sync method, we just let the clients capture as fast as possible
-            if (state.settings.eSyncMode != KinectSettings.SyncMode.Network)
+            if (state.settings.eSyncMode != ClientSettings.SyncMode.Network)
             {
                 oServer.SendCaptureFramesStart();
 
@@ -636,7 +648,8 @@ namespace KinectServer
 
                 while (cancelCaptureWorker)
                 {
-                    UI.ShowStatus("Recording: " + counter.Elapsed.Minutes.ToString("D2") + ":" + counter.Elapsed.Seconds.ToString("D2"));
+                    state.stateIndicatorSuffix = "" + counter.Elapsed.Minutes.ToString("D2") + ":" + counter.Elapsed.Seconds.ToString("D2");
+                    UpdateUI();
                 }
 
                 Log.LogInfo("Stopping Recording");
@@ -657,7 +670,8 @@ namespace KinectServer
                 {
                     oServer.CaptureSynchronizedFrame();
                     nCaptured++;
-                    UI.ShowStatus("Captured frame " + (nCaptured).ToString() + ".");
+                    state.stateIndicatorSuffix = "Frame " + (nCaptured).ToString() + ".";
+                    UpdateUI();
                 }
 
                 Log.LogInfo("Stopping Network-synced recording");
@@ -667,9 +681,14 @@ namespace KinectServer
 
         }
 
-        private void SyncWorker()
+        void CaptureWorker_Complete(object sender, RunWorkerCompletedEventArgs e)
         {
-            if (state.settings.eSyncMode == KinectSettings.SyncMode.Hardware)
+            processingWorkerComplete = true;
+        }
+
+        private void SyncWorker(object sender, DoWorkEventArgs e)
+        {
+            if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
             {
                 if (!oServer.GetTimestampLists())
                 {
@@ -700,34 +719,109 @@ namespace KinectServer
         }
 
 
-        private void syncWorker_Completed(bool success)
+        private void Sync_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
-            if (success)
-                StartSaving();
-            else
-                CaptureComplete();
+            //TODO: Check for sync success
+            syncWorker.Join();
+
+            Log.LogInfo("Starting to save frames ");
+            ThreadStart savingStart = new ThreadStart(SavingWorker);
+            savingStart += () => { Saving_Completed(); };
+            saveWorker = new Thread(savingStart);
+            saveWorker.Start();
+            processingWorkerComplete = true;
+            state.appState = appState.saving;
+            UpdateUI();
         }
 
-        void StartPreviewWorker()
+        private void SavingWorker(object sender, DoWorkEventArgs e)
         {
-            previewWorker = new Thread(new ThreadStart(PreviewWorker));
-            previewWorker.Start();
+            if (state.settings.eExportMode == ClientSettings.ExportMode.Pointcloud)
+            {
+                Log.LogInfo("Start saving Pointcloud frames");
+                Log.LogInfo("Merging Pointclouds: " + state.settings.bMergeScansForSave);
+
+                //Saving is downloading the frames from clients and saving them locally.
+                int nFrames = 0;
+
+                if (state.settings.takePath == null)
+                    return;
+
+                //This loop is running till it is either cancelled, or till there are no more stored frames.
+                while (!cancelSaveWorker)
+                {
+                    List<List<byte>> lFrameBGRAllDevices = new List<List<byte>>();
+                    List<List<float>> lFrameVertsAllDevices = new List<List<float>>();
+
+                    bool success = oServer.GetStoredFrame(lFrameBGRAllDevices, lFrameVertsAllDevices);
+
+                    //This indicates that there are no more stored frames.
+                    if (!success)
+                        break;
+
+                    nFrames++;
+                    int nVerticesTotal = 0;
+                    for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
+                    {
+                        nVerticesTotal += lFrameVertsAllDevices[i].Count;
+                    }
+
+                    List<byte> lFrameBGR = new List<byte>();
+                    List<Single> lFrameVerts = new List<Single>();
+
+                    state.stateIndicatorSuffix = "Frame " + (nFrames).ToString() + ".";
+                    for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
+                    {
+                        lFrameBGR.AddRange(lFrameBGRAllDevices[i]);
+                        lFrameVerts.AddRange(lFrameVertsAllDevices[i]);
+
+                        //This is ran if the frames from each client are to be placed in separate files.
+                        if (state.settings.bMergeScansForSave)
+                        {
+                            string outputFilename = state.settings.takePath + "\\" + nFrames.ToString().PadLeft(5, '0') + i.ToString() + ".ply";
+                            Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameBGRAllDevices[i], EColorMode.BGR, state.settings.bSaveAsBinaryPLY);
+                        }
+                    }
+
+                    //This is ran if the frames from all clients are to be placed in a single file.
+                    if (!state.settings.bMergeScansForSave)
+                    {
+                        string outputFilename = state.settings.takePath + "\\" + nFrames.ToString().PadLeft(5, '0') + ".ply";
+                        Utils.saveToPly(outputFilename, lFrameVerts, lFrameBGR, EColorMode.BGR, state.settings.bSaveAsBinaryPLY);
+                    }
+                }
+            }
         }
 
-        void StopPreviewWorker()
+        private void Saving_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
-            cancelPreviewWorker = true;
-            previewWorker.Join();
-            cancelPreviewWorker = false;
+            Log.LogInfo("Saving complete!");
+            oServer.ClearStoredFrames();
+
+            PreviewWorker();
+
+            processingWorkerComplete = true;
+            state.appState = appState.idle;
+            UpdateUI();
+        }
+
+        void PreviewWorker()
+        {
+            previewWorker.RunWorkerAsync();
+        }
+
+        void PreviewWorker_Cancel()
+        {
+            previewWorker.CancelAsync();
         }
 
         //Continually requests frames that will be displayed in the live view window.
-        private void PreviewWorker()
+        private void PreviewWorker(object sender, DoWorkEventArgs e)
         {
             List<List<byte>> lFramesRGB = new List<List<byte>>();
             List<List<Single>> lFramesVerts = new List<List<Single>>();
 
-            while (!cancelPreviewWorker)
+            while (!previewWorker.CancellationPending)
             {
                 Thread.Sleep(1);
 
@@ -777,13 +871,6 @@ namespace KinectServer
         #endregion
     }
 
-    public class LiveScanState
-    {
-        public appState appState;
-        public KinectSettings settings;
-        public List<KinectSocket> clients;
-
-        public float previewWindowFPS = 0;
-    }
+    
 
 }

@@ -9,7 +9,7 @@ using System.Net.Sockets;
 using System.Net;
 
 
-namespace KinectServer
+namespace LiveScanServer
 {
     public class TransferServer
     {

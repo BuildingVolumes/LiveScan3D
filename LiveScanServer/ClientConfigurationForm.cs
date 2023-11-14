@@ -8,16 +8,16 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace KinectServer
+namespace LiveScanServer
 {
-    public partial class KinectConfigurationForm : Form
+    public partial class ClientConfigurationForm : Form
     {
         LiveScanServer liveScanServer;        
-        KinectSocket kinectSocket;
-        KinectConfiguration displayedConfiguration;
+        ClientSocket kinectSocket;
+        ClientConfiguration displayedConfiguration;
         public string serialnumber;
        
-        public KinectConfigurationForm(LiveScanServer liveScanServer, string serialnumber)
+        public ClientConfigurationForm(LiveScanServer liveScanServer, string serialnumber)
         {
             InitializeComponent();
 
@@ -38,7 +38,7 @@ namespace KinectServer
             this.BeginInvoke(
                 new Action(() =>
                 {
-                    KinectConfiguration newConfig = liveScanServer.GetConfigFromSerial(serialnumber);
+                    ClientConfiguration newConfig = liveScanServer.GetConfigFromSerial(serialnumber);
 
                     this.Text = "Configuration for device: " + newConfig.SerialNumber;
                     this.Update(); 
@@ -65,6 +65,11 @@ namespace KinectServer
                     this.Update();
                 }
         ));
+        }
+
+        public ClientConfiguration GetCurrentlyShownConfig()
+        {
+            return displayedConfiguration;
         }
 
         private void CreateDepthResList()
@@ -104,7 +109,7 @@ namespace KinectServer
 
             Cursor.Current = Cursors.WaitCursor;
 
-            KinectConfiguration currentConfig = liveScanServer.GetConfigFromSerial(serialnumber);
+            ClientConfiguration currentConfig = liveScanServer.GetConfigFromSerial(serialnumber);
             displayedConfiguration = ApplyConfiguration(currentConfig, displayedConfiguration);
             liveScanServer.SetConfiguration(displayedConfiguration);
 
@@ -126,7 +131,7 @@ namespace KinectServer
         
 
         //Only applies values that can be changed in this UI
-        KinectConfiguration ApplyConfiguration(KinectConfiguration applyTo, KinectConfiguration applyFrom)
+        ClientConfiguration ApplyConfiguration(ClientConfiguration applyTo, ClientConfiguration applyFrom)
         {
             applyTo.FilterDepthMap = applyFrom.FilterDepthMap;
             applyTo.FilterDepthMapSize = applyFrom.FilterDepthMapSize;
@@ -138,7 +143,7 @@ namespace KinectServer
 
         private void lbDepthRes_SelectedIndexChanged(object sender, EventArgs e)
         {
-            displayedConfiguration.eDepthRes = (KinectConfiguration.depthResolution)lbDepthRes.SelectedIndex + 1;
+            displayedConfiguration.eDepthRes = (ClientConfiguration.depthResolution)lbDepthRes.SelectedIndex + 1;
         }
 
         private void lbColorRes_SelectedIndexChanged(object sender, EventArgs e)
@@ -151,7 +156,7 @@ namespace KinectServer
             else if (selected == 5)
                 selected = 4;
 
-            displayedConfiguration.eColorRes = (KinectConfiguration.colorResolution)selected;
+            displayedConfiguration.eColorRes = (ClientConfiguration.colorResolution)selected;
         }
 
         private void cbFilterDepthMap_CheckedChanged(object sender, EventArgs e)

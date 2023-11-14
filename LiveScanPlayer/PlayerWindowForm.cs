@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Threading;
 using System.IO;
-using KinectServer;
+using LiveScanServer;
 using System.Diagnostics;
 
 namespace LiveScanPlayer

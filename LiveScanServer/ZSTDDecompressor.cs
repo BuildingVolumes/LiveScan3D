@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using size_t = System.UIntPtr;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     static class ZSTDDecompressor
     {

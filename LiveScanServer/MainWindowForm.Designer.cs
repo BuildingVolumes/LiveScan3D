@@ -1,4 +1,4 @@
-﻿namespace KinectServer
+﻿namespace LiveScanServer
 {
     partial class MainWindowForm
     {
@@ -31,11 +31,8 @@
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainWindowForm));
             this.btCalibrate = new System.Windows.Forms.Button();
-            this.statusStrip1 = new System.Windows.Forms.StatusStrip();
-            this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.txtSeqName = new System.Windows.Forms.TextBox();
             this.btRefineCalib = new System.Windows.Forms.Button();
-            this.OpenGLWorker = new System.ComponentModel.BackgroundWorker();
             this.btSettings = new System.Windows.Forms.Button();
             this.lbSeqName = new System.Windows.Forms.Label();
             this.btKinectSettingsOpenButton = new System.Windows.Forms.Button();
@@ -88,7 +85,7 @@
             this.pnCalibration = new System.Windows.Forms.Panel();
             this.btRecord = new System.Windows.Forms.Button();
             this.pnCapture = new System.Windows.Forms.Panel();
-            this.statusStrip1.SuspendLayout();
+            this.lStateIndicator = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.gvClients)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoClientPreview)).BeginInit();
@@ -116,7 +113,7 @@
             // btCalibrate
             // 
             this.btCalibrate.Location = new System.Drawing.Point(7, 28);
-            this.btCalibrate.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btCalibrate.Margin = new System.Windows.Forms.Padding(4);
             this.btCalibrate.Name = "btCalibrate";
             this.btCalibrate.Size = new System.Drawing.Size(127, 28);
             this.btCalibrate.TabIndex = 2;
@@ -124,28 +121,10 @@
             this.btCalibrate.UseVisualStyleBackColor = true;
             this.btCalibrate.Click += new System.EventHandler(this.btCalibrate_Click);
             // 
-            // statusStrip1
-            // 
-            this.statusStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
-            this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.statusLabel});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 832);
-            this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Padding = new System.Windows.Forms.Padding(1, 0, 19, 0);
-            this.statusStrip1.Size = new System.Drawing.Size(1397, 22);
-            this.statusStrip1.SizingGrip = false;
-            this.statusStrip1.TabIndex = 6;
-            this.statusStrip1.Text = "statusStrip1";
-            // 
-            // statusLabel
-            // 
-            this.statusLabel.Name = "statusLabel";
-            this.statusLabel.Size = new System.Drawing.Size(0, 16);
-            // 
             // txtSeqName
             // 
             this.txtSeqName.Location = new System.Drawing.Point(128, 32);
-            this.txtSeqName.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtSeqName.Margin = new System.Windows.Forms.Padding(4);
             this.txtSeqName.MaxLength = 40;
             this.txtSeqName.Name = "txtSeqName";
             this.txtSeqName.Size = new System.Drawing.Size(384, 22);
@@ -155,7 +134,7 @@
             // btRefineCalib
             // 
             this.btRefineCalib.Location = new System.Drawing.Point(187, 28);
-            this.btRefineCalib.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btRefineCalib.Margin = new System.Windows.Forms.Padding(4);
             this.btRefineCalib.Name = "btRefineCalib";
             this.btRefineCalib.Size = new System.Drawing.Size(149, 28);
             this.btRefineCalib.TabIndex = 11;
@@ -163,15 +142,10 @@
             this.btRefineCalib.UseVisualStyleBackColor = true;
             this.btRefineCalib.Click += new System.EventHandler(this.btRefineCalib_Click);
             // 
-            // OpenGLWorker
-            // 
-            this.OpenGLWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.OpenGLWorker_DoWork);
-            this.OpenGLWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.OpenGLWorker_RunWorkerCompleted);
-            // 
             // btSettings
             // 
             this.btSettings.Location = new System.Drawing.Point(389, 191);
-            this.btSettings.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btSettings.Margin = new System.Windows.Forms.Padding(4);
             this.btSettings.Name = "btSettings";
             this.btSettings.Size = new System.Drawing.Size(127, 28);
             this.btSettings.TabIndex = 13;
@@ -194,7 +168,7 @@
             this.btKinectSettingsOpenButton.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(4, 242);
-            this.btKinectSettingsOpenButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btKinectSettingsOpenButton.Margin = new System.Windows.Forms.Padding(4);
             this.btKinectSettingsOpenButton.Name = "btKinectSettingsOpenButton";
             this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(509, 28);
             this.btKinectSettingsOpenButton.TabIndex = 15;
@@ -251,7 +225,7 @@
             // 
             this.rExportRaw.Checked = true;
             this.rExportRaw.Location = new System.Drawing.Point(11, 4);
-            this.rExportRaw.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.rExportRaw.Margin = new System.Windows.Forms.Padding(4);
             this.rExportRaw.Name = "rExportRaw";
             this.rExportRaw.Size = new System.Drawing.Size(112, 21);
             this.rExportRaw.TabIndex = 21;
@@ -263,7 +237,7 @@
             // rExportPointclouds
             // 
             this.rExportPointclouds.Location = new System.Drawing.Point(264, 4);
-            this.rExportPointclouds.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.rExportPointclouds.Margin = new System.Windows.Forms.Padding(4);
             this.rExportPointclouds.Name = "rExportPointclouds";
             this.rExportPointclouds.Size = new System.Drawing.Size(107, 21);
             this.rExportPointclouds.TabIndex = 22;
@@ -286,7 +260,7 @@
             this.Column4,
             this.SyncState});
             this.gvClients.Location = new System.Drawing.Point(0, 33);
-            this.gvClients.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gvClients.Margin = new System.Windows.Forms.Padding(4);
             this.gvClients.MultiSelect = false;
             this.gvClients.Name = "gvClients";
             this.gvClients.ReadOnly = true;
@@ -351,12 +325,12 @@
             // 
             // glLiveView
             // 
-            this.glLiveView.BackColor = System.Drawing.Color.Black;
+            this.glLiveView.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(0)))), ((int)(((byte)(25)))));
             this.glLiveView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.glLiveView.Location = new System.Drawing.Point(0, 0);
             this.glLiveView.Margin = new System.Windows.Forms.Padding(5, 6, 5, 6);
             this.glLiveView.Name = "glLiveView";
-            this.glLiveView.Size = new System.Drawing.Size(856, 824);
+            this.glLiveView.Size = new System.Drawing.Size(856, 846);
             this.glLiveView.TabIndex = 26;
             this.glLiveView.VSync = false;
             this.glLiveView.Load += new System.EventHandler(this.glLiveView_Load);
@@ -369,7 +343,7 @@
             // lFPS
             // 
             this.lFPS.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.lFPS.BackColor = System.Drawing.Color.Black;
+            this.lFPS.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(0)))), ((int)(((byte)(25)))));
             this.lFPS.ForeColor = System.Drawing.SystemColors.Control;
             this.lFPS.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.lFPS.Location = new System.Drawing.Point(795, 0);
@@ -384,7 +358,7 @@
             // 
             this.chMergeScans.AutoSize = true;
             this.chMergeScans.Location = new System.Drawing.Point(280, 30);
-            this.chMergeScans.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chMergeScans.Margin = new System.Windows.Forms.Padding(4);
             this.chMergeScans.Name = "chMergeScans";
             this.chMergeScans.Size = new System.Drawing.Size(109, 20);
             this.chMergeScans.TabIndex = 30;
@@ -405,7 +379,7 @@
             // chHardwareSync
             // 
             this.chHardwareSync.Location = new System.Drawing.Point(121, 33);
-            this.chHardwareSync.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chHardwareSync.Margin = new System.Windows.Forms.Padding(4);
             this.chHardwareSync.Name = "chHardwareSync";
             this.chHardwareSync.Size = new System.Drawing.Size(133, 21);
             this.chHardwareSync.TabIndex = 32;
@@ -416,7 +390,7 @@
             // chNetworkSync
             // 
             this.chNetworkSync.Location = new System.Drawing.Point(295, 34);
-            this.chNetworkSync.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chNetworkSync.Margin = new System.Windows.Forms.Padding(4);
             this.chNetworkSync.Name = "chNetworkSync";
             this.chNetworkSync.Size = new System.Drawing.Size(125, 21);
             this.chNetworkSync.TabIndex = 33;
@@ -438,7 +412,7 @@
             // 
             this.rExposureAuto.AutoSize = true;
             this.rExposureAuto.Location = new System.Drawing.Point(13, 6);
-            this.rExposureAuto.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.rExposureAuto.Margin = new System.Windows.Forms.Padding(4);
             this.rExposureAuto.Name = "rExposureAuto";
             this.rExposureAuto.Size = new System.Drawing.Size(55, 20);
             this.rExposureAuto.TabIndex = 37;
@@ -451,7 +425,7 @@
             // 
             this.rExposureManual.AutoSize = true;
             this.rExposureManual.Location = new System.Drawing.Point(87, 6);
-            this.rExposureManual.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.rExposureManual.Margin = new System.Windows.Forms.Padding(4);
             this.rExposureManual.Name = "rExposureManual";
             this.rExposureManual.Size = new System.Drawing.Size(72, 20);
             this.rExposureManual.TabIndex = 38;
@@ -465,7 +439,7 @@
             this.trManualExposure.Enabled = false;
             this.trManualExposure.LargeChange = 1;
             this.trManualExposure.Location = new System.Drawing.Point(311, 63);
-            this.trManualExposure.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.trManualExposure.Margin = new System.Windows.Forms.Padding(4);
             this.trManualExposure.Maximum = -5;
             this.trManualExposure.Minimum = -11;
             this.trManualExposure.Name = "trManualExposure";
@@ -506,9 +480,8 @@
             // 
             // pInfoClientPreview
             // 
-            this.pInfoClientPreview.Image = global::KinectServer.Properties.Resources.info_box;
             this.pInfoClientPreview.Location = new System.Drawing.Point(361, 158);
-            this.pInfoClientPreview.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pInfoClientPreview.Margin = new System.Windows.Forms.Padding(4);
             this.pInfoClientPreview.Name = "pInfoClientPreview";
             this.pInfoClientPreview.Size = new System.Drawing.Size(20, 18);
             this.pInfoClientPreview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -519,9 +492,8 @@
             // 
             // pictureBox1
             // 
-            this.pictureBox1.Image = global::KinectServer.Properties.Resources.info_box;
             this.pictureBox1.Location = new System.Drawing.Point(248, 34);
-            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(20, 18);
             this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -532,9 +504,8 @@
             // 
             // PInfoExposure
             // 
-            this.PInfoExposure.Image = global::KinectServer.Properties.Resources.info_box;
             this.PInfoExposure.Location = new System.Drawing.Point(76, 70);
-            this.PInfoExposure.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.PInfoExposure.Margin = new System.Windows.Forms.Padding(4);
             this.PInfoExposure.Name = "PInfoExposure";
             this.PInfoExposure.Size = new System.Drawing.Size(20, 18);
             this.PInfoExposure.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -545,9 +516,8 @@
             // 
             // pInfoNetworkSync
             // 
-            this.pInfoNetworkSync.Image = global::KinectServer.Properties.Resources.info_box;
             this.pInfoNetworkSync.Location = new System.Drawing.Point(413, 34);
-            this.pInfoNetworkSync.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pInfoNetworkSync.Margin = new System.Windows.Forms.Padding(4);
             this.pInfoNetworkSync.Name = "pInfoNetworkSync";
             this.pInfoNetworkSync.Size = new System.Drawing.Size(20, 18);
             this.pInfoNetworkSync.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -558,9 +528,8 @@
             // 
             // pInfoRefineCalib
             // 
-            this.pInfoRefineCalib.Image = global::KinectServer.Properties.Resources.info_box;
             this.pInfoRefineCalib.Location = new System.Drawing.Point(340, 32);
-            this.pInfoRefineCalib.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pInfoRefineCalib.Margin = new System.Windows.Forms.Padding(4);
             this.pInfoRefineCalib.Name = "pInfoRefineCalib";
             this.pInfoRefineCalib.Size = new System.Drawing.Size(20, 18);
             this.pInfoRefineCalib.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -571,9 +540,8 @@
             // 
             // pInfoCalibrate
             // 
-            this.pInfoCalibrate.Image = global::KinectServer.Properties.Resources.info_box;
             this.pInfoCalibrate.Location = new System.Drawing.Point(137, 33);
-            this.pInfoCalibrate.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pInfoCalibrate.Margin = new System.Windows.Forms.Padding(4);
             this.pInfoCalibrate.Name = "pInfoCalibrate";
             this.pInfoCalibrate.Size = new System.Drawing.Size(20, 18);
             this.pInfoCalibrate.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -584,9 +552,8 @@
             // 
             // pInfoRawFrames
             // 
-            this.pInfoRawFrames.Image = global::KinectServer.Properties.Resources.info_box;
             this.pInfoRawFrames.Location = new System.Drawing.Point(123, 5);
-            this.pInfoRawFrames.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pInfoRawFrames.Margin = new System.Windows.Forms.Padding(4);
             this.pInfoRawFrames.Name = "pInfoRawFrames";
             this.pInfoRawFrames.Size = new System.Drawing.Size(20, 18);
             this.pInfoRawFrames.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -597,9 +564,8 @@
             // 
             // pInfoPointclouds
             // 
-            this.pInfoPointclouds.Image = global::KinectServer.Properties.Resources.info_box;
             this.pInfoPointclouds.Location = new System.Drawing.Point(371, 4);
-            this.pInfoPointclouds.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pInfoPointclouds.Margin = new System.Windows.Forms.Padding(4);
             this.pInfoPointclouds.Name = "pInfoPointclouds";
             this.pInfoPointclouds.Size = new System.Drawing.Size(20, 18);
             this.pInfoPointclouds.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -609,9 +575,8 @@
             // 
             // pInfoWhiteBalance
             // 
-            this.pInfoWhiteBalance.Image = global::KinectServer.Properties.Resources.info_box;
             this.pInfoWhiteBalance.Location = new System.Drawing.Point(108, 113);
-            this.pInfoWhiteBalance.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pInfoWhiteBalance.Margin = new System.Windows.Forms.Padding(4);
             this.pInfoWhiteBalance.Name = "pInfoWhiteBalance";
             this.pInfoWhiteBalance.Size = new System.Drawing.Size(20, 18);
             this.pInfoWhiteBalance.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -625,7 +590,7 @@
             this.gbExposure.Controls.Add(this.rExposureManual);
             this.gbExposure.Controls.Add(this.rExposureAuto);
             this.gbExposure.Location = new System.Drawing.Point(137, 60);
-            this.gbExposure.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbExposure.Margin = new System.Windows.Forms.Padding(4);
             this.gbExposure.Name = "gbExposure";
             this.gbExposure.Size = new System.Drawing.Size(171, 33);
             this.gbExposure.TabIndex = 44;
@@ -638,7 +603,7 @@
             this.gbFrameExport.Controls.Add(this.pInfoPointclouds);
             this.gbFrameExport.Controls.Add(this.chMergeScans);
             this.gbFrameExport.Location = new System.Drawing.Point(4, 64);
-            this.gbFrameExport.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbFrameExport.Margin = new System.Windows.Forms.Padding(4);
             this.gbFrameExport.Name = "gbFrameExport";
             this.gbFrameExport.Size = new System.Drawing.Size(403, 55);
             this.gbFrameExport.TabIndex = 45;
@@ -652,22 +617,23 @@
             this.tlMainPanel.Controls.Add(this.tlControls, 0, 0);
             this.tlMainPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlMainPanel.Location = new System.Drawing.Point(0, 0);
-            this.tlMainPanel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tlMainPanel.Margin = new System.Windows.Forms.Padding(4);
             this.tlMainPanel.Name = "tlMainPanel";
             this.tlMainPanel.RowCount = 1;
             this.tlMainPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tlMainPanel.Size = new System.Drawing.Size(1397, 832);
+            this.tlMainPanel.Size = new System.Drawing.Size(1397, 854);
             this.tlMainPanel.TabIndex = 46;
             // 
             // pnLiveView
             // 
+            this.pnLiveView.Controls.Add(this.lStateIndicator);
             this.pnLiveView.Controls.Add(this.lFPS);
             this.pnLiveView.Controls.Add(this.glLiveView);
             this.pnLiveView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnLiveView.Location = new System.Drawing.Point(537, 4);
-            this.pnLiveView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pnLiveView.Margin = new System.Windows.Forms.Padding(4);
             this.pnLiveView.Name = "pnLiveView";
-            this.pnLiveView.Size = new System.Drawing.Size(856, 824);
+            this.pnLiveView.Size = new System.Drawing.Size(856, 846);
             this.pnLiveView.TabIndex = 0;
             // 
             // tlControls
@@ -683,7 +649,7 @@
             this.tlControls.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tlControls.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.FixedSize;
             this.tlControls.Location = new System.Drawing.Point(4, 4);
-            this.tlControls.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tlControls.Margin = new System.Windows.Forms.Padding(4);
             this.tlControls.Name = "tlControls";
             this.tlControls.RowCount = 6;
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 289F));
@@ -692,7 +658,7 @@
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 135F));
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 62F));
-            this.tlControls.Size = new System.Drawing.Size(525, 824);
+            this.tlControls.Size = new System.Drawing.Size(525, 846);
             this.tlControls.TabIndex = 1;
             // 
             // pnClients
@@ -702,7 +668,7 @@
             this.pnClients.Controls.Add(this.btKinectSettingsOpenButton);
             this.pnClients.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnClients.Location = new System.Drawing.Point(4, 4);
-            this.pnClients.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pnClients.Margin = new System.Windows.Forms.Padding(4);
             this.pnClients.Name = "pnClients";
             this.pnClients.Size = new System.Drawing.Size(517, 281);
             this.pnClients.TabIndex = 0;
@@ -729,7 +695,7 @@
             this.pnSettings.Controls.Add(this.chNetworkSync);
             this.pnSettings.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnSettings.Location = new System.Drawing.Point(4, 367);
-            this.pnSettings.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pnSettings.Margin = new System.Windows.Forms.Padding(4);
             this.pnSettings.Name = "pnSettings";
             this.pnSettings.Size = new System.Drawing.Size(517, 223);
             this.pnSettings.TabIndex = 1;
@@ -739,7 +705,7 @@
             this.gbWhiteBalance.Controls.Add(this.rWhiteBalanceManual);
             this.gbWhiteBalance.Controls.Add(this.rWhiteBalanceAuto);
             this.gbWhiteBalance.Location = new System.Drawing.Point(137, 102);
-            this.gbWhiteBalance.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbWhiteBalance.Margin = new System.Windows.Forms.Padding(4);
             this.gbWhiteBalance.Name = "gbWhiteBalance";
             this.gbWhiteBalance.Size = new System.Drawing.Size(171, 33);
             this.gbWhiteBalance.TabIndex = 48;
@@ -748,7 +714,7 @@
             // 
             this.rWhiteBalanceManual.AutoSize = true;
             this.rWhiteBalanceManual.Location = new System.Drawing.Point(87, 6);
-            this.rWhiteBalanceManual.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.rWhiteBalanceManual.Margin = new System.Windows.Forms.Padding(4);
             this.rWhiteBalanceManual.Name = "rWhiteBalanceManual";
             this.rWhiteBalanceManual.Size = new System.Drawing.Size(72, 20);
             this.rWhiteBalanceManual.TabIndex = 38;
@@ -761,7 +727,7 @@
             // 
             this.rWhiteBalanceAuto.AutoSize = true;
             this.rWhiteBalanceAuto.Location = new System.Drawing.Point(13, 6);
-            this.rWhiteBalanceAuto.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.rWhiteBalanceAuto.Margin = new System.Windows.Forms.Padding(4);
             this.rWhiteBalanceAuto.Name = "rWhiteBalanceAuto";
             this.rWhiteBalanceAuto.Size = new System.Drawing.Size(55, 20);
             this.rWhiteBalanceAuto.TabIndex = 37;
@@ -775,7 +741,7 @@
             this.trWhiteBalance.Enabled = false;
             this.trWhiteBalance.LargeChange = 4;
             this.trWhiteBalance.Location = new System.Drawing.Point(311, 101);
-            this.trWhiteBalance.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.trWhiteBalance.Margin = new System.Windows.Forms.Padding(4);
             this.trWhiteBalance.Maximum = 18;
             this.trWhiteBalance.Minimum = 5;
             this.trWhiteBalance.Name = "trWhiteBalance";
@@ -803,7 +769,7 @@
             this.pnCalibration.Controls.Add(this.pInfoCalibrate);
             this.pnCalibration.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnCalibration.Location = new System.Drawing.Point(4, 293);
-            this.pnCalibration.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pnCalibration.Margin = new System.Windows.Forms.Padding(4);
             this.pnCalibration.Name = "pnCalibration";
             this.pnCalibration.Size = new System.Drawing.Size(517, 66);
             this.pnCalibration.TabIndex = 5;
@@ -813,10 +779,9 @@
             this.btRecord.AutoSize = true;
             this.btRecord.Dock = System.Windows.Forms.DockStyle.Fill;
             this.btRecord.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btRecord.Image = global::KinectServer.Properties.Resources.recording;
             this.btRecord.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btRecord.Location = new System.Drawing.Point(4, 766);
-            this.btRecord.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btRecord.Location = new System.Drawing.Point(4, 788);
+            this.btRecord.Margin = new System.Windows.Forms.Padding(4);
             this.btRecord.MinimumSize = new System.Drawing.Size(0, 37);
             this.btRecord.Name = "btRecord";
             this.btRecord.Size = new System.Drawing.Size(517, 54);
@@ -833,11 +798,26 @@
             this.pnCapture.Controls.Add(this.txtSeqName);
             this.pnCapture.Controls.Add(this.lbSeqName);
             this.pnCapture.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnCapture.Location = new System.Drawing.Point(4, 631);
-            this.pnCapture.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pnCapture.Location = new System.Drawing.Point(4, 653);
+            this.pnCapture.Margin = new System.Windows.Forms.Padding(4);
             this.pnCapture.Name = "pnCapture";
             this.pnCapture.Size = new System.Drawing.Size(517, 127);
             this.pnCapture.TabIndex = 2;
+            // 
+            // lStateIndicator
+            // 
+            this.lStateIndicator.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.lStateIndicator.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(0)))), ((int)(((byte)(25)))));
+            this.lStateIndicator.Font = new System.Drawing.Font("Microsoft Sans Serif", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lStateIndicator.ForeColor = System.Drawing.SystemColors.Control;
+            this.lStateIndicator.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.lStateIndicator.Location = new System.Drawing.Point(0, 0);
+            this.lStateIndicator.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lStateIndicator.Name = "lStateIndicator";
+            this.lStateIndicator.Size = new System.Drawing.Size(234, 28);
+            this.lStateIndicator.TabIndex = 28;
+            this.lStateIndicator.Text = "State...";
+            this.lStateIndicator.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // MainWindowForm
             // 
@@ -845,15 +825,12 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1397, 854);
             this.Controls.Add(this.tlMainPanel);
-            this.Controls.Add(this.statusStrip1);
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.MinimumSize = new System.Drawing.Size(550, 804);
             this.Name = "MainWindowForm";
             this.Text = "LiveScanServer";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.Load += new System.EventHandler(this.MainWindowForm_Load);
-            this.statusStrip1.ResumeLayout(false);
-            this.statusStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gvClients)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoClientPreview)).EndInit();
@@ -885,19 +862,15 @@
             this.pnCapture.ResumeLayout(false);
             this.pnCapture.PerformLayout();
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
         #endregion
         private System.Windows.Forms.Button btCalibrate;
         private System.Windows.Forms.Button btRecord;
-        private System.Windows.Forms.StatusStrip statusStrip1;
         private System.Windows.Forms.TextBox txtSeqName;
         private System.Windows.Forms.Button btRefineCalib;
-        private System.ComponentModel.BackgroundWorker OpenGLWorker;
         private System.Windows.Forms.Button btSettings;
-        private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.Label lbSeqName;
         private System.Windows.Forms.Button btKinectSettingsOpenButton;
         private System.Windows.Forms.Label lClientsHeader;
@@ -948,6 +921,7 @@
         private System.Windows.Forms.PictureBox pInfoWhiteBalance;
         private System.Windows.Forms.TrackBar trWhiteBalance;
         private System.Windows.Forms.Label lWhiteBalance;
+        private System.Windows.Forms.Label lStateIndicator;
     }
 }
 

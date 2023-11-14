@@ -17,11 +17,11 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 
 
-namespace KinectServer
+namespace LiveScanServer
 {
     public delegate void SocketChangedHandler();
 
-    public class KinectSocket
+    public class ClientSocket
     {
         Socket oSocket;
         byte[] byteToSend = new byte[1];
@@ -48,7 +48,7 @@ namespace KinectServer
         public bool bPreRecordProcessConfirmed = false;
         public bool bPostRecordProcessConfirmed = false;
 
-        public KinectConfiguration configuration;
+        public ClientConfiguration configuration;
 
         //The pose of the sensor in the scene (used by the OpenGLWindow to show the sensor)
         public Matrix4x4 oCameraPose = new Matrix4x4();
@@ -78,12 +78,12 @@ namespace KinectServer
 
         public event SocketChangedHandler eChanged;
 
-        public Action<KinectConfiguration> configurationUpdated;
+        public Action<ClientConfiguration> configurationUpdated;
 
         //UI
         public bool visible;
         
-        public KinectSocket(Socket clientSocket)
+        public ClientSocket(Socket clientSocket)
         {
             oSocket = clientSocket;
             UpdateSocketState("");
@@ -106,6 +106,13 @@ namespace KinectServer
             SendByte();
 
             UpdateSocketState("");
+        }
+
+        public void CancelCalibration()
+        {
+            //TODO: Implement in Client
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_CALIBRATE_CANCEL;
+            SendByte();
         }
 
         public void RequestStoredFrame()
@@ -145,7 +152,7 @@ namespace KinectServer
 
         }
 
-        public void SendSettings(KinectSettings settings)
+        public void SendSettings(ClientSettings settings)
         {
             lMarkers = settings.lMarkerPoses;
 
@@ -160,7 +167,7 @@ namespace KinectServer
                 oSocket.Send(lData.ToArray());
         }
 
-        public void SendConfiguration(KinectConfiguration newConfig)
+        public void SendConfiguration(ClientConfiguration newConfig)
         {
             byte[] data = newConfig.ToBytes();
             List<byte> message = new List<byte>() { (byte)OutgoingMessageType.MSG_SET_CONFIGURATION };
@@ -346,8 +353,8 @@ namespace KinectServer
 
         public void RecieveConfiguration()
         {
-            byte[] buffer = Receive(KinectConfiguration.bytelength);
-            configuration = new KinectConfiguration(buffer);
+            byte[] buffer = Receive(ClientConfiguration.bytelength);
+            configuration = new ClientConfiguration(buffer);
             bConfigurationReceived = true;            
             configurationUpdated?.Invoke(configuration);
         }
@@ -533,10 +540,10 @@ namespace KinectServer
             {
                 switch (configuration.eSoftwareSyncState)
                 {
-                    case KinectConfiguration.SyncState.Main:
+                    case ClientConfiguration.SyncState.Main:
                         tempSyncMessage = "[MAIN]";
                         break;
-                    case KinectConfiguration.SyncState.Subordinate:
+                    case ClientConfiguration.SyncState.Subordinate:
                         tempSyncMessage = "[SUBORDINATE]";
                         break;
                     default:

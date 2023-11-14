@@ -23,9 +23,10 @@ using System.IO;
 using System.Diagnostics;
 using OpenTK;
 using OpenTK.Graphics;
+using static System.Windows.Forms.AxHost;
 
 
-namespace KinectServer
+namespace LiveScanServer
 {
     public partial class MainWindowForm : Form
     {
@@ -41,7 +42,7 @@ namespace KinectServer
 
         //Other windows
         SettingsForm settingsForm;
-        KinectConfigurationForm configurationForm;
+        ClientConfigurationForm configurationForm;
 
         //The live preview
         OpenGLWindow oOpenGLWindow;
@@ -50,6 +51,7 @@ namespace KinectServer
         {
             InitializeComponent();
             liveScanServer = new LiveScanServer(this);
+            oOpenGLWindow = new OpenGLWindow();
             this.Icon = Properties.Resources.Server_Icon;
         }
 
@@ -62,6 +64,7 @@ namespace KinectServer
         {
             tLiveViewTimer.Stop();
             oOpenGLWindow.Unload();
+            liveScanServer.Terminate();
         }
 
         public void UpdateUI(LiveScanState newState)
@@ -70,6 +73,16 @@ namespace KinectServer
             //Set dynamic button states
             ///////////////////////////
 
+            Invoke(new Action(() =>
+            {
+                SetUIState(newState);
+            }));
+
+            liveScanState = newState;
+        }
+
+        void SetUIState(LiveScanState newState)
+        {
             //Client settings
             if (gvClients.Rows.Count < 1)
                 btKinectSettingsOpenButton.Enabled = false;
@@ -100,14 +113,14 @@ namespace KinectServer
                 btRefineCalib.Enabled = true;
             }
 
-            else if(newState.appState == appState.idle)
+            else if (newState.appState == appState.idle)
             {
                 btRefineCalib.Text = "Refine Calibration";
                 btRefineCalib.Enabled = true;
             }
 
             else
-            btRefineCalib.Enabled = false;
+                btRefineCalib.Enabled = false;
 
 
             //Capture Button
@@ -144,45 +157,44 @@ namespace KinectServer
 
 
             //Set client list view
-            if (liveScanState.clients != newState.clients)
-            {
-                ClientConnectionChanged(newState.clients);
-            }
+            UpdateClientGridView(newState.clients);
 
             //Temporal Sync
-            if (newState.settings.eSyncMode == KinectSettings.SyncMode.off)
+            if (newState.settings.eSyncMode == ClientSettings.SyncMode.Off)
             {
                 chHardwareSync.Enabled = true;
                 chHardwareSync.Checked = false;
                 chNetworkSync.Enabled = true;
-                chNetworkSync.Enabled = false;
+                chNetworkSync.Checked = false;
             }
 
-            if (newState.settings.eSyncMode == KinectSettings.SyncMode.Network)
+            if (newState.settings.eSyncMode == ClientSettings.SyncMode.Network)
             {
                 chHardwareSync.Enabled = false;
                 chHardwareSync.Checked = false;
                 chNetworkSync.Enabled = true;
-                chNetworkSync.Enabled = true;
+                chNetworkSync.Checked = true;
             }
 
-            if (newState.settings.eSyncMode == KinectSettings.SyncMode.Network)
+            if (newState.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
             {
                 chHardwareSync.Enabled = true;
                 chHardwareSync.Checked = true;
                 chNetworkSync.Enabled = false;
-                chNetworkSync.Enabled = false;
+                chNetworkSync.Checked = false;
             }
 
 
             //Exposure
             rExposureAuto.Checked = newState.settings.bAutoExposureEnabled;
+            rExposureManual.Checked = !newState.settings.bAutoExposureEnabled;
             trManualExposure.Value = newState.settings.nExposureStep;
             trManualExposure.Enabled = !newState.settings.bAutoExposureEnabled;
 
-            if (newState.settings.eSyncMode == KinectSettings.SyncMode.Hardware)
+            if (newState.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
             {
                 rExposureManual.Checked = true;
+                rExposureAuto.Checked = false;
                 rExposureManual.Enabled = false;
                 rExposureAuto.Enabled = false;
                 trManualExposure.Enabled = true;
@@ -196,18 +208,21 @@ namespace KinectServer
 
             //White Balance
             rWhiteBalanceAuto.Checked = newState.settings.bAutoWhiteBalanceEnabled;
-            trWhiteBalance.Value = newState.settings.nKelvin;
+            rWhiteBalanceManual.Checked = !newState.settings.bAutoWhiteBalanceEnabled;
             trWhiteBalance.Enabled = !newState.settings.bAutoWhiteBalanceEnabled;
+            trWhiteBalance.Value = newState.settings.nKelvin;
 
             //Performance
             chEnablePreview.Checked = newState.settings.bPreviewEnabled;
 
             //Capture
-            rExportRaw.Checked = newState.settings.eExportMode == KinectSettings.ExportMode.RawFrames;
+            rExportRaw.Checked = newState.settings.eExportMode == ClientSettings.ExportMode.RawFrames;
+            rExportPointclouds.Checked = newState.settings.eExportMode == ClientSettings.ExportMode.Pointcloud;
             chMergeScans.Checked = newState.settings.bMergeScansForSave;
 
             //Stats
             lFPS.Text = newState.previewWindowFPS.ToString() + " FPS";
+            SetStateIndicator(newState.appState, newState.stateIndicatorSuffix);
 
             //Update other windows, if open
             if (settingsForm != null)
@@ -216,8 +231,37 @@ namespace KinectServer
             if (configurationForm != null)
                 configurationForm.UpdateUI();
 
-            liveScanState = newState;
+        }
 
+        public void SetStateIndicator(appState appstate, string suffix)
+        {
+            switch (appstate)
+            {
+                case appState.idle:
+                    lStateIndicator.Text = "";
+                    break;
+                case appState.recording:
+                    lStateIndicator.Text = "Capturing: " + suffix;
+                    break;
+                case appState.syncing:
+                    lStateIndicator.Text = "Syncing capture, please wait...";
+                    break;
+                case appState.saving:
+                    lStateIndicator.Text = "Saving: " + suffix;
+                    break;
+                case appState.calibrating:
+                    lStateIndicator.Text = "Calibrating, please wait...";
+                    break;
+                case appState.refinining:
+                    lStateIndicator.Text = "Refining calibration, please wait...";
+                    break;
+                case appState.restartingClients:
+                    lStateIndicator.Text = "Restarting clients, please wait...";
+                    break;
+                default:
+                    lStateIndicator.Text = "";
+                    break;
+            }
         }
 
         public void ShowMessageBox(MessageBoxIcon level, string message, bool quitApp = false)
@@ -254,12 +298,6 @@ namespace KinectServer
             }));
         }
 
-        public void ShowStatus(string message, int durationMs = 5000)
-        {
-            SetStatusBarOnTimer(message, durationMs);
-            Log.LogDebugCapture(message);
-        }
-
         //Opens the settings form
         private void btSettings_Click(object sender, EventArgs e)
         {
@@ -279,48 +317,20 @@ namespace KinectServer
         //This is used for: starting/stopping the recording worker, stopping the saving worker
         private void btRecord_Click(object sender, EventArgs e)
         {
-            liveScanServer.RecordButtonClicked(txtSeqName.Text);
+            liveScanServer.Capture(txtSeqName.Text);
         }
 
         private void btCalibrate_Click(object sender, EventArgs e)
         {
-            liveScanServer.CalibrateButtonClicked();
+            liveScanServer.Calibrate();
         }
 
         private void btRefineCalib_Click(object sender, EventArgs e)
         {
-            liveScanServer.RefineCalibrationButtonClicked();
+            liveScanServer.RefineCalibration();
         }
 
-        private void SetStatusBarOnTimer(string message, int milliseconds)
-        {
-            //Thread save change of UI Element
-            Invoke(new Action(() => { statusLabel.Text = message; }));
-
-            oStatusBarTimer.Stop();
-            oStatusBarTimer = new System.Timers.Timer();
-
-            oStatusBarTimer.Interval = milliseconds;
-            oStatusBarTimer.Elapsed += delegate (object sender, System.Timers.ElapsedEventArgs e)
-            {
-                oStatusBarTimer.Stop();
-                Invoke(new Action(() => { statusLabel.Text = ""; }));
-            };
-            oStatusBarTimer.Start();
-        }
-
-        private void ClientConnectionChanged(List<KinectSocket> socketList)
-        {
-            //Disable the temporal hardware sync if all clients disconnected
-            if (socketList.Count == 0)
-            {
-                Invoke(new Action(() => { chHardwareSync.Checked = false; }));
-            }
-
-            UpdateClientGridView(socketList);
-        }
-
-        public void UpdateClientGridView(List<KinectSocket> socketList)
+        public void UpdateClientGridView(List<ClientSocket> socketList)
         {
             List<string[]> gridViewRows = new List<string[]>();
 
@@ -365,7 +375,7 @@ namespace KinectServer
                 configurationForm.Close();
 
             string serialNumber = liveScanState.clients[gvClients.SelectedRows[0].Index].configuration.SerialNumber;
-            configurationForm = new KinectConfigurationForm(liveScanServer, serialNumber);
+            configurationForm = new ClientConfigurationForm(liveScanServer, serialNumber);
 
             configurationForm.Show();
             configurationForm.Focus();
@@ -374,18 +384,18 @@ namespace KinectServer
         private void chHardwareSync_Clicked(object sender, EventArgs e)
         {
             if (chHardwareSync.Checked && !chNetworkSync.Checked)
-                liveScanServer.SetSyncMode(KinectSettings.SyncMode.Hardware);
-            if (!chHardwareSync.Checked && !chNetworkSync.Checked)
-                liveScanServer.SetSyncMode(KinectSettings.SyncMode.off);
+                liveScanServer.SetSyncMode(ClientSettings.SyncMode.Hardware);
+            else if (!chHardwareSync.Checked && !chNetworkSync.Checked)
+                liveScanServer.SetSyncMode(ClientSettings.SyncMode.Off);
 
         }
 
         private void chNetworkSync_Clicked(object sender, EventArgs e)
         {
             if (chNetworkSync.Checked && !chHardwareSync.Checked)
-                liveScanServer.SetSyncMode(KinectSettings.SyncMode.Network);
-            if (!chNetworkSync.Checked && !chHardwareSync.Checked)
-                liveScanServer.SetSyncMode(KinectSettings.SyncMode.off);
+                liveScanServer.SetSyncMode(ClientSettings.SyncMode.Network);
+            else if (!chNetworkSync.Checked && !chHardwareSync.Checked)
+                liveScanServer.SetSyncMode(ClientSettings.SyncMode.Off);
         }
 
         private void rExposureAuto_Clicked(object sender, EventArgs e)
@@ -396,7 +406,7 @@ namespace KinectServer
 
         private void rExposureManual_Clicked(object sender, EventArgs e)
         {
-            if (rExposureAuto.Checked)
+            if (rExposureManual.Checked)
                 liveScanServer.SetExposureMode(false);
         }
 
@@ -445,34 +455,16 @@ namespace KinectServer
             }
         }
 
-        private void cbEnablePreview_Clicked(object sender, EventArgs e)
-        {
-            liveScanServer.SetClientPreview(chEnablePreview.Checked);
-        }
-
-        private void rExportRaw_Clicked(object sender, EventArgs e)
-        {
-            liveScanServer.SetExportMode(KinectSettings.ExportMode.RawFrames);
-        }
-
-        private void rExportPointclouds_Clicked(object sender, EventArgs e)
-        {
-            liveScanServer.SetExportMode(KinectSettings.ExportMode.Pointcloud);
-        }
-
-        private void chMergeScans_CheckedChanged(object sender, EventArgs e)
-        {
-            liveScanServer.SetMergeScans(chMergeScans.Checked);
-        }
-
         private void rWhiteBalanceAuto_CheckedChanged(object sender, EventArgs e)
         {
-            liveScanServer.SetWhiteBalanceMode(true);
+            if (rWhiteBalanceAuto.Checked)
+                liveScanServer.SetWhiteBalanceMode(true);
         }
 
         private void rWhiteBalanceManual_CheckedChanged(object sender, EventArgs e)
         {
-            liveScanServer.SetWhiteBalanceMode(false);
+            if (rWhiteBalanceManual.Checked)
+                liveScanServer.SetWhiteBalanceMode(false);
         }
 
         private void tbWhiteBalance_Scroll(object sender, EventArgs e)
@@ -509,6 +501,28 @@ namespace KinectServer
                 scrollTimerWhiteBalance.Start();
             }
         }
+
+        private void cbEnablePreview_Clicked(object sender, EventArgs e)
+        {
+            liveScanServer.SetClientPreview(chEnablePreview.Checked);
+        }
+
+        private void rExportRaw_Clicked(object sender, EventArgs e)
+        {
+            liveScanServer.SetExportMode(ClientSettings.ExportMode.RawFrames);
+        }
+
+        private void rExportPointclouds_Clicked(object sender, EventArgs e)
+        {
+            liveScanServer.SetExportMode(ClientSettings.ExportMode.Pointcloud);
+        }
+
+        private void chMergeScans_CheckedChanged(object sender, EventArgs e)
+        {
+            liveScanServer.SetMergeScans(chMergeScans.Checked);
+        }
+
+
 
         #region LivePreviewRender
 
@@ -595,6 +609,5 @@ namespace KinectServer
         }
 
         #endregion
-
     }
 }

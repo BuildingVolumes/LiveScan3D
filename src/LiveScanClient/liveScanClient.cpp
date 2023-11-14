@@ -622,6 +622,12 @@ void LiveScanClient::HandleSocket()
 			m_bCalibrate = true;
 		}
 
+		else if (received[i] == MSG_CANCEL_CALIBRATION)
+		{
+			logBuffer.LogTrace("Calibration cancel command received");
+			m_bCalibrate = false;
+		}
+
 		else if (received[i] == MSG_CLOSE_CAMERA)
 		{
 			logBuffer.LogTrace("Closing camera command received");

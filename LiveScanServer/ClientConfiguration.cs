@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     /// <summary>
     /// Data object for kinect configuration (per sensor settings).
     /// </summary>
 
-    public class KinectConfiguration
+    public class ClientConfiguration
     {
         public static int bytelength = 22;
         public enum SyncState { Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3 };
@@ -29,7 +29,7 @@ namespace KinectServer
         public readonly colorMode eColorMode; //This should only be used to figure out in which state the client is in and is only set by it. 
         public colorResolution eColorRes;
 
-        public KinectConfiguration()
+        public ClientConfiguration()
         {
             eDepthRes = depthResolution.NFOV640Unbinned;
             eColorMode = colorMode.BGRA;
@@ -45,7 +45,7 @@ namespace KinectServer
 
 
         //Matches KinectConfiguration.cpp
-        public KinectConfiguration(byte[] bytes)
+        public ClientConfiguration(byte[] bytes)
         { 
             eDepthRes = (depthResolution)bytes[0];
             eColorMode = (colorMode)bytes[1];

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     public class TransferSocket
     {

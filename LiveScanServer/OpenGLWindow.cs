@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using OpenTK;
 using OpenTK.Graphics;
-using KinectServer;
+using LiveScanServer;
 
 enum ECameraMode
 {
@@ -42,7 +42,7 @@ public class ViewportSettings
     }
 }
 
-namespace KinectServer
+namespace LiveScanServer
 {
     public class OpenGLWindow
     {
@@ -75,7 +75,7 @@ namespace KinectServer
         public List<byte> colors = new List<byte>();
         public List<Matrix4x4> cameraPoses = new List<Matrix4x4>();
         public List<Matrix4x4> markerPoses = new List<Matrix4x4>();
-        public KinectSettings settings = new KinectSettings();
+        public ClientSettings settings = new ClientSettings();
 
         public ViewportSettings viewportSettings = new ViewportSettings();
 

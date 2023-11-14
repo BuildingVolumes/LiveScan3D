@@ -32,16 +32,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'VirtualDevice|AnyCPU'">
-    <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\VirtualDevice\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <DebugType>full</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
-    <ErrorReport>prompt</ErrorReport>
-    <Prefer32Bit>true</Prefer32Bit>
-  </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>Server_Icon.ico</ApplicationIcon>
   </PropertyGroup>
@@ -67,12 +57,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="KinectConfiguration.cs" />
-    <Compile Include="KinectConfigurationForm.cs">
+    <Compile Include="ClientConfiguration.cs" />
+    <Compile Include="ClientConfigurationForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="KinectConfigurationForm.Designer.cs">
-      <DependentUpon>KinectConfigurationForm.cs</DependentUpon>
+    <Compile Include="ClientConfigurationForm.Designer.cs">
+      <DependentUpon>ClientConfigurationForm.cs</DependentUpon>
     </Compile>
     <Compile Include="LiveScanServer.cs" />
     <Compile Include="Log.cs" />
@@ -82,9 +72,9 @@
     <Compile Include="MainWindowForm.Designer.cs">
       <DependentUpon>MainWindowForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="KinectServer.cs" />
-    <Compile Include="KinectSettings.cs" />
-    <Compile Include="KinectSocket.cs" />
+    <Compile Include="ClientCommunication.cs" />
+    <Compile Include="ClientSettings.cs" />
+    <Compile Include="ClientSocket.cs" />
     <Compile Include="OpenGLWindow.cs" />
     <Compile Include="PostSync.cs" />
     <Compile Include="Program.cs" />
@@ -100,8 +90,8 @@
     <Compile Include="TransferSocket.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="ZSTDDecompressor.cs" />
-    <EmbeddedResource Include="KinectConfigurationForm.resx">
-      <DependentUpon>KinectConfigurationForm.cs</DependentUpon>
+    <EmbeddedResource Include="ClientConfigurationForm.resx">
+      <DependentUpon>ClientConfigurationForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainWindowForm.resx">
       <DependentUpon>MainWindowForm.cs</DependentUpon>

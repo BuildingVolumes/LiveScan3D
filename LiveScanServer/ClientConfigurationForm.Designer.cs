@@ -1,7 +1,7 @@
 ﻿
-namespace KinectServer
+namespace LiveScanServer
 {
-    partial class KinectConfigurationForm
+    partial class ClientConfigurationForm
     {
         /// <summary>
         /// Required designer variable.
@@ -155,7 +155,7 @@ namespace KinectServer
             // 
             // pInfoRefineCalib
             // 
-            this.pInfoRefineCalib.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pInfoRefineCalib.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pInfoRefineCalib.Location = new System.Drawing.Point(139, 10);
             this.pInfoRefineCalib.Name = "pInfoRefineCalib";
             this.pInfoRefineCalib.Size = new System.Drawing.Size(16, 16);
@@ -168,7 +168,7 @@ namespace KinectServer
             // 
             // pictureBox1
             // 
-            this.pictureBox1.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pictureBox1.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pictureBox1.Location = new System.Drawing.Point(330, 10);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(16, 16);
@@ -180,7 +180,7 @@ namespace KinectServer
             // 
             // pictureBox2
             // 
-            this.pictureBox2.Image = global::KinectServer.Properties.Resources.info_box;
+            this.pictureBox2.Image = global::LiveScanServer.Properties.Resources.info_box;
             this.pictureBox2.Location = new System.Drawing.Point(116, 136);
             this.pictureBox2.Name = "pictureBox2";
             this.pictureBox2.Size = new System.Drawing.Size(16, 16);

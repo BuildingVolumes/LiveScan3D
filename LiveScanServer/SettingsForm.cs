@@ -19,11 +19,11 @@ using System.Windows.Forms;
 using System.Globalization;
 using System.Reflection.Emit;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     public partial class SettingsForm : Form
     {
-        KinectSettings settings;
+        ClientSettings settings;
         LiveScanServer liveScanServer;
 
         Image[] markerthumbs = new Image[6]
@@ -37,7 +37,7 @@ namespace KinectServer
         };
 
 
-        public SettingsForm(KinectSettings settings, LiveScanServer liveScanServer)
+        public SettingsForm(ClientSettings settings, LiveScanServer liveScanServer)
         {
             InitializeComponent();
             UpdateUI(settings);
@@ -52,7 +52,7 @@ namespace KinectServer
         {
         }
 
-        public void UpdateUI(KinectSettings settings)
+        public void UpdateUI(ClientSettings settings)
         {
             txtMinX.Text = settings.aMinBounds[0].ToString(CultureInfo.InvariantCulture);
             txtMinY.Text = settings.aMinBounds[1].ToString(CultureInfo.InvariantCulture);
@@ -94,7 +94,7 @@ namespace KinectServer
             Cursor.Current = Cursors.WaitCursor;
 
             //Get the latest settings state
-            KinectSettings currentSettings = liveScanServer.GetState().settings;
+            ClientSettings currentSettings = liveScanServer.GetState().settings;
             settings = ApplySettings(currentSettings);
             liveScanServer.SetSettings(settings);
             UpdateUI(settings); // TODO: Neccessary?
@@ -103,7 +103,7 @@ namespace KinectServer
             Cursor.Current = Cursors.Default;
         }
 
-        KinectSettings ApplySettings(KinectSettings currentSettings)
+        ClientSettings ApplySettings(ClientSettings currentSettings)
         {
             //Only apply settings the we can actually change in this UI
             currentSettings.nExposureStep = settings.nExposureStep;
@@ -192,7 +192,7 @@ namespace KinectServer
 
         private void cbExtrinsicsFormat_SelectedIndexChanged(object sender, EventArgs e)
         {
-            settings.eExtrinsicsFormat = (KinectSettings.ExtrinsicsStyle)cbExtrinsicsFormat.SelectedIndex;
+            settings.eExtrinsicsFormat = (ClientSettings.ExtrinsicsStyle)cbExtrinsicsFormat.SelectedIndex;
             UpdateSettings();
         }
 

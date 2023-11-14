@@ -18,10 +18,10 @@ using System.ComponentModel;
 using System.IO;
 using Newtonsoft.Json;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     [Serializable]
-    public class KinectSettings
+    public class ClientSettings
     {
         public float[] aMinBounds = new float[3];
         public float[] aMaxBounds = new float[3];
@@ -46,16 +46,14 @@ namespace KinectServer
         public enum ExtrinsicsStyle { None = 0, Open3D = 1, OpenMVS = 2}
         public ExtrinsicsStyle eExtrinsicsFormat = ExtrinsicsStyle.Open3D;
 
-        public enum SyncMode { off = 0, Network = 1, Hardware = 2 }
-        public SyncMode eSyncMode = SyncMode.off;
+        public enum SyncMode { Off = 0, Network = 1, Hardware = 2 }
+        public SyncMode eSyncMode = SyncMode.Off;
 
         public string takePath;
 
-        public bool bNetworkSync = false;
-
         public bool bPreviewEnabled = true;
 
-        public KinectSettings()
+        public ClientSettings()
         {
             aMinBounds[0] = -3f;
             aMinBounds[1] = -3f;
