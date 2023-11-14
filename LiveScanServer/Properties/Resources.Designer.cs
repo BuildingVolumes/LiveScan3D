@@ -39,7 +39,7 @@ namespace LiveScanServer.Properties {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("KinectServer.Properties.Resources", typeof(Resources).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("LiveScanServer.Properties.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -66,6 +66,16 @@ namespace LiveScanServer.Properties {
         internal static System.Drawing.Bitmap info_box {
             get {
                 object obj = ResourceManager.GetObject("info_box", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap Loading_Animation {
+            get {
+                object obj = ResourceManager.GetObject("Loading_Animation", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

@@ -95,7 +95,7 @@ namespace LiveScanServer
             oServer.eSocketListChanged += new SocketListChangedHandler(ClientListChanged);
             oServer.SetMainWindowForm(UI);
 
-            PreviewWorker();
+            StartPreviewWorker();
 
             if (!oServer.StartServer()) //If another Livescan Instance is already open, we terminate the app here
                 Terminate();
@@ -262,23 +262,16 @@ namespace LiveScanServer
                     return;
                 }
 
-                ProcessingWorker_Cancel();
-                processingWorker = new BackgroundWorker();
-                processingWorker.WorkerSupportsCancellation = true;
-                processingWorker.DoWork += new DoWorkEventHandler(CalibrationWorker);
-                processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(CalibrationWorker_Completed);
-
+                ProcessingWorker_Start(Calibration_DoWork, Calibration_Completed);
                 state.appState = appState.calibrating;
                 UpdateUI();
             }
 
             else if (state.appState == appState.calibrating)
             {
-                Log.LogInfo("Canceled Calibration");
-                ProcessingWorker_Cancel();
+                Log.LogInfo("Canceling Calibration");
                 oServer.Calibrate(false);
-                state.appState = appState.idle;
-                UpdateUI();
+                ProcessingWorker_Cancel();
             }
 
         }
@@ -299,23 +292,17 @@ namespace LiveScanServer
                     return;
                 }
 
-                ProcessingWorker_Cancel();
-                processingWorker = new BackgroundWorker();
-                processingWorker.WorkerSupportsCancellation = true;
-                processingWorker.DoWork += new DoWorkEventHandler(RefinementWorker);
-                processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(RefinementWorker_Completed);
-
+                ProcessingWorker_Start(RefinementWorker, RefinementWorker_Completed);
                 state.appState = appState.refinining;
+                UpdateUI();
             }
 
             else if (state.appState == appState.refinining)
             {
                 Log.LogInfo("Calibration refinement canceled by user");
                 ProcessingWorker_Cancel();
-                state.appState = appState.idle;
             }
 
-            UpdateUI();
         }
 
         public void Capture(string sequenceName)
@@ -343,14 +330,7 @@ namespace LiveScanServer
                 //Store the camera extrinsics
                 Utils.SaveExtrinsics(state.settings.eExtrinsicsFormat, takePath, oServer.GetClientSockets());
 
-                Log.LogInfo("Starting Recording");
-
-                ProcessingWorker_Cancel();
-                processingWorker = new BackgroundWorker();
-                processingWorker.WorkerSupportsCancellation = true;
-                processingWorker.DoWork += new DoWorkEventHandler(CaptureWorker);
-                processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(CaptureWorker_Complete);
-
+                ProcessingWorker_Start(Capture_DoWork, Capture_Complete);
                 state.settings.takePath = takePath;
                 state.appState = appState.recording;
                 UpdateUI();
@@ -360,16 +340,23 @@ namespace LiveScanServer
             else if (state.appState == appState.recording)
             {
                 ProcessingWorker_Cancel();
-
                 //After recording has been terminated it is time to begin sorting the frames.
-                Log.LogInfo("Starting to synchronize recording");
+                Sync();
                
                 state.appState = appState.syncing;
                 UpdateUI();
             }
         }
 
+        public void Sync()
+        {
+            ProcessingWorker_Start(SyncWorker, Sync_Completed);
+        }
 
+        public void Save()
+        {
+            ProcessingWorker_Start(SavingWorker, Saving_Completed);
+        }
 
         public void SetSyncMode(ClientSettings.SyncMode syncMode)
         {
@@ -450,11 +437,13 @@ namespace LiveScanServer
 
         private void ProcessingWorker_Start(DoWorkEventHandler worker, RunWorkerCompletedEventHandler workerCompleted)
         {
+            ProcessingWorker_Cancel(); //We can only have one processingworker doing work
             processingWorker = new BackgroundWorker();
             processingWorker.WorkerSupportsCancellation = true;
             processingWorker.DoWork += new DoWorkEventHandler(worker);
             processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(workerCompleted);
             processingWorkerComplete = false;
+            processingWorker.RunWorkerAsync();
         }
 
         private void ProcessingWorker_Cancel()
@@ -472,17 +461,16 @@ namespace LiveScanServer
                 Thread.Sleep(1);
             }
 
-            processingWorker.Dispose()
+            processingWorker.Dispose();
         }
 
-
-        private void CalibrationWorker(object sender, DoWorkEventArgs e)
+        private void Calibration_DoWork(object sender, DoWorkEventArgs e)
         {
             Log.LogInfo("Waiting for calibration to finish");
 
             bool allCalibrated = false;
 
-            while (!calibrationWorker.CancellationPending && !allCalibrated)
+            while (!processingWorker.CancellationPending && !allCalibrated)
             {
                 allCalibrated = true;
                 Log.LogInfo("Calibrating...");
@@ -496,20 +484,19 @@ namespace LiveScanServer
                     if (!state.clients[i].bCalibrated)
                         allCalibrated = false;
                 }
-
-
             }
 
-            Log.LogInfo("Calibration complete");
+            if (allCalibrated)
+                Log.LogInfo("Calibration complete");
+            else
+                Log.LogInfo("Calibration canceled");
 
-            return;
+            processingWorkerComplete = true;
         }
 
-        private void CalibrationWorker_Completed(object sender, RunWorkerCompletedEventArgs e)
+        private void Calibration_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
-            Log.LogInfo("Calibration completed or canceled!");
             state.appState = appState.idle;
-            processingWorkerComplete = true;
             UpdateUI();
         }
 
@@ -570,11 +557,11 @@ namespace LiveScanServer
                     lAllFrameVertices[i].AddRange(verts2);
                 }
 
-                if (cancelrefineWorker)
+                if (processingWorker.CancellationPending)
                     break;
             }
 
-            if (!cancelrefineWorker)
+            if (!processingWorker.CancellationPending)
             {
                 List<Matrix4x4> icpTransforms = oServer.lRefinementTransforms;
 
@@ -611,17 +598,15 @@ namespace LiveScanServer
                 oServer.lRefinementTransforms = icpTransforms;
 
             }
+
+            processingWorkerComplete = true;
         }
 
         private void RefinementWorker_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
-            refineWorker.Join();
-            cancelrefineWorker = false;
-
             oServer.UpdateMarkerTransforms();
             oServer.SendRefinementData();
 
-            processingWorkerComplete = true;
             state.appState = appState.idle;
             UpdateUI();
         }
@@ -630,14 +615,14 @@ namespace LiveScanServer
 
         //Performs recording which is synchronized or unsychronized frame capture.
         //The frames are downloaded from the clients and saved once recording is finished.
-        private void CaptureWorker(object sender, DoWorkEventArgs e)
+        private void Capture_DoWork(object sender, DoWorkEventArgs e)
         {
             oServer.ClearStoredFrames();
 
             oServer.SendAndConfirmPreRecordProcess();
 
             //If we don't use a server-controlled sync method, we just let the clients capture as fast as possible
-            if (state.settings.eSyncMode != ClientSettings.SyncMode.Network)
+            if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware || state.settings.eSyncMode == ClientSettings.SyncMode.Off)
             {
                 oServer.SendCaptureFramesStart();
 
@@ -646,7 +631,7 @@ namespace LiveScanServer
 
                 Log.LogInfo("Starting Recording");
 
-                while (cancelCaptureWorker)
+                while (processingWorker.CancellationPending)
                 {
                     state.stateIndicatorSuffix = "" + counter.Elapsed.Minutes.ToString("D2") + ":" + counter.Elapsed.Seconds.ToString("D2");
                     UpdateUI();
@@ -660,13 +645,13 @@ namespace LiveScanServer
             }
 
             //A server controlled sync method, the server gives the command to capture a single frame and waits until all devices have captured it
-            else
+            else if(state.settings.eSyncMode == ClientSettings.SyncMode.Network)
             {
                 int nCaptured = 0;
 
                 Log.LogInfo("Starting Network-synced recording");
 
-                while (cancelCaptureWorker)
+                while (processingWorker.CancellationPending)
                 {
                     oServer.CaptureSynchronizedFrame();
                     nCaptured++;
@@ -679,21 +664,26 @@ namespace LiveScanServer
 
             oServer.SendAndConfirmPostRecordProcess();
 
+            processingWorkerComplete = true;
         }
 
-        void CaptureWorker_Complete(object sender, RunWorkerCompletedEventArgs e)
+        void Capture_Complete(object sender, RunWorkerCompletedEventArgs e)
         {
-            processingWorkerComplete = true;
+            state.appState = appState.syncing;
+            UpdateUI();
         }
 
         private void SyncWorker(object sender, DoWorkEventArgs e)
         {
             if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
             {
+                Log.LogInfo("Starting Sync");
+
                 if (!oServer.GetTimestampLists())
                 {
                     Log.LogError("Could not get Timestamp List. Saved recording is unsychronized!");
                     UI.ShowMessageBox(MessageBoxIcon.Error, "Could not get Timestamp List. Saved recording is unsychronized!");
+                    e.Result = false;
                     return;
                 }
 
@@ -701,6 +691,7 @@ namespace LiveScanServer
                 {
                     Log.LogError("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
                     UI.ShowMessageBox(MessageBoxIcon.Error, "Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
+                    e.Result = false;
                     return;
                 }
 
@@ -708,29 +699,32 @@ namespace LiveScanServer
                 {
                     Log.LogError("Could not reorganize files for sync on at least one device!");
                     UI.ShowMessageBox(MessageBoxIcon.Error, "Could not reorganize files for sync on at least one device!");
+                    e.Result = false;
                     return;
                 }
 
                 Log.LogInfo("Sync successfull!");
-
-                //TODO: Call saving function/thread
             }
 
+            processingWorkerComplete = true;
         }
-
 
         private void Sync_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
             //TODO: Check for sync success
-            syncWorker.Join();
 
-            Log.LogInfo("Starting to save frames ");
-            ThreadStart savingStart = new ThreadStart(SavingWorker);
-            savingStart += () => { Saving_Completed(); };
-            saveWorker = new Thread(savingStart);
-            saveWorker.Start();
-            processingWorkerComplete = true;
-            state.appState = appState.saving;
+            if ((bool)e.Result)
+            {
+                Save();
+            }
+            
+            else
+            {
+                Log.LogError("Sync could not be completed!");
+                UI.ShowMessageBox(MessageBoxIcon.Warning, "Sync could not succesfully be completed. Don't worry, your files are still saved, please try syncing with the LiveScan Editor.");
+            }
+
+            state.appState = appState.idle;
             UpdateUI();
         }
 
@@ -747,8 +741,10 @@ namespace LiveScanServer
                 if (state.settings.takePath == null)
                     return;
 
+                e.Result = false;
+
                 //This loop is running till it is either cancelled, or till there are no more stored frames.
-                while (!cancelSaveWorker)
+                while (!processingWorker.CancellationPending)
                 {
                     List<List<byte>> lFrameBGRAllDevices = new List<List<byte>>();
                     List<List<float>> lFrameVertsAllDevices = new List<List<float>>();
@@ -790,22 +786,34 @@ namespace LiveScanServer
                         Utils.saveToPly(outputFilename, lFrameVerts, lFrameBGR, EColorMode.BGR, state.settings.bSaveAsBinaryPLY);
                     }
                 }
+
+                e.Result = true;
             }
+
+            processingWorkerComplete = true;
         }
 
         private void Saving_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
-            Log.LogInfo("Saving complete!");
+            if ((bool)e.Result)
+            {
+                Log.LogInfo("Saving complete");
+            }
+
+            else
+            {
+                Log.LogInfo("Saving cancelled");
+            }
+
             oServer.ClearStoredFrames();
 
-            PreviewWorker();
+            StartPreviewWorker();
 
-            processingWorkerComplete = true;
             state.appState = appState.idle;
             UpdateUI();
         }
 
-        void PreviewWorker()
+        void StartPreviewWorker()
         {
             previewWorker.RunWorkerAsync();
         }

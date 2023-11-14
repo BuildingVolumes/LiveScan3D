@@ -7,7 +7,7 @@
     <ProjectGuid>{78422B2C-0EF1-4A28-A40E-2A7C4A9204B1}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>KinectServer</RootNamespace>
+    <RootNamespace>LiveScanServer</RootNamespace>
     <AssemblyName>LiveScanServer</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -159,6 +159,8 @@
     <None Include="Resources\Icon_Server.ico" />
     <None Include="Resources\Server_Icon.ico" />
     <None Include="Resources\Server_Icon.bmp" />
+    <None Include="Resources\loading_anim.bmp" />
+    <None Include="Resources\Loading_Animation.gif" />
     <Content Include="Server_Icon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -24,14 +24,14 @@ using System.Diagnostics;
 using OpenTK;
 using OpenTK.Graphics;
 using static System.Windows.Forms.AxHost;
-
+using LiveScanServer.Properties;
 
 namespace LiveScanServer
 {
     public partial class MainWindowForm : Form
     {
         System.Windows.Forms.Timer tLiveViewTimer;
-        System.Timers.Timer oStatusBarTimer = new System.Timers.Timer();
+        System.Windows.Forms.Timer tContinousUIUpdateTimer;
 
         //Settings
         private System.Windows.Forms.Timer scrollTimerExposure = null;
@@ -58,11 +58,17 @@ namespace LiveScanServer
         private void MainWindowForm_Load(object sender, EventArgs e)
         {
             UpdateUI(liveScanServer.GetState());
+
+            tContinousUIUpdateTimer = new System.Windows.Forms.Timer();
+            tContinousUIUpdateTimer.Tick += (senderer, ea) => { ContinousUIUpdate(); };
+            tContinousUIUpdateTimer.Interval = 1000;   // once per second
+            tContinousUIUpdateTimer.Start();
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             tLiveViewTimer.Stop();
+            tContinousUIUpdateTimer.Stop();
             oOpenGLWindow.Unload();
             liveScanServer.Terminate();
         }
@@ -221,8 +227,8 @@ namespace LiveScanServer
             chMergeScans.Checked = newState.settings.bMergeScansForSave;
 
             //Stats
-            lFPS.Text = newState.previewWindowFPS.ToString() + " FPS";
             SetStateIndicator(newState.appState, newState.stateIndicatorSuffix);
+            lFPS.Text = newState.previewWindowFPS.ToString() + " FPS";
 
             //Update other windows, if open
             if (settingsForm != null)
@@ -233,29 +239,43 @@ namespace LiveScanServer
 
         }
 
+        //For UI stuff that needs a continous Update, like the FPS counter for example
+        public void ContinousUIUpdate()
+        {
+            lFPS.Text = liveScanState.previewWindowFPS.ToString() + " FPS";
+        }
+
+
         public void SetStateIndicator(appState appstate, string suffix)
         {
             switch (appstate)
             {
                 case appState.idle:
+                    pStatusIndicator.Image = null;
                     lStateIndicator.Text = "";
                     break;
                 case appState.recording:
+                    pStatusIndicator.Image = Resources.recording;
                     lStateIndicator.Text = "Capturing: " + suffix;
                     break;
                 case appState.syncing:
+                    pStatusIndicator.Image = Resources.Loading_Animation;
                     lStateIndicator.Text = "Syncing capture, please wait...";
                     break;
                 case appState.saving:
+                    pStatusIndicator.Image = Resources.Loading_Animation;
                     lStateIndicator.Text = "Saving: " + suffix;
                     break;
                 case appState.calibrating:
+                    pStatusIndicator.Image = Resources.Loading_Animation;
                     lStateIndicator.Text = "Calibrating, please wait...";
                     break;
                 case appState.refinining:
+                    pStatusIndicator.Image = Resources.Loading_Animation;
                     lStateIndicator.Text = "Refining calibration, please wait...";
                     break;
                 case appState.restartingClients:
+                    pStatusIndicator.Image = Resources.Loading_Animation;
                     lStateIndicator.Text = "Restarting clients, please wait...";
                     break;
                 default:
@@ -609,5 +629,6 @@ namespace LiveScanServer
         }
 
         #endregion
+
     }
 }
