@@ -25,6 +25,7 @@ namespace LiveScanServer
     {
         ClientSettings settings;
         LiveScanServer liveScanServer;
+        bool lockSettingsUpdate = false;
 
         Image[] markerthumbs = new Image[6]
         {
@@ -39,36 +40,51 @@ namespace LiveScanServer
 
         public SettingsForm(ClientSettings settings, LiveScanServer liveScanServer)
         {
+            this.liveScanServer = liveScanServer;
             InitializeComponent();
             UpdateUI(settings);
-            this.liveScanServer = liveScanServer;
         }
 
         private void SettingsForm_Load(object sender, EventArgs e)
         {
-
+            
         }
+
         private void SettingsForm_FormClosed(object sender, FormClosedEventArgs e)
         {
+
         }
 
         public void UpdateUI(ClientSettings settings)
         {
-            txtMinX.Text = settings.aMinBounds[0].ToString(CultureInfo.InvariantCulture);
-            txtMinY.Text = settings.aMinBounds[1].ToString(CultureInfo.InvariantCulture);
-            txtMinZ.Text = settings.aMinBounds[2].ToString(CultureInfo.InvariantCulture);
+            this.settings = settings;
 
-            txtMaxX.Text = settings.aMaxBounds[0].ToString(CultureInfo.InvariantCulture);
-            txtMaxY.Text = settings.aMaxBounds[1].ToString(CultureInfo.InvariantCulture);
-            txtMaxZ.Text = settings.aMaxBounds[2].ToString(CultureInfo.InvariantCulture);
+            if(!txtMinX.Focused)
+                txtMinX.Text = settings.aMinBounds[0].ToString(CultureInfo.InvariantCulture);
+            if (!txtMinY.Focused)
+                txtMinY.Text = settings.aMinBounds[1].ToString(CultureInfo.InvariantCulture);
+            if (!txtMinZ.Focused)
+                txtMinZ.Text = settings.aMinBounds[2].ToString(CultureInfo.InvariantCulture);
 
-            for (int i = 0; i < settings.lMarkerPoses.Count; i++)
-                lisMarkers.Items.Add("Marker " + settings.lMarkerPoses[i].id);
+            if (!txtMaxX.Focused)
+                txtMaxX.Text = settings.aMaxBounds[0].ToString(CultureInfo.InvariantCulture);
+            if (!txtMaxY.Focused)
+                txtMaxY.Text = settings.aMaxBounds[1].ToString(CultureInfo.InvariantCulture);
+            if (!txtMaxZ.Focused)
+                txtMaxZ.Text = settings.aMaxBounds[2].ToString(CultureInfo.InvariantCulture);
 
-            lisMarkers.SelectedIndex = 0;
+            if(lisMarkers.Items.Count != settings.lMarkerPoses.Count)
+            {
+                lisMarkers.Items.Clear();
+                for (int i = 0; i < settings.lMarkerPoses.Count; i++)
+                    lisMarkers.Items.Add("Marker " + settings.lMarkerPoses[i].id);
+            }
+
+            if(lisMarkers.SelectedIndex < 0)
+                lisMarkers.SelectedIndex = 0;
             UpdateMarkerFields();
 
-            cbCompressionLevel.SelectedText = settings.iCompressionLevel.ToString();
+            nudCompressionLvl.Value = settings.iCompressionLevel;
 
             txtICPIters.Text = settings.nNumICPIterations.ToString();
             txtRefinIters.Text = settings.nNumRefineIters.ToString();
@@ -86,21 +102,25 @@ namespace LiveScanServer
                 rAsciiPly.Checked = true;
             }
 
-            this.settings = settings;
         }
 
         void UpdateSettings()
         {
+            if (lockSettingsUpdate)
+                return;
+
+            lockSettingsUpdate = true;
             Cursor.Current = Cursors.WaitCursor;
 
             //Get the latest settings state
             ClientSettings currentSettings = liveScanServer.GetState().settings;
             settings = ApplySettings(currentSettings);
             liveScanServer.SetSettings(settings);
-            UpdateUI(settings); // TODO: Neccessary?
+            UpdateUI(settings);
 
             Log.LogDebug("Updating settings on clients");
             Cursor.Current = Cursors.Default;
+            lockSettingsUpdate = false;
         }
 
         ClientSettings ApplySettings(ClientSettings currentSettings)
@@ -115,8 +135,7 @@ namespace LiveScanServer
             currentSettings.iCompressionLevel = settings.iCompressionLevel;
             currentSettings.nNumICPIterations = settings.nNumICPIterations;
             currentSettings.nNumRefineIters = settings.nNumRefineIters;
-
-             return currentSettings;
+            return currentSettings;
         }
 
         void UpdateMarkerFields()
@@ -128,13 +147,19 @@ namespace LiveScanServer
                 float X, Y, Z;
                 pose.GetOrientation(out X, out Y, out Z);
 
-                txtOrientationX.Text = X.ToString(CultureInfo.InvariantCulture);
-                txtOrientationY.Text = Y.ToString(CultureInfo.InvariantCulture);
-                txtOrientationZ.Text = Z.ToString(CultureInfo.InvariantCulture);
+                if(!txtOrientationX.Focused)
+                    txtOrientationX.Text = X.ToString(CultureInfo.InvariantCulture);
+                if (!txtOrientationY.Focused)
+                    txtOrientationY.Text = Y.ToString(CultureInfo.InvariantCulture);
+                if (!txtOrientationZ.Focused)
+                    txtOrientationZ.Text = Z.ToString(CultureInfo.InvariantCulture);
 
-                txtTranslationX.Text = pose.pose.mat[0, 3].ToString(CultureInfo.InvariantCulture);
-                txtTranslationY.Text = pose.pose.mat[1, 3].ToString(CultureInfo.InvariantCulture);
-                txtTranslationZ.Text = pose.pose.mat[2, 3].ToString(CultureInfo.InvariantCulture);
+                if(!txtTranslationX.Focused)
+                    txtTranslationX.Text = pose.pose.mat[0, 3].ToString(CultureInfo.InvariantCulture);
+                if (!txtTranslationY.Focused)
+                    txtTranslationY.Text = pose.pose.mat[1, 3].ToString(CultureInfo.InvariantCulture);
+                if (!txtTranslationZ.Focused)
+                    txtTranslationZ.Text = pose.pose.mat[2, 3].ToString(CultureInfo.InvariantCulture);
 
                 pMarkerThumb.Image = markerthumbs[lisMarkers.SelectedIndex];
             }
@@ -155,38 +180,29 @@ namespace LiveScanServer
         private void txtICPIters_TextChanged(object sender, EventArgs e)
         {
             Int32.TryParse(txtICPIters.Text, out settings.nNumICPIterations);
+            UpdateSettings();
         }
 
         private void txtRefinIters_TextChanged(object sender, EventArgs e)
         {
             Int32.TryParse(txtRefinIters.Text, out settings.nNumRefineIters);
+            UpdateSettings();
         }
 
         private void lisMarkers_SelectedIndexChanged(object sender, EventArgs e)
         {
-            UpdateMarkerFields();
+            UpdateSettings();
         }
 
         private void PlyFormat_CheckedChanged(object sender, EventArgs e)
         {
             settings.bSaveAsBinaryPLY = rBinaryPly.Checked;
+            UpdateSettings();
         }
 
-        private void cbCompressionLevel_SelectedIndexChanged(object sender, EventArgs e)
+        private void nudCompressionLvl_ValueChanged(object sender, EventArgs e)
         {
-            int index = cbCompressionLevel.SelectedIndex;
-            if (index == 0)
-                settings.iCompressionLevel = 0;
-            else if (index == 2)
-                settings.iCompressionLevel = 2;
-            else
-            {
-                string value = cbCompressionLevel.SelectedItem.ToString();
-                bool tryParse = Int32.TryParse(value, out settings.iCompressionLevel);
-                if (!tryParse)
-                    settings.iCompressionLevel = 0;
-            }
-
+            settings.iCompressionLevel = (int)nudCompressionLvl.Value;
             UpdateSettings();
         }
 
@@ -277,7 +293,6 @@ namespace LiveScanServer
         private void txtTranslationZ_Changed(object sender, EventArgs e)
         {
             TranslationSetValue(txtTranslationZ.Text, false, false, true);
-
         }
 
         private void txtMinX_TextChanged(object sender, EventArgs e)
@@ -316,7 +331,7 @@ namespace LiveScanServer
             UpdateSettings();
         }
 
-        private string OrientationSetValue(string input, bool x, bool y, bool z)
+        private void OrientationSetValue(string input, bool x, bool y, bool z)
         {
             if (lisMarkers.SelectedIndex >= 0)
             {
@@ -324,9 +339,6 @@ namespace LiveScanServer
                 float X, Y, Z;
                 float output = 0;
                 pose.GetOrientation(out X, out Y, out Z);
-
-                if (input == "" || input == "-" || input == ".")
-                    input = "0";
 
                 if (Single.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out output))
                 {
@@ -338,20 +350,14 @@ namespace LiveScanServer
                         pose.SetOrientation(X, Y, output);
 
                     UpdateSettings();
-                    return output.ToString();
                 }
             }
-
-            return input;
         }
 
-        private string TranslationSetValue(string input, bool x, bool y, bool z)
+        private void TranslationSetValue(string input, bool x, bool y, bool z)
         {
             if (lisMarkers.SelectedIndex >= 0)
             {
-                if (input == "" || input == "-" || input == ".")
-                    input = "0";
-
                 MarkerPose pose = settings.lMarkerPoses[lisMarkers.SelectedIndex];
                 float output;
                 Single.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out output);
@@ -364,11 +370,7 @@ namespace LiveScanServer
                     pose.pose.mat[2, 3] = output;
 
                 UpdateSettings();
-
-                return output.ToString();
             }
-
-            return "0";
         }
     }
 }

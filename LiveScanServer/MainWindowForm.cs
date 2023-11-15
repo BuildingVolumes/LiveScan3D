@@ -14,28 +14,21 @@
 //    }
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.ComponentModel;
-using System.Threading;
 using System.Windows.Forms;
-using System.Runtime.Serialization;
-using System.IO;
-using System.Diagnostics;
-using OpenTK;
-using OpenTK.Graphics;
-using static System.Windows.Forms.AxHost;
+using System.Drawing;
 using LiveScanServer.Properties;
 
 namespace LiveScanServer
 {
     public partial class MainWindowForm : Form
     {
-        System.Windows.Forms.Timer tLiveViewTimer;
-        System.Windows.Forms.Timer tContinousUIUpdateTimer;
+        //Update Timers
+        Timer UpdateTimer60FPS;
+        Timer UpdateTimer1FPS;
 
         //Settings
-        private System.Windows.Forms.Timer scrollTimerExposure = null;
-        private System.Windows.Forms.Timer scrollTimerWhiteBalance = null;
+        private Timer scrollTimerExposure = null;
+        private Timer scrollTimerWhiteBalance = null;
 
         LiveScanServer liveScanServer = null;
         LiveScanState liveScanState = new LiveScanState();
@@ -47,30 +40,37 @@ namespace LiveScanServer
         //The live preview
         OpenGLWindow oOpenGLWindow;
 
+        //Image resources
+        Image stopImage;
+        Image recordImage;
+        Image loadAnimImage;
+
         public MainWindowForm()
         {
             InitializeComponent();
             liveScanServer = new LiveScanServer(this);
             oOpenGLWindow = new OpenGLWindow();
-            this.Icon = Properties.Resources.Server_Icon;
+
+            stopImage = Resources.stop;
+            recordImage = Resources.recording;
+            loadAnimImage = Resources.Loading_Animation;
+
+            this.Icon = Resources.Server_Icon;
         }
 
         private void MainWindowForm_Load(object sender, EventArgs e)
         {
             UpdateUI(liveScanServer.GetState());
-
-            tContinousUIUpdateTimer = new System.Windows.Forms.Timer();
-            tContinousUIUpdateTimer.Tick += (senderer, ea) => { ContinousUIUpdate(); };
-            tContinousUIUpdateTimer.Interval = 1000;   // once per second
-            tContinousUIUpdateTimer.Start();
+            StartUpdateTimers();
+            
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            tLiveViewTimer.Stop();
-            tContinousUIUpdateTimer.Stop();
-            oOpenGLWindow.Unload();
             liveScanServer.Terminate();
+            UpdateTimer60FPS.Stop();
+            UpdateTimer1FPS.Stop();
+            oOpenGLWindow.Unload();
         }
 
         public void UpdateUI(LiveScanState newState)
@@ -85,6 +85,22 @@ namespace LiveScanServer
             }));
 
             liveScanState = newState;
+        }
+
+        //For UI stuff that needs a regular, but not real-time update at 1 FPS 
+        public void SlowUpdate()
+        {
+            lFPS.Text = liveScanState.previewWindowFPS.ToString() + " FPS";
+            SetStateIndicator(liveScanState.appState, liveScanState.stateIndicatorSuffix);
+        }
+
+        //For UI Stuff that needs to update as fast as possible, running at 60 FPS
+        private void FastUpdate()
+        {
+            glLiveView.MakeCurrent();
+            oOpenGLWindow.UpdateFrame();
+            oOpenGLWindow.RenderFrame();
+            glLiveView.SwapBuffers();
         }
 
         void SetUIState(LiveScanState newState)
@@ -132,13 +148,13 @@ namespace LiveScanServer
             //Capture Button
             if (newState.appState == appState.idle)
             {
-                btRecord.Image = Properties.Resources.recording;
+                btRecord.Image = recordImage;
                 btRecord.Text = " Start Capture";
                 btRecord.Enabled = true;
             }
             else if (newState.appState == appState.recording)
             {
-                btRecord.Image = Properties.Resources.stop;
+                btRecord.Image = stopImage;
                 btRecord.Text = " Stop capture";
                 btRecord.Enabled = true;
             }
@@ -149,10 +165,10 @@ namespace LiveScanServer
                 btRecord.Text = " Syncing, please wait";
                 btRecord.Enabled = false;
             }
-            else if (newState.appState == appState.saving)
+            else if (newState.appState == appState.downloading)
             {
-                btRecord.Image = Properties.Resources.stop;
-                btRecord.Text = " Stop saving";
+                btRecord.Image = stopImage;
+                btRecord.Text = " Stop Downloading";
                 btRecord.Enabled = true;
             }
 
@@ -230,21 +246,10 @@ namespace LiveScanServer
             SetStateIndicator(newState.appState, newState.stateIndicatorSuffix);
             lFPS.Text = newState.previewWindowFPS.ToString() + " FPS";
 
-            //Update other windows, if open
-            if (settingsForm != null)
-                settingsForm.UpdateUI(newState.settings);
-
-            if (configurationForm != null)
-                configurationForm.UpdateUI();
+            //Live Preview
+            oOpenGLWindow.settings = newState.settings;
 
         }
-
-        //For UI stuff that needs a continous Update, like the FPS counter for example
-        public void ContinousUIUpdate()
-        {
-            lFPS.Text = liveScanState.previewWindowFPS.ToString() + " FPS";
-        }
-
 
         public void SetStateIndicator(appState appstate, string suffix)
         {
@@ -255,27 +260,28 @@ namespace LiveScanServer
                     lStateIndicator.Text = "";
                     break;
                 case appState.recording:
-                    pStatusIndicator.Image = Resources.recording;
+                    pStatusIndicator.Image = recordImage;
                     lStateIndicator.Text = "Capturing: " + suffix;
                     break;
                 case appState.syncing:
-                    pStatusIndicator.Image = Resources.Loading_Animation;
+                    pStatusIndicator.Image = loadAnimImage;
                     lStateIndicator.Text = "Syncing capture, please wait...";
                     break;
-                case appState.saving:
-                    pStatusIndicator.Image = Resources.Loading_Animation;
-                    lStateIndicator.Text = "Saving: " + suffix;
+                case appState.downloading:
+                    if (pStatusIndicator.Image != loadAnimImage) // Otherwise animation would start again when updating the suffix
+                        pStatusIndicator.Image = loadAnimImage;
+                    lStateIndicator.Text = "Downloading frames from clients: " + suffix;
                     break;
                 case appState.calibrating:
-                    pStatusIndicator.Image = Resources.Loading_Animation;
+                    pStatusIndicator.Image = loadAnimImage;
                     lStateIndicator.Text = "Calibrating, please wait...";
                     break;
                 case appState.refinining:
-                    pStatusIndicator.Image = Resources.Loading_Animation;
+                    pStatusIndicator.Image = loadAnimImage;
                     lStateIndicator.Text = "Refining calibration, please wait...";
                     break;
                 case appState.restartingClients:
-                    pStatusIndicator.Image = Resources.Loading_Animation;
+                    pStatusIndicator.Image = loadAnimImage;
                     lStateIndicator.Text = "Restarting clients, please wait...";
                     break;
                 default:
@@ -321,17 +327,21 @@ namespace LiveScanServer
         //Opens the settings form
         private void btSettings_Click(object sender, EventArgs e)
         {
-            //Get the latest data
-            UpdateUI(liveScanServer.GetState());
-
             if (settingsForm == null)
             {
                 settingsForm = new SettingsForm(liveScanState.settings, liveScanServer);
+                settingsForm.FormClosed += (senderer, ea) => { SettingsFormClosed(senderer, ea); };
                 settingsForm.Show();
             }
 
             else
                 settingsForm.Focus();
+        }
+
+        private void SettingsFormClosed(object sender, EventArgs e)
+        {
+            settingsForm.Dispose();
+            settingsForm = null;
         }
 
         //This is used for: starting/stopping the recording worker, stopping the saving worker
@@ -546,6 +556,19 @@ namespace LiveScanServer
 
         #region LivePreviewRender
 
+        private void StartUpdateTimers()
+        {
+            UpdateTimer1FPS = new System.Windows.Forms.Timer();
+            UpdateTimer1FPS.Tick += (senderer, ea) => { SlowUpdate(); };
+            UpdateTimer1FPS.Interval = 1000;   // once per second
+            UpdateTimer1FPS.Start();
+
+            UpdateTimer60FPS = new System.Windows.Forms.Timer();
+            UpdateTimer60FPS.Tick += (senderer, ea) => { FastUpdate(); };
+            UpdateTimer60FPS.Interval = 16;   // 60 fps
+            UpdateTimer60FPS.Start();
+        }
+
         /// <summary>
         /// Gets called when the Live View Window is being loaded. Sets up the render intervall and events
         /// </summary>
@@ -557,12 +580,6 @@ namespace LiveScanServer
             // we update our projection matrix or re-render its contents, respectively.
             glLiveView.Resize += glLiveView_Resize;
             glLiveView.Paint += glLiveView_Paint;
-
-            // We have to update the embedded GL window ourselves
-            tLiveViewTimer = new System.Windows.Forms.Timer();
-            tLiveViewTimer.Tick += (senderer, ea) => { Render(); };
-            tLiveViewTimer.Interval = 16;   // 60 fps
-            tLiveViewTimer.Start();
 
             glLiveView_Resize(glLiveView, EventArgs.Empty);
 
@@ -592,15 +609,7 @@ namespace LiveScanServer
 
         private void glLiveView_Paint(object sender, PaintEventArgs e)
         {
-            Render();
-        }
-
-        private void Render()
-        {
-            glLiveView.MakeCurrent();
-            oOpenGLWindow.UpdateFrame();
-            oOpenGLWindow.RenderFrame();
-            glLiveView.SwapBuffers();
+            FastUpdate();
         }
 
         private void glLiveView_MouseDown(object sender, MouseEventArgs e)

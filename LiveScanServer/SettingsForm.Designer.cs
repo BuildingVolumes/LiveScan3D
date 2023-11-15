@@ -38,8 +38,8 @@
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
             this.exportGroup = new System.Windows.Forms.GroupBox();
+            this.nudCompressionLvl = new System.Windows.Forms.NumericUpDown();
             this.pInfoExtrinsics = new System.Windows.Forms.PictureBox();
-            this.cbCompressionLevel = new System.Windows.Forms.ComboBox();
             this.label2 = new System.Windows.Forms.Label();
             this.lExtrinsics = new System.Windows.Forms.Label();
             this.cbExtrinsicsFormat = new System.Windows.Forms.ComboBox();
@@ -79,11 +79,13 @@
             this.lbY = new System.Windows.Forms.Label();
             this.lbX = new System.Windows.Forms.Label();
             this.tooltips = new System.Windows.Forms.ToolTip(this.components);
+            this.pInfoCompression = new System.Windows.Forms.PictureBox();
             this.grClient.SuspendLayout();
             this.gbICP.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoICP)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoRefinement)).BeginInit();
             this.exportGroup.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudCompressionLvl)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoExtrinsics)).BeginInit();
             this.grMarkers.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoTranslation)).BeginInit();
@@ -92,6 +94,7 @@
             this.grBounding.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoMaxBounds)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.PInfoMinBounds)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoCompression)).BeginInit();
             this.SuspendLayout();
             // 
             // lbICPIters
@@ -181,8 +184,9 @@
             // 
             // exportGroup
             // 
+            this.exportGroup.Controls.Add(this.pInfoCompression);
+            this.exportGroup.Controls.Add(this.nudCompressionLvl);
             this.exportGroup.Controls.Add(this.pInfoExtrinsics);
-            this.exportGroup.Controls.Add(this.cbCompressionLevel);
             this.exportGroup.Controls.Add(this.label2);
             this.exportGroup.Controls.Add(this.lExtrinsics);
             this.exportGroup.Controls.Add(this.cbExtrinsicsFormat);
@@ -196,6 +200,24 @@
             this.exportGroup.TabStop = false;
             this.exportGroup.Text = "Export";
             // 
+            // nudCompressionLvl
+            // 
+            this.nudCompressionLvl.Location = new System.Drawing.Point(109, 100);
+            this.nudCompressionLvl.Maximum = new decimal(new int[] {
+            15,
+            0,
+            0,
+            0});
+            this.nudCompressionLvl.Name = "nudCompressionLvl";
+            this.nudCompressionLvl.Size = new System.Drawing.Size(37, 20);
+            this.nudCompressionLvl.TabIndex = 63;
+            this.nudCompressionLvl.Value = new decimal(new int[] {
+            2,
+            0,
+            0,
+            0});
+            this.nudCompressionLvl.ValueChanged += new System.EventHandler(this.nudCompressionLvl_ValueChanged);
+            // 
             // pInfoExtrinsics
             // 
             this.pInfoExtrinsics.Image = global::LiveScanServer.Properties.Resources.info_box;
@@ -207,29 +229,6 @@
             this.pInfoExtrinsics.TabStop = false;
             this.tooltips.SetToolTip(this.pInfoExtrinsics, "The Extrinsics are used for further processing in other software (VolNodes). You " +
         "should leave this on");
-            // 
-            // cbCompressionLevel
-            // 
-            this.cbCompressionLevel.FormattingEnabled = true;
-            this.cbCompressionLevel.Items.AddRange(new object[] {
-            "0 (no compression)",
-            "1",
-            "2 (recommended)",
-            "3",
-            "5",
-            "7",
-            "9",
-            "11",
-            "13",
-            "15",
-            "17",
-            "19"});
-            this.cbCompressionLevel.Location = new System.Drawing.Point(109, 100);
-            this.cbCompressionLevel.Margin = new System.Windows.Forms.Padding(2);
-            this.cbCompressionLevel.Name = "cbCompressionLevel";
-            this.cbCompressionLevel.Size = new System.Drawing.Size(114, 21);
-            this.cbCompressionLevel.TabIndex = 32;
-            this.cbCompressionLevel.SelectedIndexChanged += new System.EventHandler(this.cbCompressionLevel_SelectedIndexChanged);
             // 
             // label2
             // 
@@ -622,6 +621,17 @@
             this.tooltips.IsBalloon = true;
             this.tooltips.ReshowDelay = 0;
             // 
+            // pInfoCompression
+            // 
+            this.pInfoCompression.Image = global::LiveScanServer.Properties.Resources.info_box;
+            this.pInfoCompression.Location = new System.Drawing.Point(152, 102);
+            this.pInfoCompression.Name = "pInfoCompression";
+            this.pInfoCompression.Size = new System.Drawing.Size(15, 15);
+            this.pInfoCompression.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pInfoCompression.TabIndex = 64;
+            this.pInfoCompression.TabStop = false;
+            this.tooltips.SetToolTip(this.pInfoCompression, "2 is recommended, set 0 for no compression");
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -641,6 +651,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.pInfoRefinement)).EndInit();
             this.exportGroup.ResumeLayout(false);
             this.exportGroup.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudCompressionLvl)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoExtrinsics)).EndInit();
             this.grMarkers.ResumeLayout(false);
             this.grMarkers.PerformLayout();
@@ -651,6 +662,7 @@
             this.grBounding.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoMaxBounds)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.PInfoMinBounds)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pInfoCompression)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -691,7 +703,6 @@
         private System.Windows.Forms.RadioButton rBinaryPly;
         private System.Windows.Forms.Label lbFormat;
         private System.Windows.Forms.RadioButton rAsciiPly;
-        private System.Windows.Forms.ComboBox cbCompressionLevel;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.GroupBox exportGroup;
         private System.Windows.Forms.ComboBox cbExtrinsicsFormat;
@@ -706,5 +717,7 @@
         private System.Windows.Forms.PictureBox pInfoMaxBounds;
         private System.Windows.Forms.PictureBox PInfoMinBounds;
         private System.Windows.Forms.ToolTip tooltips;
+        private System.Windows.Forms.NumericUpDown nudCompressionLvl;
+        private System.Windows.Forms.PictureBox pInfoCompression;
     }
 }

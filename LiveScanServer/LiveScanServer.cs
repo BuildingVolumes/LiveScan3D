@@ -19,6 +19,7 @@ namespace LiveScanServer
         public List<ClientSocket> clients;
         public string stateIndicatorSuffix;
         public float previewWindowFPS = 0;
+        public int capturedFramesTotal = 0;
 
         public LiveScanState()
         {
@@ -146,6 +147,7 @@ namespace LiveScanServer
 
             state.settings.AddDefaultMarkers();
 
+            viewportSettings.colorMode = EColorMode.BGR;
             previewWorker = new BackgroundWorker();
             previewWorker.WorkerSupportsCancellation = true;
             previewWorker.DoWork += new DoWorkEventHandler(PreviewWorker);
@@ -316,9 +318,6 @@ namespace LiveScanServer
                     return;
                 }
 
-                //Stop the update worker to reduce the load on the clients
-                PreviewWorker_Cancel();
-
                 string takePath = oServer.CreateTakeDirectories(sequenceName);
 
                 if (takePath == null)
@@ -327,6 +326,9 @@ namespace LiveScanServer
                     return;
                 }
 
+                //Stop the update worker to reduce the load on the clients
+                PreviewWorker_Cancel();
+
                 //Store the camera extrinsics
                 Utils.SaveExtrinsics(state.settings.eExtrinsicsFormat, takePath, oServer.GetClientSockets());
 
@@ -334,27 +336,35 @@ namespace LiveScanServer
                 state.settings.takePath = takePath;
                 state.appState = appState.recording;
                 UpdateUI();
+                return;
             }
 
             //Stop recording
             else if (state.appState == appState.recording)
             {
                 ProcessingWorker_Cancel();
-                //After recording has been terminated it is time to begin sorting the frames.
-                Sync();
-               
-                state.appState = appState.syncing;
-                UpdateUI();
+                Sync();                 //After recording has been terminated it is time to begin sorting the frames.
+                return;
+            }
+
+            else if (state.appState == appState.downloading)
+            {
+                ProcessingWorker_Cancel();
+                return;
             }
         }
 
         public void Sync()
         {
+            state.appState = appState.syncing;
+            UpdateUI();
             ProcessingWorker_Start(SyncWorker, Sync_Completed);
         }
 
         public void Save()
         {
+            state.appState = appState.downloading;
+            UpdateUI();
             ProcessingWorker_Start(SavingWorker, Saving_Completed);
         }
 
@@ -618,7 +628,6 @@ namespace LiveScanServer
         private void Capture_DoWork(object sender, DoWorkEventArgs e)
         {
             oServer.ClearStoredFrames();
-
             oServer.SendAndConfirmPreRecordProcess();
 
             //If we don't use a server-controlled sync method, we just let the clients capture as fast as possible
@@ -631,11 +640,13 @@ namespace LiveScanServer
 
                 Log.LogInfo("Starting Recording");
 
-                while (processingWorker.CancellationPending)
+                while (!processingWorker.CancellationPending)
                 {
                     state.stateIndicatorSuffix = "" + counter.Elapsed.Minutes.ToString("D2") + ":" + counter.Elapsed.Seconds.ToString("D2");
-                    UpdateUI();
+                    //UpdateUI();
                 }
+
+                state.capturedFramesTotal = (int)counter.Elapsed.TotalSeconds * 30;
 
                 Log.LogInfo("Stopping Recording");
 
@@ -651,13 +662,15 @@ namespace LiveScanServer
 
                 Log.LogInfo("Starting Network-synced recording");
 
-                while (processingWorker.CancellationPending)
+                while (!processingWorker.CancellationPending)
                 {
                     oServer.CaptureSynchronizedFrame();
                     nCaptured++;
                     state.stateIndicatorSuffix = "Frame " + (nCaptured).ToString() + ".";
-                    UpdateUI();
+                    //UpdateUI();
                 }
+
+                state.capturedFramesTotal = nCaptured;
 
                 Log.LogInfo("Stopping Network-synced recording");
             }
@@ -669,12 +682,13 @@ namespace LiveScanServer
 
         void Capture_Complete(object sender, RunWorkerCompletedEventArgs e)
         {
-            state.appState = appState.syncing;
-            UpdateUI();
+
         }
 
         private void SyncWorker(object sender, DoWorkEventArgs e)
         {
+            e.Result = true;
+
             if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
             {
                 Log.LogInfo("Starting Sync");
@@ -711,7 +725,8 @@ namespace LiveScanServer
 
         private void Sync_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
-            //TODO: Check for sync success
+            state.appState = appState.idle;
+            UpdateUI();
 
             if ((bool)e.Result)
             {
@@ -723,13 +738,12 @@ namespace LiveScanServer
                 Log.LogError("Sync could not be completed!");
                 UI.ShowMessageBox(MessageBoxIcon.Warning, "Sync could not succesfully be completed. Don't worry, your files are still saved, please try syncing with the LiveScan Editor.");
             }
-
-            state.appState = appState.idle;
-            UpdateUI();
         }
 
         private void SavingWorker(object sender, DoWorkEventArgs e)
         {
+            e.Result = true;
+
             if (state.settings.eExportMode == ClientSettings.ExportMode.Pointcloud)
             {
                 Log.LogInfo("Start saving Pointcloud frames");
@@ -765,7 +779,7 @@ namespace LiveScanServer
                     List<byte> lFrameBGR = new List<byte>();
                     List<Single> lFrameVerts = new List<Single>();
 
-                    state.stateIndicatorSuffix = "Frame " + (nFrames).ToString() + ".";
+                    state.stateIndicatorSuffix = " " + (nFrames).ToString() + " / " + state.capturedFramesTotal;
                     for (int i = 0; i < lFrameBGRAllDevices.Count; i++)
                     {
                         lFrameBGR.AddRange(lFrameBGRAllDevices[i]);
@@ -787,7 +801,6 @@ namespace LiveScanServer
                     }
                 }
 
-                e.Result = true;
             }
 
             processingWorkerComplete = true;
@@ -806,9 +819,7 @@ namespace LiveScanServer
             }
 
             oServer.ClearStoredFrames();
-
             StartPreviewWorker();
-
             state.appState = appState.idle;
             UpdateUI();
         }

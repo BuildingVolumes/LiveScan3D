@@ -257,6 +257,7 @@
             this.gvClients.MultiSelect = false;
             this.gvClients.Name = "gvClients";
             this.gvClients.ReadOnly = true;
+            this.gvClients.RowHeadersVisible = false;
             this.gvClients.RowHeadersWidth = 62;
             this.gvClients.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.gvClients.Size = new System.Drawing.Size(386, 164);
@@ -640,13 +641,13 @@
             // lStateIndicator
             // 
             this.lStateIndicator.BackColor = System.Drawing.SystemColors.Control;
-            this.lStateIndicator.Dock = System.Windows.Forms.DockStyle.Left;
+            this.lStateIndicator.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lStateIndicator.Font = new System.Drawing.Font("Microsoft Sans Serif", 7.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lStateIndicator.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(62)))), ((int)(((byte)(62)))), ((int)(((byte)(62)))));
             this.lStateIndicator.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.lStateIndicator.Location = new System.Drawing.Point(23, 0);
             this.lStateIndicator.Name = "lStateIndicator";
-            this.lStateIndicator.Size = new System.Drawing.Size(209, 18);
+            this.lStateIndicator.Size = new System.Drawing.Size(510, 18);
             this.lStateIndicator.TabIndex = 28;
             this.lStateIndicator.Text = "State...";
             this.lStateIndicator.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;

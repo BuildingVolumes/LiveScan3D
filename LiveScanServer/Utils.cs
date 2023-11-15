@@ -179,7 +179,7 @@ namespace LiveScanServer
         idle = 0,
         recording = 1,
         syncing = 2,
-        saving = 3,
+        downloading = 3,
         calibrating = 4,
         refinining = 5,
         restartingClients = 6

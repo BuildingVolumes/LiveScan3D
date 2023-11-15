@@ -160,6 +160,7 @@
     <None Include="Resources\Server_Icon.ico" />
     <None Include="Resources\Server_Icon.bmp" />
     <None Include="Resources\loading_anim.bmp" />
+    <None Include="Resources\loadingIndicator.png" />
     <None Include="Resources\Loading_Animation.gif" />
     <Content Include="Server_Icon.ico" />
   </ItemGroup>
