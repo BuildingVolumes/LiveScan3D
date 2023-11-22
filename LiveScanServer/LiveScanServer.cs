@@ -12,7 +12,8 @@ using System.Threading;
 using System.Windows.Forms;
 
 namespace LiveScanServer
-{    public class LiveScanState
+{
+    public class LiveScanState
     {
         public appState appState;
         public ClientSettings settings;
@@ -91,7 +92,7 @@ namespace LiveScanServer
             }
 
             Setup();
-            
+
             oServer = new ClientCommunication(this);
             oServer.eSocketListChanged += new SocketListChangedHandler(ClientListChanged);
             oServer.SetMainWindowForm(UI);
@@ -174,7 +175,7 @@ namespace LiveScanServer
         }
 
         public void UpdateUI()
-        { 
+        {
             UI.UpdateUI(state);
         }
 
@@ -203,28 +204,24 @@ namespace LiveScanServer
 
         }
 
-        public void SetConfiguration(ClientConfiguration newConfig)
+        public void SetConfigurations(List<ClientConfiguration> newConfigs, bool restart)
         {
-            ClientConfiguration currentConfig = GetConfigFromSerial(newConfig.SerialNumber);
+            bool restartAll = false;
+            
+            if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
+                restartAll = true;
 
-            bool restartClient = false;
-            bool restartAllClients = false;
-
-            if (currentConfig.eDepthRes != newConfig.eDepthRes || currentConfig.eColorRes != newConfig.eColorRes)
-                if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
-                    restartAllClients = true;
-                else
-                    restartClient = true;
-
-
-            oServer.SetAndConfirmConfig(newConfig);
-            //TODO: Implement error handling
+            for (int i = 0; i < newConfigs.Count; i++)
+            {
+                oServer.SetAndConfirmConfig(newConfigs[i]);
+            }
 
             Cursor.Current = Cursors.WaitCursor;
 
-            if (restartClient)
-                oServer.RestartClient(newConfig.SerialNumber);
-            if (restartAllClients)
+            if(restart && newConfigs.Count == 1)
+                oServer.RestartClient(newConfigs[0].SerialNumber);
+
+            if (restartAll || (restart && newConfigs.Count > 1))
                 oServer.RestartAllClients();
 
             Cursor.Current = Cursors.Default;
@@ -621,7 +618,7 @@ namespace LiveScanServer
             UpdateUI();
         }
 
-        
+
 
         //Performs recording which is synchronized or unsychronized frame capture.
         //The frames are downloaded from the clients and saved once recording is finished.
@@ -656,7 +653,7 @@ namespace LiveScanServer
             }
 
             //A server controlled sync method, the server gives the command to capture a single frame and waits until all devices have captured it
-            else if(state.settings.eSyncMode == ClientSettings.SyncMode.Network)
+            else if (state.settings.eSyncMode == ClientSettings.SyncMode.Network)
             {
                 int nCaptured = 0;
 
@@ -732,7 +729,7 @@ namespace LiveScanServer
             {
                 Save();
             }
-            
+
             else
             {
                 Log.LogError("Sync could not be completed!");
@@ -890,6 +887,6 @@ namespace LiveScanServer
         #endregion
     }
 
-    
+
 
 }

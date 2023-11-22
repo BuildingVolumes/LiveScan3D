@@ -62,7 +62,7 @@ namespace LiveScanServer
         {
             UpdateUI(liveScanServer.GetState());
             StartUpdateTimers();
-            
+
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -400,15 +400,21 @@ namespace LiveScanServer
             }
 
             int index = gvClients.SelectedRows[0].Index;
-
-            if (configurationForm != null)
-                configurationForm.Close();
-
             string serialNumber = liveScanState.clients[gvClients.SelectedRows[0].Index].configuration.SerialNumber;
-            configurationForm = new ClientConfigurationForm(liveScanServer, serialNumber);
 
-            configurationForm.Show();
-            configurationForm.Focus();
+            if(configurationForm == null)
+            {
+                configurationForm = new ClientConfigurationForm(liveScanServer, serialNumber);
+                configurationForm.Show();
+            }
+
+            else
+            {
+                if (configurationForm.serialnumber != serialNumber)
+                    configurationForm.OpenConfig(serialNumber);
+
+                configurationForm.Focus();
+            }
         }
 
         private void chHardwareSync_Clicked(object sender, EventArgs e)

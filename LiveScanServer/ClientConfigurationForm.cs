@@ -12,11 +12,11 @@ namespace LiveScanServer
 {
     public partial class ClientConfigurationForm : Form
     {
-        LiveScanServer liveScanServer;        
+        LiveScanServer liveScanServer;
         ClientSocket kinectSocket;
         ClientConfiguration displayedConfiguration;
         public string serialnumber;
-       
+
         public ClientConfigurationForm(LiveScanServer liveScanServer, string serialnumber)
         {
             InitializeComponent();
@@ -27,6 +27,12 @@ namespace LiveScanServer
             CreateDepthResList();
             CreateColorResList();
 
+            OpenConfig(serialnumber);
+
+        }
+
+        public void OpenConfig(string serialnumber)
+        {
             this.serialnumber = serialnumber;
             UpdateUI();
         }
@@ -34,37 +40,27 @@ namespace LiveScanServer
         //TODO: We need to update the configuration if it has changed
         public void UpdateUI()
         {
-            // Invoke UI logic on the same thread.
-            this.BeginInvoke(
-                new Action(() =>
-                {
-                    ClientConfiguration newConfig = liveScanServer.GetConfigFromSerial(serialnumber);
+            ClientConfiguration newConfig = liveScanServer.GetConfigFromSerial(serialnumber);
+            displayedConfiguration = newConfig;
 
-                    this.Text = "Configuration for device: " + newConfig.SerialNumber;
-                    this.Update(); 
-                    cbFilterDepthMap.Checked = newConfig.FilterDepthMap;
-                    nDepthFilterSize.Value = newConfig.FilterDepthMapSize;
-                    
-                    //Disable changing depth map filtering if we are in raw frames mode.
-                    //Depth filtering only works in point cloud mode.
+            this.Text = "Configuration for device: " + newConfig.SerialNumber;
+            cbFilterDepthMap.Checked = newConfig.FilterDepthMap;
+            nDepthFilterSize.Value = newConfig.FilterDepthMapSize;
 
-                    lbDepthRes.SelectedIndex = (int)newConfig.eDepthRes - 1;
+            //Disable changing depth map filtering if we are in raw frames mode.
+            //Depth filtering only works in point cloud mode.
 
-                    //Swab some values so that the list looks neater (4:3 and 16:9 split)
-                    int colorRes = (int)newConfig.eColorRes;
-                    if (colorRes == 4)
-                        colorRes = 5;
-                    else if (colorRes == 5)
-                        colorRes = 4;
+            lbDepthRes.SelectedIndex = (int)newConfig.eDepthRes - 1;
 
-                    lbColorRes.SelectedIndex = colorRes - 1;
+            //Swab some values so that the list looks neater (4:3 and 16:9 split)
+            int colorRes = (int)newConfig.eColorRes;
+            if (colorRes == 4)
+                colorRes = 5;
+            else if (colorRes == 5)
+                colorRes = 4;
 
-                    displayedConfiguration = newConfig;
+            lbColorRes.SelectedIndex = colorRes - 1;
 
-
-                    this.Update();
-                }
-        ));
         }
 
         public ClientConfiguration GetCurrentlyShownConfig()
@@ -105,40 +101,51 @@ namespace LiveScanServer
 
         private void btApply_Click(object sender, EventArgs e)
         {
-            Log.LogDebug("User changed configuration for device: " + kinectSocket.configuration.SerialNumber);
-
-            Cursor.Current = Cursors.WaitCursor;
-
-            ClientConfiguration currentConfig = liveScanServer.GetConfigFromSerial(serialnumber);
-            displayedConfiguration = ApplyConfiguration(currentConfig, displayedConfiguration);
-            liveScanServer.SetConfiguration(displayedConfiguration);
-
-            Cursor.Current = Cursors.Default;
+            Log.LogDebug("Updating configuration for device: " + displayedConfiguration.SerialNumber);
+            ApplyDisplayedConfiguration(false);
         }
 
         private void btApplyAll_Click(object sender, EventArgs e)
         {
-            Log.LogDebug("User changed configuration for all devices");
-
-            LiveScanState currentState = liveScanServer.GetState();
-            for (int i = 0; i < currentState.clients.Count; i++)
-            {
-                displayedConfiguration = ApplyConfiguration(currentState.clients[i].configuration, displayedConfiguration);
-                liveScanServer.SetConfiguration(displayedConfiguration);
-            }
+            Log.LogDebug("Updating configuration for all devices");
+            ApplyDisplayedConfiguration(true);
+            
         }
 
-        
-
-        //Only applies values that can be changed in this UI
-        ClientConfiguration ApplyConfiguration(ClientConfiguration applyTo, ClientConfiguration applyFrom)
+        //Applies the values set in this form to the Clients
+        void ApplyDisplayedConfiguration(bool applyToAll)
         {
-            applyTo.FilterDepthMap = applyFrom.FilterDepthMap;
-            applyTo.FilterDepthMapSize = applyFrom.FilterDepthMapSize;
-            applyTo.eDepthRes = applyFrom.eDepthRes;
-            applyTo.eColorRes = applyFrom.eColorRes;
+            bool restartNeeded = false;
+            List<ClientConfiguration> configs = new List<ClientConfiguration>();
 
-            return applyTo;
+            if (applyToAll)
+            {
+                LiveScanState currentState = liveScanServer.GetState();
+                
+                for (int i = 0; i < currentState.clients.Count; i++)
+                {
+                    configs.Add(currentState.clients[i].configuration);
+                }
+            }
+
+            else
+            {
+                configs.Add(liveScanServer.GetConfigFromSerial(serialnumber));
+            }
+
+            //Check if a restart is needed and apply new settings
+            for (int i = 0; i < configs.Count; i++)
+            {
+                if (configs[i].eColorRes != displayedConfiguration.eColorRes || configs[i].eDepthRes != displayedConfiguration.eDepthRes)
+                    restartNeeded = true;
+
+                configs[i].FilterDepthMap = displayedConfiguration.FilterDepthMap;
+                configs[i].FilterDepthMapSize = displayedConfiguration.FilterDepthMapSize;
+                configs[i].eDepthRes = displayedConfiguration.eDepthRes;
+                configs[i].eColorRes = displayedConfiguration.eColorRes;
+            }
+
+            liveScanServer.SetConfigurations(configs, restartNeeded);
         }
 
         private void lbDepthRes_SelectedIndexChanged(object sender, EventArgs e)

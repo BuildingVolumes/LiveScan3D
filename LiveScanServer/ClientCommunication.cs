@@ -440,8 +440,8 @@ namespace LiveScanServer
 
             if (!socket.bConfigurationReceived)
             {
-                MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not confirm configuration file, please check your network");
-                Log.LogError("Client did not confirm that it has received configuration file");
+                MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not set configuration file on client " + newConfig.SerialNumber+", please check your network");
+                Log.LogError("Client " + newConfig.SerialNumber + " did not confirm that it has received configuration file");
                 return false;
             }
 
