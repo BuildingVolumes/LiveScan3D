@@ -32,7 +32,7 @@ namespace LiveScanServer
         public bool bConfigurationReceived = false;
         public bool bTimeStampsRecieved = false;
 
-
+        public bool bVisible = true;
         public bool bCalibrated = false;
 
         public bool bCameraClosed = false;

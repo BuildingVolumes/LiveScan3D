@@ -62,7 +62,6 @@ namespace LiveScanServer
         {
             UpdateUI(liveScanServer.GetState());
             StartUpdateTimers();
-
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -105,12 +104,6 @@ namespace LiveScanServer
 
         void SetUIState(LiveScanState newState)
         {
-            //Client settings
-            if (gvClients.Rows.Count < 1)
-                btKinectSettingsOpenButton.Enabled = false;
-            else
-                btKinectSettingsOpenButton.Enabled = true;
-
             //Calibration Button
             if (newState.appState == appState.calibrating)
             {
@@ -374,7 +367,9 @@ namespace LiveScanServer
                     socketList[i].configuration.SerialNumber,
                     socketList[i].GetIP(),
                     socketList[i].bCalibrated.ToString(),
-                    socketList[i].configuration.eSoftwareSyncState.ToString()
+                    socketList[i].configuration.eSoftwareSyncState.ToString(),
+                    socketList[i].bVisible.ToString(),
+                    "⚙️"
                     });
                 }
 
@@ -392,19 +387,27 @@ namespace LiveScanServer
             }));
         }
 
-        private void btKinectSettingsOpenButton_Click(object sender, EventArgs e)
+        private void gvClients_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (gvClients.SelectedRows.Count < 1)
+            //Visibility clicked
+            if (e.ColumnIndex == 5)
             {
-                return;
+                liveScanServer.SetVisibility(e.RowIndex, !Convert.ToBoolean(gvClients.Rows[e.RowIndex].Cells[5].Value));
             }
 
-            int index = gvClients.SelectedRows[0].Index;
-            string serialNumber = liveScanState.clients[gvClients.SelectedRows[0].Index].configuration.SerialNumber;
+            //Open configuration settings
+            else if (e.ColumnIndex == 6)
+            {
+                OpenConfigurationForm(liveScanServer.GetState().clients[e.RowIndex].configuration.SerialNumber);
+            }
+        }
 
+        private void OpenConfigurationForm(string serialNumber)
+        {
             if(configurationForm == null)
             {
                 configurationForm = new ClientConfigurationForm(liveScanServer, serialNumber);
+                configurationForm.FormClosed += (senderer, ea) => { ConfigurationFormClosed(senderer, ea); };
                 configurationForm.Show();
             }
 
@@ -415,6 +418,12 @@ namespace LiveScanServer
 
                 configurationForm.Focus();
             }
+        }
+
+        private void ConfigurationFormClosed(object sender, EventArgs e)
+        {
+            configurationForm.Dispose();
+            configurationForm = null;
         }
 
         private void chHardwareSync_Clicked(object sender, EventArgs e)
@@ -645,5 +654,6 @@ namespace LiveScanServer
 
         #endregion
 
+       
     }
 }

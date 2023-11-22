@@ -437,6 +437,12 @@ namespace LiveScanServer
             UpdateUI();
         }
 
+        public void SetVisibility(int index, bool visible)
+        {
+            state.clients[index].bVisible = visible;
+            UpdateUI();
+        }
+
 
         #endregion
 
@@ -514,7 +520,7 @@ namespace LiveScanServer
             //Download a frame from each client.
             List<List<float>> lAllFrameVertices = new List<List<float>>();
             List<List<byte>> lAllFrameColors = new List<List<byte>>();
-            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices);
+            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices, true);
 
             //Initialize containers for the poses.
             List<float[]> Rs = new List<float[]>();
@@ -846,7 +852,7 @@ namespace LiveScanServer
 
                 if (oServer != null)
                 {
-                    oServer.GetLatestFrame(lFramesRGB, lFramesVerts);
+                    oServer.GetLatestFrame(lFramesRGB, lFramesVerts, false);
                     Log.LogDebugCapture("Getting latest frame for live view");
 
                     //Update the vertex and color lists that are common between this class and the OpenGLWindow.

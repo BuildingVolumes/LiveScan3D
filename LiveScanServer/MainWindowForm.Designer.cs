@@ -35,7 +35,6 @@
             this.btRefineCalib = new System.Windows.Forms.Button();
             this.btSettings = new System.Windows.Forms.Button();
             this.lbSeqName = new System.Windows.Forms.Label();
-            this.btKinectSettingsOpenButton = new System.Windows.Forms.Button();
             this.lClientsHeader = new System.Windows.Forms.Label();
             this.lCalibrationHeader = new System.Windows.Forms.Label();
             this.lSettingsHeader = new System.Windows.Forms.Label();
@@ -43,11 +42,6 @@
             this.rExportRaw = new System.Windows.Forms.RadioButton();
             this.rExportPointclouds = new System.Windows.Forms.RadioButton();
             this.gvClients = new System.Windows.Forms.DataGridView();
-            this.Column1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Column2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Column3 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Column4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.SyncState = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.glLiveView = new OpenTK.GLControl();
             this.lFPS = new System.Windows.Forms.Label();
             this.chMergeScans = new System.Windows.Forms.CheckBox();
@@ -89,6 +83,13 @@
             this.pnCalibration = new System.Windows.Forms.Panel();
             this.btRecord = new System.Windows.Forms.Button();
             this.pnCapture = new System.Windows.Forms.Panel();
+            this.Column1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Column2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Column3 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Column4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.SyncState = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Visible = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.Configuration = new System.Windows.Forms.DataGridViewButtonColumn();
             ((System.ComponentModel.ISupportInitialize)(this.gvClients)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trManualExposure)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pInfoClientPreview)).BeginInit();
@@ -163,18 +164,6 @@
             this.lbSeqName.Size = new System.Drawing.Size(90, 13);
             this.lbSeqName.TabIndex = 14;
             this.lbSeqName.Text = "Sequence Name:";
-            // 
-            // btKinectSettingsOpenButton
-            // 
-            this.btKinectSettingsOpenButton.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.btKinectSettingsOpenButton.Location = new System.Drawing.Point(3, 197);
-            this.btKinectSettingsOpenButton.Name = "btKinectSettingsOpenButton";
-            this.btKinectSettingsOpenButton.Size = new System.Drawing.Size(382, 23);
-            this.btKinectSettingsOpenButton.TabIndex = 15;
-            this.btKinectSettingsOpenButton.Text = "Individual Client Configuration";
-            this.btKinectSettingsOpenButton.UseVisualStyleBackColor = true;
-            this.btKinectSettingsOpenButton.Click += new System.EventHandler(this.btKinectSettingsOpenButton_Click);
             // 
             // lClientsHeader
             // 
@@ -252,7 +241,9 @@
             this.Column2,
             this.Column3,
             this.Column4,
-            this.SyncState});
+            this.SyncState,
+            this.Visible,
+            this.Configuration});
             this.gvClients.Location = new System.Drawing.Point(0, 27);
             this.gvClients.MultiSelect = false;
             this.gvClients.Name = "gvClients";
@@ -262,60 +253,7 @@
             this.gvClients.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.gvClients.Size = new System.Drawing.Size(386, 164);
             this.gvClients.TabIndex = 25;
-            // 
-            // Column1
-            // 
-            this.Column1.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
-            this.Column1.HeaderText = "ID";
-            this.Column1.MinimumWidth = 8;
-            this.Column1.Name = "Column1";
-            this.Column1.ReadOnly = true;
-            this.Column1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            this.Column1.ToolTipText = "The internal Livescan ID";
-            this.Column1.Width = 24;
-            // 
-            // Column2
-            // 
-            this.Column2.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
-            this.Column2.HeaderText = "Serial Number";
-            this.Column2.MinimumWidth = 8;
-            this.Column2.Name = "Column2";
-            this.Column2.ReadOnly = true;
-            this.Column2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            this.Column2.ToolTipText = "Device Serial Number, assigned by manufacturer";
-            this.Column2.Width = 90;
-            // 
-            // Column3
-            // 
-            this.Column3.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
-            this.Column3.HeaderText = "IP";
-            this.Column3.MinimumWidth = 8;
-            this.Column3.Name = "Column3";
-            this.Column3.ReadOnly = true;
-            this.Column3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            this.Column3.ToolTipText = "The devices IP adress in the local network";
-            this.Column3.Width = 90;
-            // 
-            // Column4
-            // 
-            this.Column4.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
-            this.Column4.HeaderText = "Calibrated";
-            this.Column4.MinimumWidth = 8;
-            this.Column4.Name = "Column4";
-            this.Column4.ReadOnly = true;
-            this.Column4.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            this.Column4.ToolTipText = "Is this device spatially calibrated?";
-            this.Column4.Width = 60;
-            // 
-            // SyncState
-            // 
-            this.SyncState.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.Fill;
-            this.SyncState.HeaderText = "Sync State";
-            this.SyncState.MinimumWidth = 8;
-            this.SyncState.Name = "SyncState";
-            this.SyncState.ReadOnly = true;
-            this.SyncState.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            this.SyncState.ToolTipText = "The current temporal synchronisation state";
+            this.gvClients.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.gvClients_CellContentClick);
             // 
             // glLiveView
             // 
@@ -679,7 +617,7 @@
             this.tlControls.Location = new System.Drawing.Point(3, 3);
             this.tlControls.Name = "tlControls";
             this.tlControls.RowCount = 6;
-            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 235F));
+            this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 200F));
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 60F));
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 188F));
             this.tlControls.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
@@ -692,11 +630,10 @@
             // 
             this.pnClients.Controls.Add(this.lClientsHeader);
             this.pnClients.Controls.Add(this.gvClients);
-            this.pnClients.Controls.Add(this.btKinectSettingsOpenButton);
             this.pnClients.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnClients.Location = new System.Drawing.Point(3, 3);
             this.pnClients.Name = "pnClients";
-            this.pnClients.Size = new System.Drawing.Size(388, 229);
+            this.pnClients.Size = new System.Drawing.Size(388, 194);
             this.pnClients.TabIndex = 0;
             // 
             // pnSettings
@@ -720,7 +657,7 @@
             this.pnSettings.Controls.Add(this.pInfoNetworkSync);
             this.pnSettings.Controls.Add(this.chNetworkSync);
             this.pnSettings.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnSettings.Location = new System.Drawing.Point(3, 298);
+            this.pnSettings.Location = new System.Drawing.Point(3, 263);
             this.pnSettings.Name = "pnSettings";
             this.pnSettings.Size = new System.Drawing.Size(388, 182);
             this.pnSettings.TabIndex = 1;
@@ -788,7 +725,7 @@
             this.pnCalibration.Controls.Add(this.pInfoRefineCalib);
             this.pnCalibration.Controls.Add(this.pInfoCalibrate);
             this.pnCalibration.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnCalibration.Location = new System.Drawing.Point(3, 238);
+            this.pnCalibration.Location = new System.Drawing.Point(3, 203);
             this.pnCalibration.Name = "pnCalibration";
             this.pnCalibration.Size = new System.Drawing.Size(388, 54);
             this.pnCalibration.TabIndex = 5;
@@ -820,6 +757,77 @@
             this.pnCapture.Name = "pnCapture";
             this.pnCapture.Size = new System.Drawing.Size(388, 104);
             this.pnCapture.TabIndex = 2;
+            // 
+            // Column1
+            // 
+            this.Column1.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.Column1.HeaderText = "ID";
+            this.Column1.MinimumWidth = 8;
+            this.Column1.Name = "Column1";
+            this.Column1.ReadOnly = true;
+            this.Column1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            this.Column1.ToolTipText = "The internal Livescan ID";
+            this.Column1.Width = 24;
+            // 
+            // Column2
+            // 
+            this.Column2.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.Column2.HeaderText = "Serial Number";
+            this.Column2.MinimumWidth = 8;
+            this.Column2.Name = "Column2";
+            this.Column2.ReadOnly = true;
+            this.Column2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            this.Column2.ToolTipText = "Device Serial Number, assigned by manufacturer";
+            this.Column2.Width = 90;
+            // 
+            // Column3
+            // 
+            this.Column3.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.Column3.HeaderText = "IP";
+            this.Column3.MinimumWidth = 8;
+            this.Column3.Name = "Column3";
+            this.Column3.ReadOnly = true;
+            this.Column3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            this.Column3.ToolTipText = "The devices IP adress in the local network";
+            this.Column3.Width = 90;
+            // 
+            // Column4
+            // 
+            this.Column4.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
+            this.Column4.HeaderText = "Calibrated";
+            this.Column4.MinimumWidth = 8;
+            this.Column4.Name = "Column4";
+            this.Column4.ReadOnly = true;
+            this.Column4.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            this.Column4.ToolTipText = "Is this device spatially calibrated?";
+            this.Column4.Width = 60;
+            // 
+            // SyncState
+            // 
+            this.SyncState.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.Fill;
+            this.SyncState.HeaderText = "Sync State";
+            this.SyncState.MinimumWidth = 8;
+            this.SyncState.Name = "SyncState";
+            this.SyncState.ReadOnly = true;
+            this.SyncState.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            this.SyncState.ToolTipText = "The current temporal synchronisation state";
+            // 
+            // Visible
+            // 
+            this.Visible.HeaderText = "👁️";
+            this.Visible.Name = "Visible";
+            this.Visible.ReadOnly = true;
+            this.Visible.ToolTipText = "Hide/Show the clients pointcloud in the live preview";
+            this.Visible.Width = 27;
+            // 
+            // Configuration
+            // 
+            this.Configuration.HeaderText = "";
+            this.Configuration.Name = "Configuration";
+            this.Configuration.ReadOnly = true;
+            this.Configuration.Resizable = System.Windows.Forms.DataGridViewTriState.True;
+            this.Configuration.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Automatic;
+            this.Configuration.Width = 25;
             // 
             // MainWindowForm
             // 
@@ -876,7 +884,6 @@
         private System.Windows.Forms.Button btRefineCalib;
         private System.Windows.Forms.Button btSettings;
         private System.Windows.Forms.Label lbSeqName;
-        private System.Windows.Forms.Button btKinectSettingsOpenButton;
         private System.Windows.Forms.Label lClientsHeader;
         private System.Windows.Forms.Label lCalibrationHeader;
         private System.Windows.Forms.Label lSettingsHeader;
@@ -888,11 +895,6 @@
         private System.Windows.Forms.DataGridView gvClients;
         private OpenTK.GLControl glLiveView;
         private System.Windows.Forms.Label lFPS;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Column1;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Column2;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Column3;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Column4;
-        private System.Windows.Forms.DataGridViewTextBoxColumn SyncState;
         private System.Windows.Forms.PictureBox pInfoRawFrames;
         private System.Windows.Forms.PictureBox pInfoPointclouds;
         private System.Windows.Forms.CheckBox chMergeScans;
@@ -929,6 +931,13 @@
         private System.Windows.Forms.TableLayoutPanel tlLiveView;
         private System.Windows.Forms.TableLayoutPanel tlStatusInfo;
         private System.Windows.Forms.PictureBox pStatusIndicator;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Column1;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Column2;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Column3;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Column4;
+        private System.Windows.Forms.DataGridViewTextBoxColumn SyncState;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn Visible;
+        private System.Windows.Forms.DataGridViewButtonColumn Configuration;
     }
 }
 

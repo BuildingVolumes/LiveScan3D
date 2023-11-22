@@ -1057,7 +1057,7 @@ namespace LiveScanServer
 
         }
 
-        public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts)
+        public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts, bool ignoreVisibility)
         {
             lFramesRGB.Clear();
             lFramesVerts.Clear();
@@ -1068,7 +1068,8 @@ namespace LiveScanServer
                 lock (oClientSocketLock)
                 {
                     for (int i = 0; i < lClientSockets.Count; i++)
-                        lClientSockets[i].RequestLastFrame();
+                        if (lClientSockets[i].bVisible || ignoreVisibility)
+                            lClientSockets[i].RequestLastFrame();
                 }
 
                 //Wait till frames received
@@ -1082,11 +1083,15 @@ namespace LiveScanServer
                     {
                         for (int i = 0; i < lClientSockets.Count; i++)
                         {
-                            if (!lClientSockets[i].bLatestFrameReceived)
+                            if (lClientSockets[i].bVisible || ignoreVisibility)
                             {
-                                allGathered = false;
-                                break;
+                                if (!lClientSockets[i].bLatestFrameReceived)
+                                {
+                                    allGathered = false;
+                                    break;
+                                }
                             }
+                            
                         }
                     }
 
@@ -1097,8 +1102,11 @@ namespace LiveScanServer
                 {
                     for (int i = 0; i < lClientSockets.Count; i++)
                     {
-                        lFramesRGB.Add(new List<byte>(lClientSockets[i].lFrameRGB));
-                        lFramesVerts.Add(new List<Single>(lClientSockets[i].lFrameVerts));
+                        if (lClientSockets[i].bVisible || ignoreVisibility)
+                        {
+                            lFramesRGB.Add(new List<byte>(lClientSockets[i].lFrameRGB));
+                            lFramesVerts.Add(new List<Single>(lClientSockets[i].lFrameVerts));
+                        }
                     }
                 }
 
