@@ -247,13 +247,13 @@
             this.gvClients.Location = new System.Drawing.Point(0, 27);
             this.gvClients.MultiSelect = false;
             this.gvClients.Name = "gvClients";
-            this.gvClients.ReadOnly = true;
             this.gvClients.RowHeadersVisible = false;
             this.gvClients.RowHeadersWidth = 62;
             this.gvClients.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.gvClients.Size = new System.Drawing.Size(386, 164);
             this.gvClients.TabIndex = 25;
             this.gvClients.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.gvClients_CellContentClick);
+            this.gvClients.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.gvClients_CellEndEdit);
             // 
             // glLiveView
             // 
@@ -772,12 +772,11 @@
             // Column2
             // 
             this.Column2.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.None;
-            this.Column2.HeaderText = "Serial Number";
+            this.Column2.HeaderText = "Name";
             this.Column2.MinimumWidth = 8;
             this.Column2.Name = "Column2";
-            this.Column2.ReadOnly = true;
             this.Column2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            this.Column2.ToolTipText = "Device Serial Number, assigned by manufacturer";
+            this.Column2.ToolTipText = "Given nickname of the device, if not set shows Serial Number";
             this.Column2.Width = 90;
             // 
             // Column3
@@ -798,6 +797,7 @@
             this.Column4.MinimumWidth = 8;
             this.Column4.Name = "Column4";
             this.Column4.ReadOnly = true;
+            this.Column4.Resizable = System.Windows.Forms.DataGridViewTriState.True;
             this.Column4.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             this.Column4.ToolTipText = "Is this device spatially calibrated?";
             this.Column4.Width = 60;
@@ -816,7 +816,6 @@
             // 
             this.Visible.HeaderText = "👁️";
             this.Visible.Name = "Visible";
-            this.Visible.ReadOnly = true;
             this.Visible.ToolTipText = "Hide/Show the clients pointcloud in the live preview";
             this.Visible.Width = 27;
             // 
@@ -824,7 +823,6 @@
             // 
             this.Configuration.HeaderText = "";
             this.Configuration.Name = "Configuration";
-            this.Configuration.ReadOnly = true;
             this.Configuration.Resizable = System.Windows.Forms.DataGridViewTriState.True;
             this.Configuration.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Automatic;
             this.Configuration.Width = 25;

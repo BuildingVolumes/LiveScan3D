@@ -12,7 +12,7 @@ namespace LiveScanServer
 
     public class ClientConfiguration
     {
-        public static int bytelength = 22;
+        public static int bytelength = 42;
         public enum SyncState { Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3 };
         public enum depthResolution { NFOV320Binned = 1, NFOV640Unbinned = 2, WFOV512Binned = 3, WFOV1024Unbinned = 4 };
         public enum colorMode { MJPEG = 0, NV12 = 1, YUV2 = 2, BGRA = 3};
@@ -21,6 +21,7 @@ namespace LiveScanServer
         public bool FilterDepthMap;
         public int FilterDepthMapSize;
         public string SerialNumber;
+        public string NickName;
         public byte globalDeviceIndex; //Each Client recieves a unique index from the server 
         public SyncState eSoftwareSyncState; //The sync state as set by the server
         public SyncState eHardwareSyncState; //The sync state that the sync jacks on the device are set for.
@@ -38,6 +39,7 @@ namespace LiveScanServer
             eHardwareSyncState = SyncState.Unknown;
             syncOffset = 0;
             SerialNumber = "Unknown";
+            NickName = ""; //Max 20 ASCII chars
             globalDeviceIndex = 0; // 255 = invalid index
             FilterDepthMap = false;
             FilterDepthMapSize = 0;
@@ -54,18 +56,19 @@ namespace LiveScanServer
             eHardwareSyncState = (SyncState)bytes[4];
             syncOffset = bytes[5];
             SerialNumber = "";
+
             for (int i = 6; i < 19; i++)
-            {
                 SerialNumber += (char)((int)bytes[i]);
-            }
-            globalDeviceIndex = bytes[19];
-            FilterDepthMap = bytes[20] == 0 ? false : true;
-            FilterDepthMapSize = bytes[21];
+            for (int i = 20; i < 39; i++)
+                NickName += (char)((int)bytes[i]);
+            
+            globalDeviceIndex = bytes[40];
+            FilterDepthMap = bytes[41] == 0 ? false : true;
+            FilterDepthMapSize = bytes[42];
         }
 
         public byte[] ToBytes()
         {
-
             byte[] data = new byte[bytelength];
             data[0] = (byte)eDepthRes;
             data[1] = (byte)eColorMode;
@@ -74,13 +77,14 @@ namespace LiveScanServer
             data[4] = (byte)eHardwareSyncState;
             data[5] = syncOffset;
 
-            for(int i = 6; i < 19; i++)
-            {
+            for (int i = 6; i < 19; i++)
                 data[i] = (byte)SerialNumber[i - 6];
-            }
-            data[19] = globalDeviceIndex;
-            data[20] = (byte)(FilterDepthMap ? 1 : 0);
-            data[21] = (byte)FilterDepthMapSize;
+            for (int i = 20; i < 39; i++)
+                data[i] = (byte)NickName[i - 20];
+
+            data[40] = globalDeviceIndex;
+            data[41] = (byte)(FilterDepthMap ? 1 : 0);
+            data[42] = (byte)FilterDepthMapSize;
             return data;
         }
     }

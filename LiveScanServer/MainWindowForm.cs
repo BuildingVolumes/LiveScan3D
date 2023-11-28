@@ -366,7 +366,7 @@ namespace LiveScanServer
                     socketList[i].configuration.globalDeviceIndex.ToString(),
                     socketList[i].configuration.SerialNumber,
                     socketList[i].GetIP(),
-                    socketList[i].bCalibrated.ToString(),
+                    socketList[i].bCalibrated? "Yes" : "No",
                     socketList[i].configuration.eSoftwareSyncState.ToString(),
                     socketList[i].bVisible.ToString(),
                     "⚙️"
@@ -399,6 +399,15 @@ namespace LiveScanServer
             else if (e.ColumnIndex == 6)
             {
                 OpenConfigurationForm(liveScanServer.GetState().clients[e.RowIndex].configuration.SerialNumber);
+            }
+        }
+
+        private void gvClients_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            //Nickname changed
+            if(e.ColumnIndex == 2)
+            {
+                liveScanServer.SetNickname(liveScanServer.GetState().clients[e.RowIndex].configuration.SerialNumber, Convert.ToString(gvClients.Rows[e.RowIndex].Cells[2].Value));
             }
         }
 
@@ -652,8 +661,9 @@ namespace LiveScanServer
             oOpenGLWindow.OnKeyDown(sender, e);
         }
 
+
         #endregion
 
-       
+
     }
 }

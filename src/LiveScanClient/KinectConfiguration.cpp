@@ -14,17 +14,20 @@
 	bool filter_depth_map;
 	int filter_depth_map_size = 5;
 	const int serialNumberSize = 13;
+	const int nickNameSize = 20;
 
 	KinectConfiguration::KinectConfiguration()
 	{
 		serialNumber = "Unknown Device";
+		nickname = "                    ";
 		InitializeDefaults();
 	}
 
-	KinectConfiguration::KinectConfiguration(std::string serialNo, k4a_device_configuration_t conf, SYNC_STATE softwareSyncState, SYNC_STATE hardwareSyncState, int syncOffset,
+	KinectConfiguration::KinectConfiguration(std::string serialNo, std::string name, k4a_device_configuration_t conf, SYNC_STATE softwareSyncState, SYNC_STATE hardwareSyncState, int syncOffset,
 		int globalDeviceIndex, bool filterDepth, int filterDepthSize)
 	{
 		serialNumber = serialNo;
+		nickname = name;
 		config = conf;
 		eSoftwareSyncState = softwareSyncState;
 		eHardwareSyncState = hardwareSyncState;
@@ -47,6 +50,9 @@
 		message[5] = (char)(int)nSyncOffset;
 		for (int i = 6; i < serialNumberSize+6; i++) {
 			message[i] = (int)serialNumber[i - 6];//ascii->char
+		}
+		for (int i = 20; i < 20 + nickNameSize; i++)	{
+			message[i] = nickname[i - 20];
 		}
 		message[19] = nGlobalDeviceIndex;
 		message[20] = filter_depth_map ? 1 : 0;
@@ -94,14 +100,20 @@
 		i++;
 
 		//set sync_offset
-
 		nSyncOffset = (int)received[i];
 		i++;
 
 		//ignore re-setting the SerialNumber
 		i += serialNumberSize;
 
-		//i == 18 at this point
+		//Set Nickname
+		for (int j = 0; j < nickNameSize; j++)
+		{
+			nickname[j] = i;
+			i++;
+		}
+
+		//i == 40 at this point
 		nGlobalDeviceIndex = (int)received[i];
 		i++;
 		filter_depth_map = ((int)received[i] == 0) ? false : true;

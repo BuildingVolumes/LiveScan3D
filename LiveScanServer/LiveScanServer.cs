@@ -207,7 +207,7 @@ namespace LiveScanServer
         public void SetConfigurations(List<ClientConfiguration> newConfigs, bool restart)
         {
             bool restartAll = false;
-            
+
             if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
                 restartAll = true;
 
@@ -218,7 +218,7 @@ namespace LiveScanServer
 
             Cursor.Current = Cursors.WaitCursor;
 
-            if(restart && newConfigs.Count == 1)
+            if (restart && newConfigs.Count == 1)
                 oServer.RestartClient(newConfigs[0].SerialNumber);
 
             if (restartAll || (restart && newConfigs.Count > 1))
@@ -440,6 +440,29 @@ namespace LiveScanServer
         public void SetVisibility(int index, bool visible)
         {
             state.clients[index].bVisible = visible;
+            UpdateUI();
+        }
+
+        public void SetNickname(string serial, string nickname)
+        {
+            string formattedName = "";
+
+            //Convert to ASCII only
+            for (int i = 0; i < nickname.Length; i++)
+                formattedName += nickname[i] > 255 ? '?' : nickname[i];
+
+            //Max 20 chars allowed
+            if (formattedName.Length > 20)
+                formattedName = formattedName.Substring(0, 20);
+
+            //..But we also need exactly 20 chars
+            for (int i = 0; i < 20 - formattedName.Length; i++)
+                formattedName += ' ';
+
+            ClientConfiguration newConfig = GetConfigFromSerial(serial);
+            newConfig.NickName = formattedName;
+            oServer.SetAndConfirmConfig(newConfig);
+
             UpdateUI();
         }
 
