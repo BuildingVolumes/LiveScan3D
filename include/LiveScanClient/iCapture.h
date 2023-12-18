@@ -44,9 +44,11 @@ public:
 	ICapture();
 	virtual ~ICapture();
 
-	virtual bool Initialize(KinectConfiguration& configuration) = 0;
+	virtual bool OpenDevice();
+	virtual bool StartDevice(KinectConfiguration& configuration) = 0;
 	virtual void SetLogger(Log* log) = 0;
 	virtual void SetManualDeviceIndex(int index) = 0; //Only used for testing devices for now
+	virtual std::string GetSerial();
 	virtual bool AquireRawFrame() = 0;
 	//virtual bool AquirePointcloudFrame() = 0;
 	virtual void DecodeRawColor() = 0;
@@ -64,7 +66,8 @@ public:
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) = 0;
 	virtual void SetConfiguration(KinectConfiguration& configuration) = 0;
 
-	bool bInitialized;
+	bool bOpen;
+	bool bStarted;
 
 	int nColorFrameHeight, nColorFrameWidth;
 

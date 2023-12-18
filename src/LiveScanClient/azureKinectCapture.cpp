@@ -17,7 +17,7 @@ AzureKinectCapture::~AzureKinectCapture()
 	k4a_transformation_destroy(transformation);
 	k4a_device_close(kinectSensor);
 
-	if(turboJpeg)
+	if (turboJpeg)
 		tjDestroy(turboJpeg);
 
 	if (log)
@@ -25,13 +25,12 @@ AzureKinectCapture::~AzureKinectCapture()
 }
 
 /// <summary>
-/// Initialize a device with the given configuration
+/// Opens a device and registers it to this client instance, but doesn't start the capture yet
 /// </summary>
-/// <param name="configuration"></param>
 /// <returns>Returns true on success, false on error</returns>
-bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
+bool AzureKinectCapture::OpenDevice()
 {
-	logBuffer.LogDebug("Starting Azure Kinect Device initialization");
+	logBuffer.LogDebug("Opening Azure Kinect Device initialization");
 
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -40,7 +39,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	//When the cameras are reinitialized during runtime, we can then gurantee
 	//that each LiveScan instance uses the same device as before (In case two or more Kinects are connected to the same PC)
 	//A device ID of -1 means that no Kinects have been successfully initalized yet (only happens when the Client starts)
-	if (localDeviceIndex != -1) {
+	if (localDeviceIndex != -1)
+	{
 		deviceIdx = localDeviceIndex;
 	}
 
@@ -52,13 +52,24 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 			deviceIdx++;
 			if (deviceIdx >= count)
 			{
-				bInitialized = false;
+				bOpen = false;
 				logBuffer.LogError("Could not open an Azure Kinect device");
-				return bInitialized;
+				return bOpen;
 			}
 		}
 	}
 
+	bOpen = true;
+	GetSerial();
+}
+
+/// <summary>
+/// Starts a device with the given configuration, so that we can capture images
+/// </summary>
+/// <param name="configuration"></param>
+/// <returns>Returns true on success, false on error</returns>
+bool AzureKinectCapture::StartDevice(KinectConfiguration& configuration)
+{
 	if (configuration.eSoftwareSyncState == Main)
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
@@ -102,7 +113,8 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 	//is much lower than in auto exposure mode. To prevent this, we first set the camera to auto exposure mode and 
 	//then switch to manual mode again if it has been enabled before
 
-	if (autoExposureEnabled == false) {
+	if (autoExposureEnabled == false)
+	{
 
 		logBuffer.LogDebug("Manual exposure enabled. Setting camera to auto exposure and adjust for one second as a workaround for a bug in exposure settings");
 
@@ -158,10 +170,6 @@ bool AzureKinectCapture::Initialize(KinectConfiguration& configuration)
 		} while (!bTemp);
 	}
 
-	size_t serialNoSize;
-	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
-	serialNumber = std::string(serialNoSize, '\0');
-	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
 	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
 
 	localDeviceIndex = deviceIdx;
@@ -203,7 +211,7 @@ bool AzureKinectCapture::Close()
 	k4a_image_release(colorImageDownscaled);
 	k4a_transformation_destroy(transformationColorDownscaled);
 	k4a_transformation_destroy(transformation);
-	
+
 	k4a_device_stop_cameras(kinectSensor);
 	k4a_device_close(kinectSensor);
 
@@ -221,7 +229,8 @@ bool AzureKinectCapture::Close()
 	return true;
 }
 
-bool AzureKinectCapture::AquireRawFrame() {
+bool AzureKinectCapture::AquireRawFrame()
+{
 
 	if (!bInitialized)
 	{
@@ -262,18 +271,20 @@ bool AzureKinectCapture::AquireRawFrame() {
 /// <summary>
 /// Decompresses the raw MJPEG image from the camera to a BGRA cvMat using TurboJpeg
 /// </summary>
-void AzureKinectCapture::DecodeRawColor() {
+void AzureKinectCapture::DecodeRawColor()
+{
 
 	nColorFrameHeight = k4a_image_get_height_pixels(colorImageMJPG);
 	nColorFrameWidth = k4a_image_get_width_pixels(colorImageMJPG);
 
-	if(colorBGR.cols != nColorFrameWidth || colorBGR.rows != nColorFrameHeight) //If we use downscaling again, we need to seperate the downscaled and non-downscaled images into seperate buffers
+	if (colorBGR.cols != nColorFrameWidth || colorBGR.rows != nColorFrameHeight) //If we use downscaling again, we need to seperate the downscaled and non-downscaled images into seperate buffers
 		colorBGR = cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
 
 	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR.data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
 }
 
-void AzureKinectCapture::DownscaleColorImgToDepthImgSize() {
+void AzureKinectCapture::DownscaleColorImgToDepthImgSize()
+{
 
 	//Resize the k4a_image to the precalculated size, so that we later save on resources while transforming the image
 	//Nice idea, however resizing takes so long, that it's not worth it. 
@@ -316,8 +327,9 @@ void AzureKinectCapture::MapDepthToColor()
 /// <summary>
 /// Creates a Pointcloud out of the transformedDepthImage and saves it in PointcloudImage. Make sure to run MapDepthToColor before calling this function
 /// </summary>
-void AzureKinectCapture::GeneratePointcloud() {
-	
+void AzureKinectCapture::GeneratePointcloud()
+{
+
 	if (pointCloudImage == NULL)
 	{
 		k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * 3 * (int)sizeof(int16_t), &pointCloudImage);
@@ -327,10 +339,10 @@ void AzureKinectCapture::GeneratePointcloud() {
 }
 
 
- ///<summary>
- ///Translates the k4a_image_t pointcloud into a easier to handle Point3f array. Make sure to run MapDepthToColorFrame & GeneratePointcloud before calling this function
- ///</summary>
- ///<param name="pCameraSpacePoints"></param>
+///<summary>
+///Translates the k4a_image_t pointcloud into a easier to handle Point3f array. Make sure to run MapDepthToColorFrame & GeneratePointcloud before calling this function
+///</summary>
+///<param name="pCameraSpacePoints"></param>
 void AzureKinectCapture::PointCloudImageToPoint3f(Point3f* pCameraSpacePoints)
 {
 	int16_t* pointCloudData = (int16_t*)k4a_image_get_buffer(pointCloudImage);
@@ -410,6 +422,17 @@ void AzureKinectCapture::SetWhiteBalanceState(bool enableAutoBalance, int kelvin
 	}
 }
 
+std::string AzureKinectCapture::GetSerial()
+{
+	if (!bInitialized)
+		return std::string("");
+
+	size_t serialNoSize;
+	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
+	serialNumber = std::string(serialNoSize, '\0');
+	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
+}
+
 
 /// <summary>
 /// Determines if this camera is configured as a Master, Subordinate or Standalone. 
@@ -425,10 +448,10 @@ int AzureKinectCapture::GetSyncJackState()
 		if (syncOutConnected && !syncInConnected)
 			return 0; //Device is Master, as it doens't recieve a signal from its "Sync In" Port, but sends one through its "Sync Out" Port}
 
-		else if(syncInConnected)
+		else if (syncInConnected)
 			return 1; //Device is Subordinate, as it recieves a signal via its "Sync In" Port
 
-		else 
+		else
 			return 2;
 
 	}

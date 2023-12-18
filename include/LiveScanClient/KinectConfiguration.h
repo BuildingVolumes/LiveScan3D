@@ -2,6 +2,9 @@
 #include <k4a/k4atypes.h>
 #include <string>
 #include "utils.h"
+#include <fstream>
+#include <filesystem>
+#include <sstream>
 //Kinect Configuration holds information that may be specific to kinects.
 // It does not completely describe a configuration. See azureKinectCapture for that (which contains one of these)
 // This is a subset of the kinect information that may need to set over the network.
@@ -24,6 +27,8 @@ public:
 	int filter_depth_map_size = 5;
 	char* ToBytes();
 	void SetFromBytes(char* received);
+	void Save();
+	void TryLoad(std::string serial);
 
 	void InitializeDefaults();
 	int GetDepthCameraWidth();

@@ -67,6 +67,8 @@ LiveScanClient::LiveScanClient() :
 
 LiveScanClient::~LiveScanClient()
 {
+	configuration.Save();
+
 	if (pCapture)
 	{
 		delete pCapture;
@@ -120,7 +122,6 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 
 	// Get and initialize the default Kinect sensor as standalone
 	configuration = *new KinectConfiguration();
-	configuration.eSoftwareSyncState = Standalone;
 	bool res = pCapture->Initialize(configuration);
 	if (res)
 	{

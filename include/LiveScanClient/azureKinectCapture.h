@@ -10,7 +10,8 @@ public:
 	AzureKinectCapture();
 	~AzureKinectCapture();
 
-	virtual bool Initialize(KinectConfiguration& configuration);
+	virtual bool OpenDevice();
+	virtual bool StartDevice(KinectConfiguration& configuration);
 	virtual void SetLogger(Log* logger);
 	virtual void SetManualDeviceIndex(int index);
 	virtual bool AquireRawFrame();
@@ -27,6 +28,7 @@ public:
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
 	virtual void SetConfiguration(KinectConfiguration& configuration);
 	virtual void SetWhiteBalanceState(bool enableAutoBalance, int kelvin);
+	std::string GetSerial();
 
 protected:
 	k4a_device_t kinectSensor = NULL;
