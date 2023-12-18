@@ -23,7 +23,7 @@ public:
 	bool filter_depth_map;
 	int filter_depth_map_size = 5;
 	char* ToBytes();
-	void SetFromBytes(std::string bytes);
+	void SetFromBytes(char* received);
 
 	void InitializeDefaults();
 	int GetDepthCameraWidth();

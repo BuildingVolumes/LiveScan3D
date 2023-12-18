@@ -364,7 +364,7 @@ namespace LiveScanServer
                     gridViewRows.Add(new string[]
                     {
                     socketList[i].configuration.globalDeviceIndex.ToString(),
-                    socketList[i].configuration.SerialNumber,
+                    socketList[i].configuration.NickName[0] == ' ' ? socketList[i].configuration.SerialNumber : socketList[i].configuration.NickName,
                     socketList[i].GetIP(),
                     socketList[i].bCalibrated? "Yes" : "No",
                     socketList[i].configuration.eSoftwareSyncState.ToString(),
@@ -405,9 +405,9 @@ namespace LiveScanServer
         private void gvClients_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             //Nickname changed
-            if(e.ColumnIndex == 2)
+            if(e.ColumnIndex == 1)
             {
-                liveScanServer.SetNickname(liveScanServer.GetState().clients[e.RowIndex].configuration.SerialNumber, Convert.ToString(gvClients.Rows[e.RowIndex].Cells[2].Value));
+                liveScanServer.SetNickname(liveScanServer.GetState().clients[e.RowIndex].configuration.SerialNumber, Convert.ToString(gvClients.Rows[e.RowIndex].Cells[1].Value));
             }
         }
 

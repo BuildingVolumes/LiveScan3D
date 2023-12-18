@@ -13,6 +13,8 @@ namespace LiveScanServer
     public class ClientConfiguration
     {
         public static int bytelength = 42;
+        static int serialnumberSize = 13;
+        static int nicknameSize = 20;
         public enum SyncState { Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3 };
         public enum depthResolution { NFOV320Binned = 1, NFOV640Unbinned = 2, WFOV512Binned = 3, WFOV1024Unbinned = 4 };
         public enum colorMode { MJPEG = 0, NV12 = 1, YUV2 = 2, BGRA = 3};
@@ -39,7 +41,7 @@ namespace LiveScanServer
             eHardwareSyncState = SyncState.Unknown;
             syncOffset = 0;
             SerialNumber = "Unknown";
-            NickName = ""; //Max 20 ASCII chars
+            NickName = "Das ist ein Test rtr"; //new string(' ', 20); //Exactly 20 ASCII chars
             globalDeviceIndex = 0; // 255 = invalid index
             FilterDepthMap = false;
             FilterDepthMapSize = 0;
@@ -48,43 +50,68 @@ namespace LiveScanServer
 
         //Matches KinectConfiguration.cpp
         public ClientConfiguration(byte[] bytes)
-        { 
-            eDepthRes = (depthResolution)bytes[0];
-            eColorMode = (colorMode)bytes[1];
-            eColorRes = (colorResolution)bytes[2];
-            eSoftwareSyncState = (SyncState)bytes[3];
-            eHardwareSyncState = (SyncState)bytes[4];
-            syncOffset = bytes[5];
-            SerialNumber = "";
-
-            for (int i = 6; i < 19; i++)
+        {
+            int i = 0;
+            eDepthRes = (depthResolution)bytes[i];
+            i++;
+            eColorMode = (colorMode)bytes[i];
+            i++;
+            eColorRes = (colorResolution)bytes[i];
+            i++;
+            eSoftwareSyncState = (SyncState)bytes[i];
+            i++;
+            eHardwareSyncState = (SyncState)bytes[i];
+            i++;
+            syncOffset = bytes[i];
+            i++;
+            
+            SerialNumber = string.Empty;
+            int c = i;
+            for (; i < c + serialnumberSize; i++)
                 SerialNumber += (char)((int)bytes[i]);
-            for (int i = 20; i < 39; i++)
+
+            c = i;
+            for (; i < c + nicknameSize; i++)
                 NickName += (char)((int)bytes[i]);
             
-            globalDeviceIndex = bytes[40];
-            FilterDepthMap = bytes[41] == 0 ? false : true;
-            FilterDepthMapSize = bytes[42];
+            globalDeviceIndex = bytes[i];
+            i++;
+            FilterDepthMap = bytes[i] == 0 ? false : true;
+            i++;
+            FilterDepthMapSize = bytes[i];
         }
 
         public byte[] ToBytes()
         {
+            int i = 0;
+
             byte[] data = new byte[bytelength];
-            data[0] = (byte)eDepthRes;
-            data[1] = (byte)eColorMode;
-            data[2] = (byte)eColorRes;
-            data[3] = (byte)eSoftwareSyncState;
-            data[4] = (byte)eHardwareSyncState;
-            data[5] = syncOffset;
+            data[i] = (byte)eDepthRes;
+            i++;
+            data[i] = (byte)eColorMode;
+            i++;
+            data[i] = (byte)eColorRes;
+            i++;
+            data[i] = (byte)eSoftwareSyncState;
+            i++;
+            data[i] = (byte)eHardwareSyncState;
+            i++;
+            data[i] = syncOffset;
+            i++;
 
-            for (int i = 6; i < 19; i++)
-                data[i] = (byte)SerialNumber[i - 6];
-            for (int i = 20; i < 39; i++)
-                data[i] = (byte)NickName[i - 20];
+            int c = i;
+            for (; i < c + serialnumberSize; i++)
+                data[i] = (byte)SerialNumber[i - c];
 
-            data[40] = globalDeviceIndex;
-            data[41] = (byte)(FilterDepthMap ? 1 : 0);
-            data[42] = (byte)FilterDepthMapSize;
+            c = i;
+            for (; i < c + nicknameSize; i++)
+                data[i] = (byte)NickName[i - c];
+
+            data[i] = globalDeviceIndex;
+            i++;
+            data[i] = (byte)(FilterDepthMap ? 1 : 0);
+            i++;
+            data[i] = (byte)FilterDepthMapSize;
             return data;
         }
     }

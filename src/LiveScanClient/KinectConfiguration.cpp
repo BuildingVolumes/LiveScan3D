@@ -19,7 +19,7 @@
 	KinectConfiguration::KinectConfiguration()
 	{
 		serialNumber = "Unknown Device";
-		nickname = "                    ";
+		nickname = std::string(nickNameSize, ' ');
 		InitializeDefaults();
 	}
 
@@ -41,33 +41,45 @@
 	{
 		//update const byteLength when changing this
 		char* message = new char[byteLength];
+		int i = 0;
 
-		message[0] = (char)config.depth_mode;
-		message[1] = (char)config.color_format;
-		message[2] = (char)config.color_resolution;
-		message[3] = (char)(int)eSoftwareSyncState; //Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
-		message[4] = (char)(int)eHardwareSyncState;
-		message[5] = (char)(int)nSyncOffset;
-		for (int i = 6; i < serialNumberSize+6; i++) {
-			message[i] = (int)serialNumber[i - 6];//ascii->char
+		message[i] = (char)config.depth_mode;
+		i++;
+		message[i] = (char)config.color_format;
+		i++;
+		message[i] = (char)config.color_resolution;
+		i++;
+		message[i] = (char)(int)eSoftwareSyncState; //Main = 0, Subordinate = 1, Standalone = 2, Unknown = 3
+		i++;
+		message[i] = (char)(int)eHardwareSyncState;
+		i++;
+		message[i] = (char)(int)nSyncOffset;
+		i++;
+
+		int c = i;
+
+		for (; i < (serialNumberSize + c); i++)
+		{
+			message[i] = (int)serialNumber[i - c];//ascii->char
 		}
-		for (int i = 20; i < 20 + nickNameSize; i++)	{
-			message[i] = nickname[i - 20];
+
+		c = i;
+		for (; i < (nickNameSize + c); i++)	
+		{
+			message[i] = nickname[i - c];
 		}
-		message[19] = nGlobalDeviceIndex;
-		message[20] = filter_depth_map ? 1 : 0;
-		message[21] = filter_depth_map_size;
+
+		message[i] = nGlobalDeviceIndex;
+		i++;
+		message[i] = filter_depth_map ? 1 : 0;
+		i++;
+		message[i] = filter_depth_map_size;
 
 		return message;
 	}
 
-	void KinectConfiguration::SetFromBytes(std::string received)
+	void KinectConfiguration::SetFromBytes(char* received)
 	{
-		//if length is not byteLength, throw error.
-		if (received.length() != byteLength) {
-			//TODO: Throw error (debug only)
-		}
-
 		int i = 0;
 
 		//set depth mode.
@@ -109,7 +121,7 @@
 		//Set Nickname
 		for (int j = 0; j < nickNameSize; j++)
 		{
-			nickname[j] = i;
+			nickname[j] = received[i];
 			i++;
 		}
 

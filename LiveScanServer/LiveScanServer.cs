@@ -449,16 +449,18 @@ namespace LiveScanServer
 
             //Convert to ASCII only
             for (int i = 0; i < nickname.Length; i++)
-                formattedName += nickname[i] > 255 ? '?' : nickname[i];
+                formattedName += nickname[i] > 127 ? '?' : nickname[i];
 
             //Max 20 chars allowed
             if (formattedName.Length > 20)
                 formattedName = formattedName.Substring(0, 20);
 
             //..But we also need exactly 20 chars
-            for (int i = 0; i < 20 - formattedName.Length; i++)
+            int length = formattedName.Length;
+            for (int i = 0; i < 20 - length; i++)
                 formattedName += ' ';
 
+            Log.LogInfo("Setting nickname of device: " + serial + " to: " + formattedName);
             ClientConfiguration newConfig = GetConfigFromSerial(serial);
             newConfig.NickName = formattedName;
             oServer.SetAndConfirmConfig(newConfig);

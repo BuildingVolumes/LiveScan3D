@@ -566,7 +566,6 @@ void LiveScanClient::HandleSocket()
 
 	string received = m_pClientSocket->ReceiveBytes();
 
-
 	if (!received.empty())
 	{
 
@@ -642,18 +641,19 @@ void LiveScanClient::HandleSocket()
 
 		else if (received[i] == MSG_SET_CONFIGURATION)
 		{
+			i++;
+			
 			logBuffer.LogInfo("Recieved new configuration");
 
-			i++;
-		std:string message;
-			//TODO: this can be done with substrings, im sure.
+			char* message = new char[KinectConfiguration::byteLength];
 			for (int x = 0; x < KinectConfiguration::byteLength; x++)
 			{
-				message.push_back(received[i + x]);
+				message[x] = received[i + x];
 			}
 
 			i += KinectConfiguration::byteLength;
 			configuration.SetFromBytes(message);
+			delete[] message;
 
 			i--;
 		}
@@ -1244,8 +1244,6 @@ void LiveScanClient::UpdateFPS()
 
 	long difference = std::chrono::duration_cast<std::chrono::milliseconds>(m_tFrameTime - m_tOldFrameTime).count();
 
-	logBuffer.LogInfo(to_string(difference));
-
 	if (difference > 0)
 		m_nFPSUpdateCounter += difference;
 
@@ -1303,7 +1301,12 @@ DeviceStatus LiveScanClient::GetDeviceStatusTS()
 {
 	DeviceStatus deviceStatus;
 	deviceStatus.status = m_eClientStatus;
-	deviceStatus.name = configuration.serialNumber;
+
+	if (configuration.nickname[0] == ' ')
+		deviceStatus.name = configuration.serialNumber;
+	else
+		deviceStatus.name = configuration.nickname;
+	
 	return deviceStatus;
 }
 
