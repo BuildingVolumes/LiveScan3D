@@ -9,13 +9,7 @@ AzureKinectCapture::AzureKinectCapture()
 
 AzureKinectCapture::~AzureKinectCapture()
 {
-	k4a_image_release(colorImageMJPG);
-	k4a_image_release(depthImage16Int);
-	k4a_image_release(pointCloudImage);
-	k4a_image_release(depthImageInColor);
-	k4a_image_release(colorImageDownscaled);
-	k4a_transformation_destroy(transformation);
-	k4a_device_close(kinectSensor);
+	DisposeDevice();
 
 	if (turboJpeg)
 		tjDestroy(turboJpeg);
@@ -30,7 +24,7 @@ AzureKinectCapture::~AzureKinectCapture()
 /// <returns>Returns true on success, false on error</returns>
 bool AzureKinectCapture::OpenDevice()
 {
-	logBuffer.LogDebug("Opening Azure Kinect Device initialization");
+	logBuffer.LogDebug("Opening Azure Kinect Device");
 
 	uint32_t count = k4a_device_get_installed_count();
 	int deviceIdx = 0;
@@ -59,8 +53,12 @@ bool AzureKinectCapture::OpenDevice()
 		}
 	}
 
+	localDeviceIndex = deviceIdx;
 	bOpen = true;
-	GetSerial();
+
+	AquireSerialFromDevice();
+
+	return bOpen;
 }
 
 /// <summary>
@@ -68,8 +66,10 @@ bool AzureKinectCapture::OpenDevice()
 /// </summary>
 /// <param name="configuration"></param>
 /// <returns>Returns true on success, false on error</returns>
-bool AzureKinectCapture::StartDevice(KinectConfiguration& configuration)
+bool AzureKinectCapture::StartCamera(KinectConfiguration& configuration)
 {
+	logBuffer.LogDebug("Starting Azure Kinect Camera");
+
 	if (configuration.eSoftwareSyncState == Main)
 	{
 		configuration.config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
@@ -93,20 +93,20 @@ bool AzureKinectCapture::StartDevice(KinectConfiguration& configuration)
 	}
 
 	// Start the camera with the given configuration
-	bInitialized = K4A_SUCCEEDED(k4a_device_start_cameras(kinectSensor, &configuration.config));
+	bStarted = K4A_SUCCEEDED(k4a_device_start_cameras(kinectSensor, &configuration.config));
 
-	if (!bInitialized)
+	if (!bStarted)
 	{
 		logBuffer.LogError("Could not start Azure Kinect Device");
-		return bInitialized;
+		return bStarted;
 	}
 
 	k4a_calibration_t calibration;
 	if (K4A_FAILED(k4a_device_get_calibration(kinectSensor, configuration.config.depth_mode, configuration.config.color_resolution, &calibration)))
 	{
 		logBuffer.LogError("Could not get Azure Kinect Device calibration");
-		bInitialized = false;
-		return bInitialized;
+		bStarted = false;
+		return bStarted;
 	}
 
 	//Workaround for a bug. When the camera starts in manual Exposure mode, the brightness of the RBG image
@@ -164,15 +164,11 @@ bool AzureKinectCapture::StartDevice(KinectConfiguration& configuration)
 			std::chrono::duration<double> elapsedSeconds = std::chrono::system_clock::now() - start;
 			if (elapsedSeconds.count() > 5.0)
 			{
-				bInitialized = false;
+				bStarted = false;
 				break;
 			}
 		} while (!bTemp);
 	}
-
-	configuration.SetSerialNumber(serialNumber);//set the serial number in the configuration struct.
-
-	localDeviceIndex = deviceIdx;
 
 	SetConfiguration(configuration); //We do this at the end, instead of the beginning, so that later we can move config logic (that doesnt require re-init, like exposure) into SetConfiguration.
 
@@ -180,7 +176,51 @@ bool AzureKinectCapture::StartDevice(KinectConfiguration& configuration)
 
 	logBuffer.LogInfo("Initialization successfull");
 
-	return bInitialized;
+	return bStarted;
+}
+
+void AzureKinectCapture::StopCamera()
+{
+	if (!bStarted)
+		return;
+
+	logBuffer.LogInfo("Stopping Azure Kinect camera");
+
+	k4a_device_stop_cameras(kinectSensor);
+
+	//We release the resources here, as the might change dimensions on new start
+	k4a_image_release(colorImageMJPG);
+	k4a_image_release(depthImage16Int);
+	k4a_image_release(pointCloudImage);
+	k4a_image_release(depthImageInColor);
+	k4a_image_release(transformedDepthImage);
+	k4a_image_release(colorImageDownscaled);
+	k4a_transformation_destroy(transformationColorDownscaled);
+	k4a_transformation_destroy(transformation);
+
+	colorImageMJPG = NULL;
+	depthImage16Int = NULL;
+	pointCloudImage = NULL;
+	transformedDepthImage = NULL;
+	depthImageInColor = NULL;
+	colorImageDownscaled = NULL;
+	transformationColorDownscaled = NULL;
+	transformation = NULL;
+
+	bStarted = false;
+}
+
+void AzureKinectCapture::DisposeDevice()
+{
+	logBuffer.LogDebug("Disposing Azure Kinect Device");
+
+	if (!bOpen)
+		return;
+
+	StopCamera();
+	k4a_device_close(kinectSensor);
+
+	bOpen = false;
 }
 
 void AzureKinectCapture::SetConfiguration(KinectConfiguration& configuration)
@@ -194,47 +234,11 @@ void AzureKinectCapture::SetLogger(Log* logger)
 	log->RegisterBuffer(&logBuffer);
 }
 
-bool AzureKinectCapture::Close()
-{
-	logBuffer.LogInfo("Closing Azure Kinect device");
-
-	if (!bInitialized)
-	{
-		return false;
-	}
-
-	k4a_image_release(colorImageMJPG);
-	k4a_image_release(depthImage16Int);
-	k4a_image_release(pointCloudImage);
-	k4a_image_release(depthImageInColor);
-	k4a_image_release(transformedDepthImage);
-	k4a_image_release(colorImageDownscaled);
-	k4a_transformation_destroy(transformationColorDownscaled);
-	k4a_transformation_destroy(transformation);
-
-	k4a_device_stop_cameras(kinectSensor);
-	k4a_device_close(kinectSensor);
-
-	colorImageMJPG = NULL;
-	depthImage16Int = NULL;
-	pointCloudImage = NULL;
-	transformedDepthImage = NULL;
-	depthImageInColor = NULL;
-	colorImageDownscaled = NULL;
-	transformationColorDownscaled = NULL;
-	transformation = NULL;
-
-	bInitialized = false;
-
-	return true;
-}
-
 bool AzureKinectCapture::AquireRawFrame()
 {
-
-	if (!bInitialized)
+	if (!bStarted)
 	{
-		logBuffer.LogCaptureDebug("Trying to aquire a Frame, but camera is not initialized");
+		logBuffer.LogCaptureDebug("Trying to aquire a Frame, but camera has not been started");
 		return false;
 	}
 
@@ -370,9 +374,7 @@ void AzureKinectCapture::SetExposureState(bool enableAutoExposure, int exposureS
 	std::string info = "Setting Exposure. Auto exposure enabled: " + std::to_string(enableAutoExposure) + " , exposure step: " + std::to_string(exposureStep);
 	logBuffer.LogDebug(info);
 
-
-
-	if (bInitialized)
+	if (bStarted)
 	{
 		if (enableAutoExposure)
 		{
@@ -403,7 +405,7 @@ void AzureKinectCapture::SetWhiteBalanceState(bool enableAutoBalance, int kelvin
 	std::string info = "Setting White Balance. Auto White Balance Enabled: " + std::to_string(enableAutoBalance) + " , Kelvin (if manual): " + std::to_string(kelvin);
 	logBuffer.LogDebug(info);
 
-	if (bInitialized)
+	if (bStarted)
 	{
 		if (enableAutoBalance)
 		{
@@ -422,15 +424,30 @@ void AzureKinectCapture::SetWhiteBalanceState(bool enableAutoBalance, int kelvin
 	}
 }
 
-std::string AzureKinectCapture::GetSerial()
+bool AzureKinectCapture::AquireSerialFromDevice()
 {
-	if (!bInitialized)
-		return std::string("");
+	logBuffer.LogDebug("Aquiring Serial Nnmber from device");
+
+	if (!bOpen)
+		return false;
 
 	size_t serialNoSize;
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
 	serialNumber = std::string(serialNoSize, '\0');
-	k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize);
+
+	if (k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize) == K4A_BUFFER_RESULT_SUCCEEDED)
+	{
+		logBuffer.LogInfo("Device serial number = " + serialNumber);
+		return true;
+	}
+
+	else
+		return false;
+}
+
+std::string AzureKinectCapture::GetSerial()
+{
+	return serialNumber;
 }
 
 
@@ -490,7 +507,6 @@ bool AzureKinectCapture::GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buf
 /// <returns></returns>
 uint64_t AzureKinectCapture::GetTimeStamp()
 {
-	//std::cout << "Getting timestamp at: " << currentTimeStamp << std::endl;
 	return currentTimeStamp;
 }
 

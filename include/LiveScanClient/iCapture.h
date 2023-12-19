@@ -44,21 +44,23 @@ public:
 	ICapture();
 	virtual ~ICapture();
 
-	virtual bool OpenDevice();
-	virtual bool StartDevice(KinectConfiguration& configuration) = 0;
+	virtual bool OpenDevice() = 0;
+	virtual bool StartCamera(KinectConfiguration& configuration) = 0;
+	virtual void StopCamera() = 0;
+	virtual void DisposeDevice() = 0;
+
 	virtual void SetLogger(Log* log) = 0;
 	virtual void SetManualDeviceIndex(int index) = 0; //Only used for testing devices for now
-	virtual std::string GetSerial();
+
 	virtual bool AquireRawFrame() = 0;
-	//virtual bool AquirePointcloudFrame() = 0;
 	virtual void DecodeRawColor() = 0;
 	virtual void DownscaleColorImgToDepthImgSize() = 0;
-	virtual bool Close() = 0;
-
 	virtual void MapDepthToColor() = 0;
 	virtual void GeneratePointcloud() = 0;
 	virtual void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints) = 0;
 
+	virtual bool AquireSerialFromDevice() = 0;
+	virtual std::string GetSerial() = 0;
 	virtual int GetSyncJackState() = 0;
 	virtual uint64_t GetTimeStamp() = 0;
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep) = 0;
@@ -82,5 +84,4 @@ public:
 
     uint8_t* pBodyIndex;
 	std::vector<Body> vBodies;
-	std::string serialNumber;
 };

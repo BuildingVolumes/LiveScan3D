@@ -18,7 +18,14 @@ const int nickNameSize = 20;
 
 KinectConfiguration::KinectConfiguration()
 {
-	serialNumber = "Unknown Device";
+	serialNumber = std::string(serialNumberSize, '0');
+	nickname = std::string(nickNameSize, ' ');
+	InitializeDefaults();
+}
+
+KinectConfiguration::KinectConfiguration(std::string serial)
+{
+	serialNumber = serial;
 	nickname = std::string(nickNameSize, ' ');
 	InitializeDefaults();
 }
@@ -149,9 +156,9 @@ void KinectConfiguration::Save()
 	configFile.close();
 }
 
-void KinectConfiguration::TryLoad(std::string serial)
+void KinectConfiguration::TryLoad()
 {
-	std::string path = "temp/configuration_" + serial + ".txt";
+	std::string path = "temp/configuration_" + serialNumber + ".txt";
 	
 	if (!std::filesystem::exists(path))
 		return;
@@ -165,16 +172,19 @@ void KinectConfiguration::TryLoad(std::string serial)
 
 	std::string name = "";
 	int i = 0;
-	for (size_t i = 0; i < nickNameSize; i++)
+	for (; i < nickNameSize; i++)
+	{
 		name += content[i];
+	}
+
 	nickname = name;
 	i++; // Skip \n
 
-	config.depth_mode = (k4a_depth_mode_t)content[i];
+	config.depth_mode = (k4a_depth_mode_t)(content[i] - 48);
 	i+=2;
-	config.color_resolution = (k4a_color_resolution_t)content[i];
+	config.color_resolution = (k4a_color_resolution_t)(content[i] - 48);
 	i+=2;
-	config.camera_fps = (k4a_fps_t)content[i];
+	config.camera_fps = (k4a_fps_t)(content[i] - 48);
 
 	
 
@@ -282,9 +292,4 @@ void KinectConfiguration::UpdateWidthAndHeight()
 void KinectConfiguration::SetDepthMode(k4a_depth_mode_t depthMode)
 {
 	config.depth_mode = depthMode;
-}
-
-void KinectConfiguration::SetSerialNumber(std::string serialNumber)
-{
-	this->serialNumber = serialNumber;
 }

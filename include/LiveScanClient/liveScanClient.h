@@ -180,8 +180,9 @@ private:
 	void Calibrate();
 	void SetStatusMessage(std::wstring message, int time, bool priority);
 	void HandleSocket();
-	bool InitializeCamera();
-	bool CloseCamera();
+	bool StartCamera();
+	void StopCamera();
+	void DisposeDevice();
 	void SendPostSyncConfirmation(bool success);
 	void SendFrame(Point3s* vertices,int verticesSize, RGBA* RGB, bool live);
 	bool PostSyncPointclouds();

@@ -87,7 +87,7 @@ LiveScanClient::~LiveScanClient()
 		m_pClientSocket = NULL;
 	}
 
-	
+
 	delete m_framesFileWriterReader;
 	m_framesFileWriterReader = NULL;
 	if (log)
@@ -120,25 +120,37 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 
 	m_framesFileWriterReader = new FrameFileWriterReader(log);
 
-	// Get and initialize the default Kinect sensor as standalone
-	configuration = *new KinectConfiguration();
-	bool res = pCapture->Initialize(configuration);
+	bool res = false;
+
+	res = pCapture->OpenDevice();
+
 	if (res)
 	{
-		logBuffer.ChangeName("Device: " + pCapture->serialNumber);
-		logBuffer.LogInfo("Device could be opened successfully");
+		std::string serial = pCapture->GetSerial();
+		configuration = *new KinectConfiguration(serial);
+		configuration.TryLoad();
 
-		m_sLastUsedIP = m_framesFileWriterReader->ReadIPFromFile();
-		configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
-		calibration.LoadCalibration(pCapture->serialNumber);
-		m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
-		pCapture->SetExposureState(true, 0);
-		m_eClientStatus = STATUS_RUNNING;
+		res = pCapture->StartCamera(configuration);
+		
+		if (res)
+		{
+			logBuffer.ChangeSerial("Device: " + serial);
+			if (configuration.nickname[0] != ' ')
+				logBuffer.ChangeName(configuration.nickname);
+			logBuffer.LogInfo("Device could be opened successfully");
+
+			m_sLastUsedIP = m_framesFileWriterReader->ReadIPFromFile();
+			configuration.eHardwareSyncState = static_cast<SYNC_STATE>(pCapture->GetSyncJackState());
+			calibration.LoadCalibration(serial);
+			m_pCameraSpaceCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
+			pCapture->SetExposureState(true, 0);
+			m_eClientStatus = STATUS_RUNNING;
+		}
 	}
 
-	else
+	if(!res)
 	{
-		logBuffer.LogFatal("Device could not be opened successfully");
+		logBuffer.LogFatal("Device could not be initialized successfully");
 		SetStatusMessage(L"Error: Device could not be initialized!", 10000, true);
 		m_bRunning = false;
 		m_eClientStatus = STATUS_CAMERA_ERROR;
@@ -211,14 +223,14 @@ void LiveScanClient::UpdateFrame()
 
 	if (m_bCloseCamera)
 	{
-		m_bCameraError != CloseCamera();
+		StopCamera();
 		m_bCloseCamera = false;
 		m_bConfirmCameraClosed = true;
 	}
 
 	if (m_bInitializeCamera)
 	{
-		bool init = InitializeCamera();
+		bool init = StartCamera();
 		m_bCameraError = !init;
 		m_bInitializeCamera = false;
 		m_bConfirmCameraInitialized = true;
@@ -353,9 +365,9 @@ void LiveScanClient::UpdateFrame()
 			m_bRequestLiveFrame = false;
 		}
 
-		if(m_bActiveClient)
+		if (m_bActiveClient)
 			UpdatePreview();
-		
+
 		UpdateFPS();
 
 	}
@@ -643,7 +655,7 @@ void LiveScanClient::HandleSocket()
 		else if (received[i] == MSG_SET_CONFIGURATION)
 		{
 			i++;
-			
+
 			logBuffer.LogInfo("Recieved new configuration");
 
 			char* message = new char[KinectConfiguration::byteLength];
@@ -741,7 +753,7 @@ void LiveScanClient::HandleSocket()
 
 			m_bUpdateSettings = true;
 
-			std::string settingsInfo = "Received Settings: Auto Exposure enabled= " + to_string(m_bAutoExposureEnabled) + ", Exposure Step = " + 
+			std::string settingsInfo = "Received Settings: Auto Exposure enabled= " + to_string(m_bAutoExposureEnabled) + ", Exposure Step = " +
 				to_string(m_nExposureStep) + ", Extrinsics Stlye = " + to_string(m_nExtrinsicsStyle) + ", Show preview during capture = " + to_string(m_bShowPreviewDuringRecording);
 			logBuffer.LogDebug(settingsInfo);
 
@@ -1030,34 +1042,17 @@ void LiveScanClient::HandleSocket()
 	}
 }
 
-bool LiveScanClient::CloseCamera()
+bool LiveScanClient::StartCamera()
 {
-	logBuffer.LogDebug("Closing Camera");
-
-	bool res = false;
-	res = pCapture->Close();
-	if (!res)
-	{
-		logBuffer.LogFatal("Could not close camera");
-		SetStatusMessage(L"Device failed to close! Please restart Application!", 10000, true);
-		m_eClientStatus = STATUS_CAMERA_ERROR;
-		return false;
-	}
-
-	return true;
-}
-
-bool LiveScanClient::InitializeCamera()
-{
-	logBuffer.LogDebug("Initializing Camera");
+	logBuffer.LogDebug("Starting Camera");
 
 	bool res = false;
 
-	res = pCapture->Initialize(configuration);
+	res = pCapture->StartCamera(configuration);
 	if (!res)
 	{
-		logBuffer.LogDebug("Could not initialize camera");
-		SetStatusMessage(L"Device failed to initialize! Please restart Application!", 10000, true);
+		logBuffer.LogDebug("Could not start camera");
+		SetStatusMessage(L"Camera failed to start! Please restart Application!", 10000, true);
 		m_eClientStatus = STATUS_CAMERA_ERROR;
 		return false;
 	}
@@ -1069,6 +1064,18 @@ bool LiveScanClient::InitializeCamera()
 	}
 
 	return true;
+}
+
+void LiveScanClient::StopCamera()
+{
+	logBuffer.LogDebug("Stopping Camera");
+	pCapture->StopCamera();
+}
+
+void LiveScanClient::DisposeDevice()
+{
+	logBuffer.LogDebug("Disposing Camera");
+	pCapture->DisposeDevice();
 }
 
 void LiveScanClient::SendPostSyncConfirmation(bool success)
@@ -1168,15 +1175,15 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 
 	int16_t* pointCloudImageData = (int16_t*)(void*)k4a_image_get_buffer(pointcloudImage);
 	Point3f invalidPoint = Point3f(0, 0, 0, true);
-	Point3f temp= Point3f(0,0,0);
+	Point3f temp = Point3f(0, 0, 0);
 
 	Matrix4x4 scale = Matrix4x4(
-		0.001f, 0.0f, 0.0f, 0.0f, 
-		0.0f, 0.001f, 0.0f, 0.0f, 
-		0.0f, 0.0f, 0.001f, 0.0f, 
+		0.001f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.001f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.001f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f);
 
-	Matrix4x4 toWorld =  calibration.worldTransform * scale;
+	Matrix4x4 toWorld = calibration.worldTransform * scale;
 
 	int goodVerticesCount = 0;
 
@@ -1189,7 +1196,7 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 			temp.X = pointCloudImageData[3 * vertexIndex + 0];
 			temp.Y = pointCloudImageData[3 * vertexIndex + 1];
 			temp.Z = pointCloudImageData[3 * vertexIndex + 2];
-		
+
 			temp = toWorld * temp;
 
 			if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]
@@ -1307,7 +1314,7 @@ DeviceStatus LiveScanClient::GetDeviceStatusTS()
 		deviceStatus.name = configuration.serialNumber;
 	else
 		deviceStatus.name = configuration.nickname;
-	
+
 	return deviceStatus;
 }
 

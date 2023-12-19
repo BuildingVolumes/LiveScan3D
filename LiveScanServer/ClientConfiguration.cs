@@ -41,7 +41,7 @@ namespace LiveScanServer
             eHardwareSyncState = SyncState.Unknown;
             syncOffset = 0;
             SerialNumber = "Unknown";
-            NickName = "Das ist ein Test rtr"; //new string(' ', 20); //Exactly 20 ASCII chars
+            NickName = new string(' ', 20); //Exactly 20 ASCII chars
             globalDeviceIndex = 0; // 255 = invalid index
             FilterDepthMap = false;
             FilterDepthMapSize = 0;

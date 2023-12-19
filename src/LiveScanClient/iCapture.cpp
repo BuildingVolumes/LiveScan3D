@@ -16,7 +16,8 @@
 
 ICapture::ICapture()
 {
-	bInitialized = false;
+	bOpen = false;
+	bStarted = false;
 
 	nColorFrameHeight = 0;
 	nColorFrameWidth = 0;

@@ -71,7 +71,7 @@ bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	}
 
 	log.RegisterBuffer(&logBuffer);
-	logBuffer.ChangeName("LiveScan Client");
+	logBuffer.ChangeSerial("LiveScan Client");
 
 	//Setup directories
 	if (!std::filesystem::exists("temp/"))

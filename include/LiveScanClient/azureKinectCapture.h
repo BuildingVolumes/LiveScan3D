@@ -11,24 +11,28 @@ public:
 	~AzureKinectCapture();
 
 	virtual bool OpenDevice();
-	virtual bool StartDevice(KinectConfiguration& configuration);
+	virtual bool StartCamera(KinectConfiguration& configuration);
+	virtual void StopCamera();
+	virtual void DisposeDevice();
+
 	virtual void SetLogger(Log* logger);
 	virtual void SetManualDeviceIndex(int index);
+
 	virtual bool AquireRawFrame();
 	void DecodeRawColor();
 	void DownscaleColorImgToDepthImgSize();
 	void MapDepthToColor();
 	void GeneratePointcloud();
 	void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints);
-	virtual bool Close();	
 
+	virtual bool AquireSerialFromDevice();
+	virtual std::string GetSerial();
 	virtual int GetSyncJackState();
 	virtual uint64_t GetTimeStamp();
 	virtual void SetExposureState(bool enableAutoExposure, int exposureStep);
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
 	virtual void SetConfiguration(KinectConfiguration& configuration);
 	virtual void SetWhiteBalanceState(bool enableAutoBalance, int kelvin);
-	std::string GetSerial();
 
 protected:
 	k4a_device_t kinectSensor = NULL;
@@ -39,6 +43,7 @@ protected:
 	k4a_transformation_t transformation = NULL;  
 	LogBuffer logBuffer;
 	Log* log;
+	std::string serialNumber;
 
 	int colorImageDownscaledWidth;
 	int colorImageDownscaledHeight;

@@ -13,6 +13,7 @@
 struct KinectConfiguration {
 public:
 	KinectConfiguration();
+	KinectConfiguration(std::string serial);
 	KinectConfiguration(std::string serialNo, std::string name, k4a_device_configuration_t conf, SYNC_STATE softwareSyncState, SYNC_STATE hardwareSyncState, int syncOffset, 
 		int globalDeviceIndex, bool filterDepth, int filterDepthSize);
 	std::string serialNumber;
@@ -28,7 +29,7 @@ public:
 	char* ToBytes();
 	void SetFromBytes(char* received);
 	void Save();
-	void TryLoad(std::string serial);
+	void TryLoad();
 
 	void InitializeDefaults();
 	int GetDepthCameraWidth();
@@ -37,6 +38,5 @@ public:
 	int GetColorCameraHeight();
 	void UpdateWidthAndHeight();
 	void SetDepthMode(k4a_depth_mode_t depthMode);
-	void SetSerialNumber(std::string serialNumber);
-	//todo: exposure.
+	//todo: exposure
 };
