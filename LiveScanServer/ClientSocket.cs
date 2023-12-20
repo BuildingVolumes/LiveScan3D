@@ -302,7 +302,7 @@ namespace LiveScanServer
         {
             bCameraInitialized = false;
             bCameraError = false;
-            byteToSend[0] = (byte)OutgoingMessageType.MSG_INIT_CAMERA;
+            byteToSend[0] = (byte)OutgoingMessageType.MSG_START_CAMERA;
             SendByte();
         }
         public void ReceiveCalibrationData()

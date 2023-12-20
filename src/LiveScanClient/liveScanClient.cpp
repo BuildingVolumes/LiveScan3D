@@ -228,11 +228,11 @@ void LiveScanClient::UpdateFrame()
 		m_bConfirmCameraClosed = true;
 	}
 
-	if (m_bInitializeCamera)
+	if (m_bStartCamera)
 	{
 		bool init = StartCamera();
 		m_bCameraError = !init;
-		m_bInitializeCamera = false;
+		m_bStartCamera = false;
 		m_bConfirmCameraInitialized = true;
 	}
 
@@ -646,10 +646,10 @@ void LiveScanClient::HandleSocket()
 			m_bCloseCamera = true;
 		}
 
-		else if (received[i] == MSG_INIT_CAMERA)
+		else if (received[i] == MSG_START_CAMERA)
 		{
 			logBuffer.LogTrace("Initialize camera command received");
-			m_bInitializeCamera = true;
+			m_bStartCamera = true;
 		}
 
 		else if (received[i] == MSG_SET_CONFIGURATION)

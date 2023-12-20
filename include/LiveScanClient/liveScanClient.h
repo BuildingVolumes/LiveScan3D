@@ -96,7 +96,7 @@ private:
 	bool m_bSendCalibration;
 	bool m_bCloseCamera;
 	bool m_bConfirmCameraClosed;
-	bool m_bInitializeCamera;
+	bool m_bStartCamera;
 	bool m_bConfirmCameraInitialized;
 	bool m_bCameraError;
 	bool m_bUpdateSettings;

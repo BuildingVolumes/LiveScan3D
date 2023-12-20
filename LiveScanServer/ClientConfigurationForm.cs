@@ -43,7 +43,11 @@ namespace LiveScanServer
             ClientConfiguration newConfig = liveScanServer.GetConfigFromSerial(serialnumber);
             displayedConfiguration = newConfig;
 
-            this.Text = "Configuration for device: " + newConfig.SerialNumber;
+            if (newConfig.NickName[0] == ' ')
+                this.Text = "Configuration for device: " + newConfig.SerialNumber;
+            else
+                this.Text = "Configuration for device: " + newConfig.NickName;
+
             cbFilterDepthMap.Checked = newConfig.FilterDepthMap;
             nDepthFilterSize.Value = newConfig.FilterDepthMapSize;
 
