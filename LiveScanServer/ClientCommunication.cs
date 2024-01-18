@@ -1366,11 +1366,6 @@ namespace LiveScanServer
                     Log.LogInfo("New client connected!");
                     lClientSockets.Add(newClient);
                     newClient.eChanged += new SocketChangedHandler(SocketListChanged);
-
-                    if (eSocketListChanged != null)
-                    {
-                        eSocketListChanged(lClientSockets);
-                    }
                 }
 
                 newClient.lMarkers = server.GetState().settings.lMarkerPoses;
@@ -1490,19 +1485,22 @@ namespace LiveScanServer
             lock (oClientSocketLock)
             {
                 lClientSockets.Remove(client);
+
                 if (eSocketListChanged != null)
                 {
                     eSocketListChanged(lClientSockets);
                 }
             }
-           
+
+            
+
         }
 
         private void ListeningWorker()
         {
             while (bServerRunning)
             {
-                allDone.Reset();
+                allDone.Reset(); //Let's the listening worker wait at WaitOne(), so that only one Connection can be accepted at the same time
                 try
                 {
                     oServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), oServerSocket);

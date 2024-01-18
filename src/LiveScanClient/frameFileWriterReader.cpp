@@ -339,7 +339,11 @@ void FrameFileWriterReader::WriteColorJPGFile(void* buffer, size_t bufferSize, i
 
 	logBuffer.LogCaptureDebug("Writing Color JPG file: " + filePath);
 
-	assert(buffer != NULL);
+	if (buffer == NULL)
+	{
+		logBuffer.LogWarning("Could not write " + colorFileName + " , image is empty!");
+		return;
+	}
 
 	std::ofstream hFile;
 	hFile.open(filePath.c_str(), std::ios::out | std::ios::trunc | std::ios::binary);

@@ -494,7 +494,7 @@ namespace LiveScanServer
             byte[] buffer;
             if (oSocket.Available != 0)
             {
-                buffer = new byte[Math.Min(nBytes, oSocket.Available)];
+                buffer = new byte[nBytes];
                 oSocket.Receive(buffer, nBytes, SocketFlags.None);
             }
             else

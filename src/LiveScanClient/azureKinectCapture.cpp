@@ -433,7 +433,8 @@ bool AzureKinectCapture::AquireSerialFromDevice()
 
 	size_t serialNoSize;
 	k4a_device_get_serialnum(kinectSensor, NULL, &serialNoSize);
-	serialNumber = std::string(serialNoSize, '\0');
+	serialNumber = std::string(serialNoSize, '*');
+	serialNumber.pop_back(); //Remove the null terminator, as it adds one character too much
 
 	if (k4a_device_get_serialnum(kinectSensor, (char*)serialNumber.c_str(), &serialNoSize) == K4A_BUFFER_RESULT_SUCCEEDED)
 	{

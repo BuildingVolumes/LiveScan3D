@@ -75,7 +75,7 @@
     <Compile Include="ClientCommunication.cs" />
     <Compile Include="ClientSettings.cs" />
     <Compile Include="ClientSocket.cs" />
-    <Compile Include="OpenGLWindow.cs" />
+    <Compile Include="OpenGLView.cs" />
     <Compile Include="PostSync.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

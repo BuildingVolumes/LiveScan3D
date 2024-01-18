@@ -16,7 +16,7 @@ namespace LiveScanPlayer
 {
     public partial class PlayerWindowForm : Form
     {
-        OpenGLWindow oOpenGLWindow = null;
+        OpenGLView oOpenGLWindow = null;
         System.Windows.Forms.Timer tLiveViewTimer;
         float fTargetFPS = 30f;
         long lActualFPS = 30;
@@ -306,7 +306,7 @@ namespace LiveScanPlayer
         {
             if (oOpenGLWindow == null)
             {
-                oOpenGLWindow = new OpenGLWindow();
+                oOpenGLWindow = new OpenGLView();
 
                 oOpenGLWindow.vertices = lAllVertices;
                 oOpenGLWindow.colors = lAllColors;

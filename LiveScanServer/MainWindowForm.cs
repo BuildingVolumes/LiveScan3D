@@ -17,18 +17,19 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Drawing;
 using LiveScanServer.Properties;
+using System.Threading;
 
 namespace LiveScanServer
 {
     public partial class MainWindowForm : Form
     {
         //Update Timers
-        Timer UpdateTimer60FPS;
-        Timer UpdateTimer1FPS;
+        System.Windows.Forms.Timer UpdateTimer60FPS;
+        System.Windows.Forms.Timer UpdateTimer1FPS;
 
         //Settings
-        private Timer scrollTimerExposure = null;
-        private Timer scrollTimerWhiteBalance = null;
+        private System.Windows.Forms.Timer scrollTimerExposure = null;
+        private System.Windows.Forms.Timer scrollTimerWhiteBalance = null;
 
         LiveScanServer liveScanServer = null;
         LiveScanState liveScanState = new LiveScanState();
@@ -38,7 +39,8 @@ namespace LiveScanServer
         ClientConfigurationForm configurationForm;
 
         //The live preview
-        OpenGLWindow oOpenGLWindow;
+        OpenGLView oOpenGLView;
+        Thread tOpenGLThread;
 
         //Image resources
         Image stopImage;
@@ -49,7 +51,7 @@ namespace LiveScanServer
         {
             InitializeComponent();
             liveScanServer = new LiveScanServer(this);
-            oOpenGLWindow = new OpenGLWindow();
+            oOpenGLView = new OpenGLView();
 
             stopImage = Resources.stop;
             recordImage = Resources.recording;
@@ -69,7 +71,7 @@ namespace LiveScanServer
             liveScanServer.Terminate();
             UpdateTimer60FPS.Stop();
             UpdateTimer1FPS.Stop();
-            oOpenGLWindow.Unload();
+            oOpenGLView.Unload();
         }
 
         public void UpdateUI(LiveScanState newState)
@@ -97,8 +99,8 @@ namespace LiveScanServer
         private void FastUpdate()
         {
             glLiveView.MakeCurrent();
-            oOpenGLWindow.UpdateFrame();
-            oOpenGLWindow.RenderFrame();
+            oOpenGLView.UpdateFrame();
+            oOpenGLView.RenderFrame();
             glLiveView.SwapBuffers();
         }
 
@@ -240,7 +242,7 @@ namespace LiveScanServer
             lFPS.Text = newState.previewWindowFPS.ToString() + " FPS";
 
             //Live Preview
-            oOpenGLWindow.settings = newState.settings;
+            oOpenGLView.settings = newState.settings;
 
         }
 
@@ -608,16 +610,16 @@ namespace LiveScanServer
             glLiveView_Resize(glLiveView, EventArgs.Empty);
 
 
-            lock (oOpenGLWindow.settings)
-                oOpenGLWindow.settings = liveScanState.settings;
+            lock (oOpenGLView.settings)
+                oOpenGLView.settings = liveScanState.settings;
 
-            oOpenGLWindow.vertices = liveScanServer.lAllVertices;
-            oOpenGLWindow.colors = liveScanServer.lAllColors;
-            oOpenGLWindow.cameraPoses = liveScanServer.lAllCameraPoses;
-            oOpenGLWindow.markerPoses = liveScanServer.lAllMarkerPoses;
-            oOpenGLWindow.viewportSettings = liveScanServer.viewportSettings;
+            oOpenGLView.vertices = liveScanServer.lAllVertices;
+            oOpenGLView.colors = liveScanServer.lAllColors;
+            oOpenGLView.cameraPoses = liveScanServer.lAllCameraPoses;
+            oOpenGLView.markerPoses = liveScanServer.lAllMarkerPoses;
+            oOpenGLView.viewportSettings = liveScanServer.viewportSettings;
 
-            oOpenGLWindow.Load();
+            oOpenGLView.Load();
         }
 
         private void glLiveView_Resize(object sender, EventArgs e)
@@ -627,8 +629,8 @@ namespace LiveScanServer
             if (glLiveView.ClientSize.Height == 0)
                 glLiveView.ClientSize = new System.Drawing.Size(glLiveView.ClientSize.Width, 1);
 
-            if (oOpenGLWindow != null)
-                oOpenGLWindow.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
+            if (oOpenGLView != null)
+                oOpenGLView.Resize(glLiveView.ClientSize.Width, glLiveView.ClientSize.Height);
         }
 
         private void glLiveView_Paint(object sender, PaintEventArgs e)
@@ -638,27 +640,27 @@ namespace LiveScanServer
 
         private void glLiveView_MouseDown(object sender, MouseEventArgs e)
         {
-            oOpenGLWindow.OnMouseButtonDown(sender, e);
+            oOpenGLView.OnMouseButtonDown(sender, e);
         }
 
         private void glLiveView_MouseMove(object sender, MouseEventArgs e)
         {
-            oOpenGLWindow.OnMouseMove(sender, e);
+            oOpenGLView.OnMouseMove(sender, e);
         }
 
         private void glLiveView_MouseUp(object sender, MouseEventArgs e)
         {
-            oOpenGLWindow.OnMouseButtonUp(sender, e);
+            oOpenGLView.OnMouseButtonUp(sender, e);
         }
 
         private void glLiveView_Scroll(object sender, MouseEventArgs e)
         {
-            oOpenGLWindow.OnMouseWheelChanged(sender, e);
+            oOpenGLView.OnMouseWheelChanged(sender, e);
         }
 
         private void glLiveView_KeyDown(object sender, KeyEventArgs e)
         {
-            oOpenGLWindow.OnKeyDown(sender, e);
+            oOpenGLView.OnKeyDown(sender, e);
         }
 
 
