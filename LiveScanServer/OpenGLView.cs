@@ -18,7 +18,6 @@ using System.Windows.Forms;
 using OpenTK;
 using OpenTK.Graphics;
 using LiveScanServer;
-using System.Diagnostics;
 
 enum ECameraMode
 {
@@ -47,10 +46,6 @@ namespace LiveScanServer
 {
     public class OpenGLView
     {
-        bool running = true;
-
-        Stopwatch UpdateTimer;
-
         int PointCount;
         int LineCount;
 
@@ -145,99 +140,76 @@ namespace LiveScanServer
             GL.DeleteBuffers(1, ref VBOHandle);
         }
 
-        public void Run()
-        {
-            running = true;
-            UpdateTimer = new Stopwatch();
-            UpdateTimer.Start();
-
-            while (running)
-            {
-                //60 FPS
-                if(UpdateTimer.ElapsedMilliseconds > 16)
-                {
-                    UpdateFrame();
-                }
-            }
-        }
-
         /// <summary>
         /// Updates all the elements that exist inside of the 3D Space
         /// </summary>
         public void UpdateFrame()
         {
-            lock (viewportSettings)
-            {
-                GL.PointSize(viewportSettings.pointSize);
-                brightnessModifier = (byte)viewportSettings.brightness;
-                bDrawMarkings = viewportSettings.markerVisibility;
-                //TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
-
-            }
+            GL.PointSize(viewportSettings.pointSize);
+            brightnessModifier = (byte)viewportSettings.brightness;
+            bDrawMarkings = viewportSettings.markerVisibility;
+            //TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
 
             lock (vertices)
             {
-                lock (settings)
+                PointCount = vertices.Count / 3;
+                LineCount = 0;
+                if (bDrawMarkings)
                 {
+                    //bounding box
+                    LineCount += 12;
+                    //markers
+                    LineCount += markerPoses.Count * 3;
+                    //cameras
+                    LineCount += cameraPoses.Count * 3;
+                }
 
-                    PointCount = vertices.Count / 3;
-                    LineCount = 0;
-                    if (bDrawMarkings)
+                VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
+
+                for (int i = 0; i < PointCount; i++)
+                {
+                    if (viewportSettings.colorMode == EColorMode.RGB)
                     {
-                        //bounding box
-                        LineCount += 12;
-                        //markers
-                        LineCount += markerPoses.Count * 3;
-                        //cameras
-                        LineCount += cameraPoses.Count * 3;
+                        VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
+                        VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
+                        VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
+                        VBO[i].A = 255;
                     }
 
-                    VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
-
-                    for (int i = 0; i < PointCount; i++)
+                    else if (viewportSettings.colorMode == EColorMode.BGR)
                     {
-                        if (viewportSettings.colorMode == EColorMode.RGB)
-                        {
-                            VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
-                            VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
-                            VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
-                            VBO[i].A = 255;
-                        }
-
-                        else if (viewportSettings.colorMode == EColorMode.BGR)
-                        {
-                            VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
-                            VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
-                            VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
-                            VBO[i].A = 255;
-                        }
-
-
-                        VBO[i].Position.X = vertices[i * 3];
-                        VBO[i].Position.Y = vertices[i * 3 + 1];
-                        VBO[i].Position.Z = vertices[i * 3 + 2];
+                        VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
+                        VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
+                        VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
+                        VBO[i].A = 255;
                     }
 
-                    if (bDrawMarkings)
-                    {
-                        int iCurLineCount = 0;
-                        iCurLineCount += AddBoundingBox(PointCount + 2 * iCurLineCount);
 
-                        byte[] red = new byte[4] { 255, 0, 0, 0 };
-                        byte[] green = new byte[4] { 0, 255, 0, 0 };
+                    VBO[i].Position.X = vertices[i * 3];
+                    VBO[i].Position.Y = vertices[i * 3 + 1];
+                    VBO[i].Position.Z = vertices[i * 3 + 2];
+                }
+            }
 
-                        for (int i = 0; i < markerPoses.Count; i++)
-                        {
-                            iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, markerPoses[i], red);
-                        }
-                        for (int i = 0; i < cameraPoses.Count; i++)
-                        {
-                            iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, cameraPoses[i], green);
-                        }
-                    }
+            if (bDrawMarkings)
+            {
+                int iCurLineCount = 0;
+                iCurLineCount += AddBoundingBox(PointCount + 2 * iCurLineCount);
+
+                byte[] red = new byte[4] { 255, 0, 0, 0 };
+                byte[] green = new byte[4] { 0, 255, 0, 0 };
+
+                for (int i = 0; i < markerPoses.Count; i++)
+                {
+                    iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, markerPoses[i], red);
+                }
+                for (int i = 0; i < cameraPoses.Count; i++)
+                {
+                    iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, cameraPoses[i], green);
                 }
             }
         }
+
 
         public void RenderFrame()
         {
@@ -384,7 +356,7 @@ namespace LiveScanServer
             MousePrevious.Y = e.Y;
         }
 
-       
+
 
         private int AddBoundingBox(int startIdx)
         {
