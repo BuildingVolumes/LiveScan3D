@@ -40,12 +40,14 @@ namespace LiveScanServer
 
         //The live preview
         OpenGLView oOpenGLView;
-        Thread tOpenGLThread;
 
         //Image resources
         Image stopImage;
         Image recordImage;
         Image loadAnimImage;
+
+        bool updateUIRequest = false;
+        object oUpdateUILock = new object();
 
         public MainWindowForm()
         {
@@ -62,8 +64,8 @@ namespace LiveScanServer
 
         private void MainWindowForm_Load(object sender, EventArgs e)
         {
-            UpdateUI(liveScanServer.GetState());
             StartUpdateTimers();
+            liveScanServer.UpdateUI();
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -74,18 +76,10 @@ namespace LiveScanServer
             oOpenGLView.Unload();
         }
 
-        public void UpdateUI(LiveScanState newState)
+        public void RequestUIUpdate()
         {
-            ///////////////////////////
-            //Set dynamic button states
-            ///////////////////////////
-
-            Invoke(new Action(() =>
-            {
-                SetUIState(newState);
-            }));
-
-            liveScanState = newState;
+            lock (oUpdateUILock)
+                updateUIRequest = true;
         }
 
         //For UI stuff that needs a regular, but not real-time update at 1 FPS 
@@ -98,6 +92,20 @@ namespace LiveScanServer
         //For UI Stuff that needs to update as fast as possible, running at 60 FPS
         private void FastUpdate()
         {
+            bool redrawUI = false;
+
+            lock (oUpdateUILock)
+            {
+                if (updateUIRequest)
+                {
+                    redrawUI = true;
+                    updateUIRequest = false;
+                }
+            }
+
+            if (redrawUI)
+                SetUIState(liveScanServer.GetState());
+
             glLiveView.MakeCurrent();
             oOpenGLView.UpdateFrame();
             oOpenGLView.RenderFrame();
@@ -244,6 +252,8 @@ namespace LiveScanServer
             //Live Preview
             oOpenGLView.settings = newState.settings;
 
+            liveScanState = newState;
+
         }
 
         public void SetStateIndicator(appState appstate, string suffix)
@@ -324,7 +334,7 @@ namespace LiveScanServer
         {
             if (settingsForm == null)
             {
-                settingsForm = new SettingsForm(liveScanState.settings, liveScanServer);
+                settingsForm = new SettingsForm(liveScanServer.GetState().settings, liveScanServer);
                 settingsForm.FormClosed += (senderer, ea) => { SettingsFormClosed(senderer, ea); };
                 settingsForm.Show();
             }
@@ -606,18 +616,17 @@ namespace LiveScanServer
             // we update our projection matrix or re-render its contents, respectively.
             glLiveView.Resize += glLiveView_Resize;
             glLiveView.Paint += glLiveView_Paint;
-
             glLiveView_Resize(glLiveView, EventArgs.Empty);
 
-
-            lock (oOpenGLView.settings)
-                oOpenGLView.settings = liveScanState.settings;
-
-            oOpenGLView.vertices = liveScanServer.lAllVertices;
-            oOpenGLView.colors = liveScanServer.lAllColors;
-            oOpenGLView.cameraPoses = liveScanServer.lAllCameraPoses;
-            oOpenGLView.markerPoses = liveScanServer.lAllMarkerPoses;
             oOpenGLView.viewportSettings = liveScanServer.viewportSettings;
+
+            lock (oOpenGLView.vertices)
+            {
+                oOpenGLView.vertices = liveScanServer.lAllVertices;
+                oOpenGLView.colors = liveScanServer.lAllColors;
+                oOpenGLView.cameraPoses = liveScanServer.lAllCameraPoses;
+                oOpenGLView.markerPoses = liveScanServer.lAllMarkerPoses;
+            }
 
             oOpenGLView.Load();
         }

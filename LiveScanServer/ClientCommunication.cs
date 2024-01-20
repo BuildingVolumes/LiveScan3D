@@ -303,8 +303,6 @@ namespace LiveScanServer
                 receivingThread = new Thread(this.ReceivingWorker);
                 receivingThread.Start();
 
-                Log.LogDebug("Starting Server");
-
                 return true;
             }
 
@@ -407,7 +405,7 @@ namespace LiveScanServer
 
         public bool SetAndConfirmConfig(ClientConfiguration newConfig)
         {
-            Log.LogDebug("Setting Configuration file for kinect: " + newConfig.SerialNumber);
+            Log.LogDebug("Setting Configuration for kinect: " + newConfig.SerialNumber);
             Log.LogDebug(newConfig.ToString());
 
             ClientSocket socket = GetSocketFromSerial(newConfig.SerialNumber);
@@ -1358,7 +1356,7 @@ namespace LiveScanServer
 
             ClientSocket newClient = new ClientSocket(newSocket);
 
-            //we do not want to add new clients while a frame is being requested
+            //Stops the requests of new frames until the new client is ready to serve them
             lock (oFrameRequestLock)
             {
                 lock (oClientSocketLock)
@@ -1485,14 +1483,14 @@ namespace LiveScanServer
             lock (oClientSocketLock)
             {
                 lClientSockets.Remove(client);
-
-                if (eSocketListChanged != null)
-                {
-                    eSocketListChanged(lClientSockets);
-                }
             }
 
-            
+            if (eSocketListChanged != null)
+            {
+                eSocketListChanged(lClientSockets);
+            }
+
+
 
         }
 

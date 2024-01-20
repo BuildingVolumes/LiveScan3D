@@ -102,7 +102,6 @@ namespace LiveScanServer
             if (!oServer.StartServer()) //If another Livescan Instance is already open, we terminate the app here
                 Terminate();
 
-            //oTransferServer.StartServer();
             Log.LogInfo("Starting Server");
         }
 
@@ -176,7 +175,7 @@ namespace LiveScanServer
 
         public void UpdateUI()
         {
-            UI.UpdateUI(state);
+            UI.RequestUIUpdate();
         }
 
         public void ClientListChanged(List<ClientSocket> socketList)

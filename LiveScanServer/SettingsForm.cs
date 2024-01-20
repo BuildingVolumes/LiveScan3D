@@ -110,16 +110,12 @@ namespace LiveScanServer
                 return;
 
             lockSettingsUpdate = true;
-            Cursor.Current = Cursors.WaitCursor;
-
             //Get the latest settings state
             ClientSettings currentSettings = liveScanServer.GetState().settings;
             settings = ApplySettings(currentSettings);
             liveScanServer.SetSettings(settings);
             UpdateUI(settings);
-
             Log.LogDebug("Updating settings on clients");
-            Cursor.Current = Cursors.Default;
             lockSettingsUpdate = false;
         }
 
