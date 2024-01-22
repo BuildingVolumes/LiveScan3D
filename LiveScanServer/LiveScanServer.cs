@@ -122,6 +122,7 @@ namespace LiveScanServer
             state = new LiveScanState();
 
             Stream settingsStream = null;
+
             //This tries to read the settings from "settings.bin", if it fails, the settings stay at default values.
             try
             {
@@ -132,6 +133,7 @@ namespace LiveScanServer
                 //Set settings that should not be loaded from the save
                 state.settings.bAutoExposureEnabled = false;
                 state.settings.nExposureStep = -5;
+                state.settings.eSyncMode = ClientSettings.SyncMode.Off;
 
                 settingsStream.Dispose();
 
@@ -377,10 +379,12 @@ namespace LiveScanServer
             Cursor.Current = Cursors.Default;
             //Check if we need to restart the cameras
             if (syncMode == ClientSettings.SyncMode.Hardware)
+            {
                 if (!oServer.EnableTemporalSync())
                     state.settings.eSyncMode = ClientSettings.SyncMode.Off;
+            }                
 
-                else if (syncMode == ClientSettings.SyncMode.Off && hwSyncWasEnabled)
+            else if (syncMode == ClientSettings.SyncMode.Off && hwSyncWasEnabled)
                     oServer.DisableTemporalSync();
 
             Cursor.Current = Cursors.Default;
