@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -41,7 +41,11 @@ namespace LiveScanServer
         public void UpdateUI()
         {
             ClientConfiguration newConfig = liveScanServer.GetConfigFromSerial(serialnumber);
-            displayedConfiguration = newConfig;
+
+            //Important here to get a copy, and not reference, as these are the values that will be changed
+            //by the user through the UI, but should not be immidiatly updated on the devices
+            displayedConfiguration = newConfig.GetCopy(); 
+
 
             if (newConfig.NickName[0] == ' ')
                 this.Text = "Configuration for device: " + newConfig.SerialNumber;

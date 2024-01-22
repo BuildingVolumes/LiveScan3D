@@ -1,4 +1,4 @@
-﻿//   Copyright (C) 2015  Marek Kowalski (M.Kowalski@ire.pw.edu.pl), Jacek Naruniec (J.Naruniec@ire.pw.edu.pl)
+//   Copyright (C) 2015  Marek Kowalski (M.Kowalski@ire.pw.edu.pl), Jacek Naruniec (J.Naruniec@ire.pw.edu.pl)
 //   License: MIT Software License   See LICENSE.txt for the full license.
 
 //   If you use this software in your research, then please use the following citation:
@@ -982,14 +982,14 @@ namespace LiveScanServer
         /// <summary>
         /// Gets the configurations from the kinects and stores them in their socket
         /// </summary>
-        public bool GetConfigurations(List<ClientSocket> kinects)
+        public bool GetConfigurations(List<ClientSocket> clients)
         {
 
             lock (oClientSocketLock)
             {
-                for (int i = 0; i < kinects.Count; i++)
+                for (int i = 0; i < clients.Count; i++)
                 {
-                    kinects[i].RequestConfiguration();
+                    clients[i].RequestConfiguration();
                     Log.LogDebug("Getting configuration from client number: " + (i + 1));
                 }
             }
@@ -1002,9 +1002,9 @@ namespace LiveScanServer
             {
                 recievedData = true;
 
-                for (int i = 0; i < kinects.Count; i++)
+                for (int i = 0; i < clients.Count; i++)
                 {
-                    if (!kinects[i].bConfigurationReceived)
+                    if (!clients[i].bConfigurationReceived)
                         recievedData = false;
                 }
             }
@@ -1013,11 +1013,11 @@ namespace LiveScanServer
 
             lock (oClientSocketLock)
             {
-                for (int i = 0; i < kinects.Count; i++)
+                for (int i = 0; i < clients.Count; i++)
                 {
-                    kinects[i].UpdateSocketState("");
+                    clients[i].UpdateSocketState("");
 
-                    if (!kinects[i].bConfigurationReceived)
+                    if (!clients[i].bConfigurationReceived)
                     {
                         Log.LogError("Could not get configuration from client number: " + (i + 1));
                         MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Could not update configuration on one client, please check your network");

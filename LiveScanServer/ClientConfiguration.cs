@@ -114,5 +114,10 @@ namespace LiveScanServer
             data[i] = (byte)FilterDepthMapSize;
             return data;
         }
+
+        public ClientConfiguration GetCopy()
+        {
+            return (ClientConfiguration) this.MemberwiseClone();
+        }
     }
 }

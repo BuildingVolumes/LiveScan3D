@@ -185,9 +185,8 @@ namespace LiveScanServer
             //Set client list view
             UpdateClientGridView(newState.clients);
 
-
-            List<ClientConfigurationForm> ccfsToClose = new List<ClientConfigurationForm>();
             //Check if we need to close configuration forms
+            List<ClientConfigurationForm> ccfsToClose = new List<ClientConfigurationForm>();
             foreach (KeyValuePair<string, ClientConfigurationForm> ccf in clientConfigurationsForms)
             {
                 bool clientStillConnected = false;
@@ -208,9 +207,7 @@ namespace LiveScanServer
             for (int i = ccfsToClose.Count - 1; i >= 0; i--)
             {
                 ccfsToClose[i].CloseConfiguration();
-            }
-
-            
+            }            
 
             //Temporal Sync
             if (newState.settings.eSyncMode == ClientSettings.SyncMode.Off)
