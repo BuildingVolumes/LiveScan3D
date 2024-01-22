@@ -36,7 +36,7 @@ namespace LiveScanServer
 
         //Other windows
         SettingsForm settingsForm;
-        ClientConfigurationForm configurationForm;
+        public Dictionary<string, ClientConfigurationForm> clientConfigurationsForms;
 
         //The live preview
         OpenGLView oOpenGLView;
@@ -54,6 +54,7 @@ namespace LiveScanServer
             InitializeComponent();
             liveScanServer = new LiveScanServer(this);
             oOpenGLView = new OpenGLView();
+            clientConfigurationsForms = new Dictionary<string, ClientConfigurationForm>();
 
             stopImage = Resources.stop;
             recordImage = Resources.recording;
@@ -183,6 +184,33 @@ namespace LiveScanServer
 
             //Set client list view
             UpdateClientGridView(newState.clients);
+
+
+            List<ClientConfigurationForm> ccfsToClose = new List<ClientConfigurationForm>();
+            //Check if we need to close configuration forms
+            foreach (KeyValuePair<string, ClientConfigurationForm> ccf in clientConfigurationsForms)
+            {
+                bool clientStillConnected = false;
+
+                for (int i = 0; i < newState.clients.Count; i++)
+                {
+                    if (newState.clients[i].configuration != null)
+                    {
+                        if (ccf.Key == newState.clients[i].configuration.SerialNumber)
+                            clientStillConnected = true;
+                    }
+                }
+
+                if (!clientStillConnected)
+                    ccfsToClose.Add(ccf.Value);
+            }
+
+            for (int i = ccfsToClose.Count - 1; i >= 0; i--)
+            {
+                ccfsToClose[i].CloseConfiguration();
+            }
+
+            
 
             //Temporal Sync
             if (newState.settings.eSyncMode == ClientSettings.SyncMode.Off)
@@ -329,6 +357,30 @@ namespace LiveScanServer
             }));
         }
 
+        public void AddClientConfigurationForm(string serial, ClientConfigurationForm form)
+        {
+            if (GetClientConfigurationForm(serial) == null)
+                clientConfigurationsForms.Add(serial, form);
+        }
+
+        public ClientConfigurationForm GetClientConfigurationForm(string serial)
+        {
+            if (clientConfigurationsForms.TryGetValue(serial, out var value))
+            {
+                return value;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public void RemoveClientConfigurationForm(string serial)
+        {
+            clientConfigurationsForms.Remove(serial);
+        }
+
+
         //Opens the settings form
         private void btSettings_Click(object sender, EventArgs e)
         {
@@ -425,26 +477,24 @@ namespace LiveScanServer
 
         private void OpenConfigurationForm(string serialNumber)
         {
-            if(configurationForm == null)
+            ClientConfigurationForm ccf;
+            ccf = GetClientConfigurationForm(serialNumber);
+
+            if(ccf == null)
             {
-                configurationForm = new ClientConfigurationForm(liveScanServer, serialNumber);
-                configurationForm.FormClosed += (senderer, ea) => { ConfigurationFormClosed(senderer, ea); };
-                configurationForm.Show();
+                ccf = new ClientConfigurationForm(liveScanServer, serialNumber);
+                AddClientConfigurationForm(serialNumber, ccf);
+                ccf.FormClosing += (senderer, ea) => { ConfigurationFormClosed(senderer, ea); };
+                ccf.Show();
             }
 
             else
-            {
-                if (configurationForm.serialnumber != serialNumber)
-                    configurationForm.OpenConfig(serialNumber);
-
-                configurationForm.Focus();
-            }
+                ccf.Focus();
         }
 
         private void ConfigurationFormClosed(object sender, EventArgs e)
         {
-            configurationForm.Dispose();
-            configurationForm = null;
+            RemoveClientConfigurationForm((sender as ClientConfigurationForm).serialnumber);
         }
 
         private void chHardwareSync_Clicked(object sender, EventArgs e)

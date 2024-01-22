@@ -285,13 +285,20 @@ void AzureKinectCapture::DecodeRawColor()
 		colorBGR = cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
 
 	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR.data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
+
+	int colorSize = colorBGR.total() * colorBGR.elemSize();
+	int depthSize = k4a_image_get_size(depthImage16Int);
+
+	/*int colorSizeKB = colorSize / 1000;
+	int depthSizeKB = depthSize / 1000;
+	std::cout << "Decoded color + depth size KB = " << std::to_string((colorSizeKB + depthSizeKB)) << std::endl;*/
 }
 
 void AzureKinectCapture::DownscaleColorImgToDepthImgSize()
 {
 
 	//Resize the k4a_image to the precalculated size, so that we later save on resources while transforming the image
-	//Nice idea, however resizing takes so long, that it's not worth it. 
+	//--> Nice idea, however resizing takes so long, that it's not worth it. 
 	//Might only be useful for very high res color recordings in Pointcloud Mode, but that doesn't make sense
 	cv::resize(colorBGR, colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
 

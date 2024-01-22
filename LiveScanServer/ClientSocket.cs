@@ -430,6 +430,14 @@ namespace LiveScanServer
                     startIdx += 2;
                 }
             }
+
+            //long colorSize = sizeof(byte) * lFrameRGB.Count;
+            //long vertSize = sizeof(Single) * lFrameVerts.Count;
+            //long totalSize = colorSize + vertSize;
+            //long totalSizeKB = totalSize / 1000;
+            //long totalSizeMB = totalSizeKB / 1000;
+
+            //Log.LogInfo("Transmission size for depth mode " + configuration.eDepthRes.ToString() + " color mode: " + configuration.eColorRes.ToString() + " is: " + totalSize + "bytes, " + totalSizeKB + "kb, " + totalSizeMB + "mb");
         }
 
         public void ReceiveDirConfirmation()

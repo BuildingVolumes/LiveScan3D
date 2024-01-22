@@ -33,7 +33,6 @@ namespace LiveScanServer
         ManualResetEvent allDone = new ManualResetEvent(false);
 
         public LiveScanServer server;
-        public Dictionary<int, ClientConfigurationForm> kinectConfigurationForms;
         public MainWindowForm MainUI;
         Thread listeningThread;
         Thread receivingThread;
@@ -47,7 +46,6 @@ namespace LiveScanServer
         public ClientCommunication(LiveScanServer server)
         {
             this.server = server;
-            kinectConfigurationForms = new Dictionary<int, ClientConfigurationForm>();
         }
 
         public int nClientCount
@@ -202,18 +200,7 @@ namespace LiveScanServer
             }
         }
 
-        public void SetKinectSettingsForm(int id, ClientConfigurationForm form)
-        {
-            if (kinectConfigurationForms.ContainsKey(id))
-            {
-                kinectConfigurationForms[id] = form;
-            }
-            else
-            {
-                kinectConfigurationForms.Add(id, form);
-            }
-        }
-
+        
         public List<ClientSocket> GetClientSockets()
         {
             return lClientSockets;
@@ -229,7 +216,7 @@ namespace LiveScanServer
             List<string> serialNumbers = new List<string>();
 
             for (int i = 0; i < lClientSockets.Count; i++)
-            { 
+            {
                 serialNumbers.Add(lClientSockets[i].configuration.SerialNumber);
             }
 
@@ -247,7 +234,7 @@ namespace LiveScanServer
                 }
             }
 
-            return null;            
+            return null;
         }
 
         public void SetMainWindowForm(MainWindowForm main)
@@ -255,18 +242,6 @@ namespace LiveScanServer
             MainUI = main;
         }
 
-        public ClientConfigurationForm GetKinectSettingsForm(int id)
-        {
-            if (kinectConfigurationForms.TryGetValue(id, out var value))
-            {
-                return value;
-            }
-            else
-            {
-                //Uh Oh. Have we removed or added a camera in an odd way?
-                return null;
-            }
-        }
         private void SocketListChanged()
         {
             if (eSocketListChanged != null)
@@ -291,9 +266,9 @@ namespace LiveScanServer
                 }
 
                 //Probably another server already running
-                catch(SocketException se)
+                catch (SocketException se)
                 {
-                    MainUI.ShowMessageBox( System.Windows.Forms.MessageBoxIcon.Error, "Another Livescan Server Instance is already running!", true);
+                    MainUI.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Another Livescan Server Instance is already running!", true);
                     return false;
                 }
 
@@ -356,7 +331,7 @@ namespace LiveScanServer
 
         public bool Calibrate(bool start)
         {
-            if(start && lClientSockets.Count < 1)
+            if (start && lClientSockets.Count < 1)
             {
                 return false;
             }
@@ -365,7 +340,7 @@ namespace LiveScanServer
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    if(start)
+                    if (start)
                         lClientSockets[i].Calibrate();
                     else
                         lClientSockets[i].CancelCalibration();
@@ -406,7 +381,6 @@ namespace LiveScanServer
         public bool SetAndConfirmConfig(ClientConfiguration newConfig)
         {
             Log.LogDebug("Setting Configuration for kinect: " + newConfig.SerialNumber);
-            Log.LogDebug(newConfig.ToString());
 
             ClientSocket socket = GetSocketFromSerial(newConfig.SerialNumber);
 
@@ -438,12 +412,13 @@ namespace LiveScanServer
 
             if (!socket.bConfigurationReceived)
             {
-                MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not set configuration file on client " + newConfig.SerialNumber+", please check your network");
+                MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not set configuration file on client " + newConfig.SerialNumber + ", please check your network");
                 Log.LogError("Client " + newConfig.SerialNumber + " did not confirm that it has received configuration file");
                 return false;
             }
 
             return true;
+
         }
 
 
@@ -499,7 +474,7 @@ namespace LiveScanServer
 
                 else
                     clients[i].UpdateSocketState("");
-            }            
+            }
 
             if (cameraError)
                 return false;
@@ -929,7 +904,7 @@ namespace LiveScanServer
                 {
                     if (lClientSockets[i].bDirCreationError)
                     {
-                        Log.LogError("Client number: " + (i+1) + "could not create take dir" );
+                        Log.LogError("Client number: " + (i + 1) + "could not create take dir");
                         clientDirError = true;
                         break;
                     }
@@ -1015,7 +990,7 @@ namespace LiveScanServer
                 for (int i = 0; i < kinects.Count; i++)
                 {
                     kinects[i].RequestConfiguration();
-                    Log.LogDebug("Getting configuration from client number: " + (i+1));
+                    Log.LogDebug("Getting configuration from client number: " + (i + 1));
                 }
             }
 
@@ -1044,7 +1019,7 @@ namespace LiveScanServer
 
                     if (!kinects[i].bConfigurationReceived)
                     {
-                        Log.LogError("Could not get configuration from client number: " + (i+1));
+                        Log.LogError("Could not get configuration from client number: " + (i + 1));
                         MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Could not update configuration on one client, please check your network");
                         return false;
                     }
@@ -1089,7 +1064,7 @@ namespace LiveScanServer
                                     break;
                                 }
                             }
-                            
+
                         }
                     }
 
@@ -1183,7 +1158,7 @@ namespace LiveScanServer
 
             List<ClientSyncData> postSyncDeviceData = PostSync.GenerateSyncList(allDeviceSyncData, server.GetState().settings.takePath);
 
-            if(postSyncDeviceData == null)
+            if (postSyncDeviceData == null)
             {
                 Log.LogError("Could not generate Post sync List");
                 return false;
@@ -1201,7 +1176,7 @@ namespace LiveScanServer
             return true;
         }
 
-       
+
         /// <summary>
         /// Sends the postsync-List to the clients and waits until all clients have confirmed that they renumbered their files correctly
         /// </summary>
@@ -1231,16 +1206,16 @@ namespace LiveScanServer
                         if (!lClientSockets[i].bPostSyncConfirmed)
                             postSyncConfirmed = false;
                     }
-                }                
+                }
             }
-            
+
             lock (oClientSocketLock)
             {
                 for (int i = 0; i < lClientSockets.Count; i++)
                 {
                     if (lClientSockets[i].bPostSyncError)
                     {
-                        Log.LogError("Error while reordering frames on client number: " + (i+1));
+                        Log.LogError("Error while reordering frames on client number: " + (i + 1));
                         return false;
                     }
                 }
@@ -1417,7 +1392,7 @@ namespace LiveScanServer
                 {
                     if (restartAsStandalone)
                     {
-                        if(!CloseClient(newClient) || !InitializeClient(newClient))
+                        if (!CloseClient(newClient) || !InitializeClient(newClient))
                         {
                             FatalClientError(newClient, "Could not restart new client to match temporal sync settings, please reconnect", "Could not close or open new client");
                             return;
@@ -1466,20 +1441,6 @@ namespace LiveScanServer
 
         private void ClientDisconnected(ClientSocket client)
         {
-            //Close the configuration form
-            if(client.configuration != null)
-            {
-                foreach (var kcf in kinectConfigurationForms)
-                {
-                    if (kcf.Value.GetCurrentlyShownConfig().SerialNumber == client.configuration.SerialNumber)
-                    {
-                        GetKinectSettingsForm(kcf.Key).CloseConfiguration();
-                        kinectConfigurationForms.Remove(kcf.Key);
-                        break;
-                    }
-                }
-            }         
-
             lock (oClientSocketLock)
             {
                 lClientSockets.Remove(client);
@@ -1489,9 +1450,6 @@ namespace LiveScanServer
             {
                 eSocketListChanged(lClientSockets);
             }
-
-
-
         }
 
         private void ListeningWorker()
