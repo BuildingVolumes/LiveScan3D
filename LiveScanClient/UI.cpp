@@ -378,7 +378,7 @@ void UI::AddClient()
 
 void UI::RemoveClient(int index)
 {
-	//Save the currently selected tab
+	//Save the currently selected tab index
 	m_nTabSelected = TabCtrl_GetCurSel(GetDlgItem(m_hWnd, IDC_TAB));
 
 	TabCtrl_DeleteItem(GetDlgItem(m_hWnd, IDC_TAB), index);
@@ -390,10 +390,16 @@ void UI::RemoveClient(int index)
 		TabCtrl_InsertItem(GetDlgItem(m_hWnd, IDC_TAB), tabs.size(), &m_uiPlusTab);
 	}
 
-	//In case the currently selected tab got deleted, we go to the next one
-	//If not possible, to the last
-	if (m_nTabSelected >= tabs.size())
-		m_nTabSelected = tabs.size() - 1;
+	//Now that the tabs list has changed through the removal, we need to figure out
+	// where the previously selected tab is now located 
+
+	//In case the deleted tab was our current tab, or was to the left of it, we shuffle one tab to the left
+	if (m_nTabSelected == index || m_nTabSelected > index)
+	{
+		m_nTabSelected = m_nTabSelected - 1;
+		if (m_nTabSelected < 0)
+			m_nTabSelected = 0;
+	}
 
 	TabCtrl_SetCurSel(GetDlgItem(m_hWnd, IDC_TAB), m_nTabSelected);
 
