@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 using OpenTK;
 using OpenTK.Graphics;
-using KinectServer;
+using LiveScanServer;
 
 enum ECameraMode
 {
@@ -42,9 +42,9 @@ public class ViewportSettings
     }
 }
 
-namespace KinectServer
+namespace LiveScanServer
 {
-    public class OpenGLWindow
+    public class OpenGLView
     {
         int PointCount;
         int LineCount;
@@ -75,14 +75,11 @@ namespace KinectServer
         public List<byte> colors = new List<byte>();
         public List<Matrix4x4> cameraPoses = new List<Matrix4x4>();
         public List<Matrix4x4> markerPoses = new List<Matrix4x4>();
-        public KinectSettings settings = new KinectSettings();
+        public ClientSettings settings = new ClientSettings();
 
         public ViewportSettings viewportSettings = new ViewportSettings();
 
         bool bDrawMarkings = true;
-
-        //Used to communicate to the file loading threat that we need to load new files
-        bool bufferEmpty = false;
 
         // this struct is used for drawing
         struct VertexC4ubV3f
@@ -91,31 +88,6 @@ namespace KinectServer
             public Vector3 Position;
 
             public static int SizeInBytes = 16;
-        }
-
-        public void OnKeyDown(object sender, KeyEventArgs e)
-        {
-            Keys key = e.KeyCode;
-
-            if (key == Keys.Add)
-            {
-                PointSize += 0.1f;
-                GL.PointSize(PointSize);
-            }
-            if (key == Keys.Subtract)
-            {
-                if (PointSize != 0)
-                    PointSize -= 0.1f;
-                GL.PointSize(PointSize);
-            }
-
-            if (key == Keys.M)
-                bDrawMarkings = !bDrawMarkings;
-
-            if (key == Keys.O)
-                brightnessModifier = (byte)Math.Max(0, brightnessModifier - 10);
-            if (key == Keys.P)
-                brightnessModifier = (byte)Math.Min(255, brightnessModifier + 10);
         }
 
         /// <summary>
@@ -160,11 +132,108 @@ namespace KinectServer
             targetPosition[0] = 0;
             targetPosition[1] = 0;
             targetPosition[2] = 0;
+
         }
 
         public void Unload()
         {
             GL.DeleteBuffers(1, ref VBOHandle);
+        }
+
+        /// <summary>
+        /// Updates all the elements that exist inside of the 3D Space
+        /// </summary>
+        public void UpdateFrame()
+        {
+            GL.PointSize(viewportSettings.pointSize);
+            brightnessModifier = (byte)viewportSettings.brightness;
+            bDrawMarkings = viewportSettings.markerVisibility;
+            //TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
+
+            lock (vertices)
+            {
+                PointCount = vertices.Count / 3;
+                LineCount = 0;
+                if (bDrawMarkings)
+                {
+                    //bounding box
+                    LineCount += 12;
+                    //markers
+                    LineCount += markerPoses.Count * 3;
+                    //cameras
+                    LineCount += cameraPoses.Count * 3;
+                }
+
+                VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
+
+                for (int i = 0; i < PointCount; i++)
+                {
+                    if (viewportSettings.colorMode == EColorMode.RGB)
+                    {
+                        VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
+                        VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
+                        VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
+                        VBO[i].A = 255;
+                    }
+
+                    else if (viewportSettings.colorMode == EColorMode.BGR)
+                    {
+                        VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
+                        VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
+                        VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
+                        VBO[i].A = 255;
+                    }
+
+
+                    VBO[i].Position.X = vertices[i * 3];
+                    VBO[i].Position.Y = vertices[i * 3 + 1];
+                    VBO[i].Position.Z = vertices[i * 3 + 2];
+                }
+            }
+
+            if (bDrawMarkings)
+            {
+                int iCurLineCount = 0;
+                iCurLineCount += AddBoundingBox(PointCount + 2 * iCurLineCount);
+
+                byte[] red = new byte[4] { 255, 0, 0, 0 };
+                byte[] green = new byte[4] { 0, 255, 0, 0 };
+
+                for (int i = 0; i < markerPoses.Count; i++)
+                {
+                    iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, markerPoses[i], red);
+                }
+                for (int i = 0; i < cameraPoses.Count; i++)
+                {
+                    iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, cameraPoses[i], green);
+                }
+            }
+        }
+
+
+        public void RenderFrame()
+        {
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            Matrix4 lookat = Matrix4.LookAt(0, 0, 5, 0, 0, 0, 0, 1, 0);
+            GL.MatrixMode(MatrixMode.Modelview);
+
+            GL.LoadMatrix(ref lookat);
+
+            GL.Translate(-cameraPosition[0], -cameraPosition[1], -cameraPosition[2]);
+            GL.Rotate(g_pitch, 1.0f, 0.0f, 0.0f);
+            GL.Rotate(g_heading, 0.0f, 1.0f, 0.0f);
+
+            // Tell OpenGL to discard old VBO when done drawing it and reserve memory _now_ for a new buffer.
+            // without this, GL would wait until draw operations on old VBO are complete before writing to it
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), IntPtr.Zero, BufferUsageHint.StreamDraw);
+            // Fill newly allocated buffer
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), VBO, BufferUsageHint.StreamDraw);
+
+            GL.DrawArrays(BeginMode.Points, 0, PointCount);
+            GL.DrawArrays(BeginMode.Lines, PointCount, 2 * LineCount);
+
+            GL.End();
         }
 
         public void Resize(int width, int height)
@@ -174,6 +243,31 @@ namespace KinectServer
             Matrix4 perpective = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, aspect_ratio, 0.01f, 64);
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadMatrix(ref perpective);
+        }
+
+        public void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            Keys key = e.KeyCode;
+
+            if (key == Keys.Add)
+            {
+                PointSize += 0.1f;
+                GL.PointSize(PointSize);
+            }
+            if (key == Keys.Subtract)
+            {
+                if (PointSize != 0)
+                    PointSize -= 0.1f;
+                GL.PointSize(PointSize);
+            }
+
+            if (key == Keys.M)
+                bDrawMarkings = !bDrawMarkings;
+
+            if (key == Keys.O)
+                brightnessModifier = (byte)Math.Max(0, brightnessModifier - 10);
+            if (key == Keys.P)
+                brightnessModifier = (byte)Math.Min(255, brightnessModifier + 10);
         }
 
         public void OnMouseWheelChanged(object sender, MouseEventArgs e)
@@ -262,110 +356,7 @@ namespace KinectServer
             MousePrevious.Y = e.Y;
         }
 
-        /// <summary>
-        /// Updates all the elements that exist inside of the 3D Space
-        /// </summary>
-        public void UpdateFrame()
-        {
-            lock (viewportSettings)
-            {
-                GL.PointSize(viewportSettings.pointSize);
-                brightnessModifier = (byte)viewportSettings.brightness;
-                bDrawMarkings = viewportSettings.markerVisibility;
-                //TargetUpdateFrequency = viewportSettings.targetPlaybackFPS;
 
-            }
-
-            lock (vertices)
-            {
-                lock (settings)
-                {
-
-                    PointCount = vertices.Count / 3;
-                    LineCount = 0;
-                    if (bDrawMarkings)
-                    {
-                        //bounding box
-                        LineCount += 12;
-                        //markers
-                        LineCount += markerPoses.Count * 3;
-                        //cameras
-                        LineCount += cameraPoses.Count * 3;
-                    }
-
-                    VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
-
-                    for (int i = 0; i < PointCount; i++)
-                    {
-                        if (viewportSettings.colorMode == EColorMode.RGB)
-                        {
-                            VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
-                            VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
-                            VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
-                            VBO[i].A = 255;
-                        }
-
-                        else if (viewportSettings.colorMode == EColorMode.BGR)
-                        {
-                            VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
-                            VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
-                            VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
-                            VBO[i].A = 255;
-                        }
-
-
-                        VBO[i].Position.X = vertices[i * 3];
-                        VBO[i].Position.Y = vertices[i * 3 + 1];
-                        VBO[i].Position.Z = vertices[i * 3 + 2];
-                    }
-
-                    if (bDrawMarkings)
-                    {
-                        int iCurLineCount = 0;
-                        iCurLineCount += AddBoundingBox(PointCount + 2 * iCurLineCount);
-
-                        byte[] red = new byte[4] {255, 0, 0, 0};
-                        byte[] green = new byte[4] {0, 255, 0, 0};
-
-                        for (int i = 0; i < markerPoses.Count; i++)
-                        {
-                            iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, markerPoses[i], red);
-                        }
-                        for (int i = 0; i < cameraPoses.Count; i++)
-                        {
-                            iCurLineCount += AddGizmo(PointCount + 2 * iCurLineCount, cameraPoses[i], green);
-                        }
-                    }
-
-                    bufferEmpty = true;
-                }
-            }
-        }
-
-        public void RenderFrame()
-        {
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-            Matrix4 lookat = Matrix4.LookAt(0, 0, 5, 0, 0, 0, 0, 1, 0);
-            GL.MatrixMode(MatrixMode.Modelview);
-
-            GL.LoadMatrix(ref lookat);
-
-            GL.Translate(-cameraPosition[0], -cameraPosition[1], -cameraPosition[2]);
-            GL.Rotate(g_pitch, 1.0f, 0.0f, 0.0f);
-            GL.Rotate(g_heading, 0.0f, 1.0f, 0.0f);
-
-            // Tell OpenGL to discard old VBO when done drawing it and reserve memory _now_ for a new buffer.
-            // without this, GL would wait until draw operations on old VBO are complete before writing to it
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), IntPtr.Zero, BufferUsageHint.StreamDraw);
-            // Fill newly allocated buffer
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), VBO, BufferUsageHint.StreamDraw);
-
-            GL.DrawArrays(BeginMode.Points, 0, PointCount);
-            GL.DrawArrays(BeginMode.Lines, PointCount, 2 * LineCount);
-
-            GL.End();
-        }
 
         private int AddBoundingBox(int startIdx)
         {

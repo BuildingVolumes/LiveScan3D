@@ -1,6 +1,6 @@
 ﻿
 //Various enums and helper function
-namespace KinectServer
+namespace LiveScanServer
 {
 	//If anyone knows of a clever way to share the enum in both the client and the server, that would be a nice-to-have. A dll?
 
@@ -11,13 +11,14 @@ namespace KinectServer
 	{
 		MSG_CAPTURE_SINGLE_FRAME,
 		MSG_CALIBRATE,
+		MSG_CALIBRATE_CANCEL,
 		MSG_RECEIVE_SETTINGS,
 		MSG_REQUEST_STORED_FRAME,
 		MSG_REQUEST_LAST_FRAME,
 		MSG_RECEIVE_CALIBRATION,
 		MSG_CLEAR_STORED_FRAMES,
 		MSG_CLOSE_CAMERA,
-		MSG_INIT_CAMERA,
+		MSG_START_CAMERA,
 		MSG_SET_CONFIGURATION,
 		MSG_REQUEST_CONFIGURATION,
 		MSG_CREATE_DIR,

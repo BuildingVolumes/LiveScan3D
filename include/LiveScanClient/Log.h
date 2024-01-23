@@ -53,6 +53,7 @@ class LogBuffer
 {
 public:
 
+	void ChangeSerial(std::string serial);
 	void ChangeName(std::string name);
 	std::vector<std::string> GetMessageBuffer();
 	void ClearMessageBuffer();
@@ -72,7 +73,8 @@ private:
 	void AddLogEntry(std::string message, std::string loglevel);
 
 	std::vector<std::string> messages;
-	std::string name = "Unknown";
+	std::string serial = "Unknown";
+	std::string name = "";
 	Log::LOGLEVEL logLevel = Log::LOGLEVEL_INFO;
 };
 

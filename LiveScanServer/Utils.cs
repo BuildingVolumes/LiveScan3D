@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Globalization;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     public struct Point2f
     {
@@ -174,6 +174,18 @@ namespace KinectServer
 
     }
 
+    public enum appState 
+    { 
+        idle = 0,
+        recording = 1,
+        syncing = 2,
+        downloading = 3,
+        calibrating = 4,
+        refinining = 5,
+        restartingClients = 6
+    }
+
+
     public enum TrackingState
     {
         TrackingState_NotTracked = 0,
@@ -307,25 +319,25 @@ namespace KinectServer
             fileStream.Close();
         }
 
-        public static void SaveExtrinsics(KinectSettings.ExtrinsicsStyle extrinsicsStyle, string filePath, List<KinectSocket> kinectSockets)
+        public static void SaveExtrinsics(ClientSettings.ExtrinsicsStyle extrinsicsStyle, string filePath, List<ClientSocket> kinectSockets)
         {
             Log.LogInfo("Saving Extrinsics to: " + filePath);
 
             switch (extrinsicsStyle)
             {
-                case KinectSettings.ExtrinsicsStyle.None:
+                case ClientSettings.ExtrinsicsStyle.None:
                     break;
-                case KinectSettings.ExtrinsicsStyle.Open3D:
+                case ClientSettings.ExtrinsicsStyle.Open3D:
                     SaveExtrinsicsOpen3DStyle(filePath, kinectSockets);
                     break;
-                case KinectSettings.ExtrinsicsStyle.OpenMVS:
+                case ClientSettings.ExtrinsicsStyle.OpenMVS:
                     break;
                 default:
                     break;
             }
         }
 
-        private static void SaveExtrinsicsOpen3DStyle(string filePath, List<KinectSocket> kinectSockets)
+        private static void SaveExtrinsicsOpen3DStyle(string filePath, List<ClientSocket> kinectSockets)
         {
             filePath += "Extrinsics_Open3D.log";
 

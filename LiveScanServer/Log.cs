@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     static class Log
     {

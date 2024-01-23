@@ -2,7 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 
-namespace KinectServer
+namespace LiveScanServer
 {
     /// <summary>
     /// Contains all data needed to sync for a single frame

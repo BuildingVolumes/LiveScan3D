@@ -97,10 +97,11 @@ private:
 	bool m_bSendCalibration;
 	bool m_bCloseCamera;
 	bool m_bConfirmCameraClosed;
-	bool m_bInitializeCamera;
+	bool m_bStartCamera;
 	bool m_bConfirmCameraInitialized;
 	bool m_bCameraError;
 	bool m_bUpdateSettings;
+	bool m_bUpdateFilters;
 	bool m_bRequestConfiguration;
 	bool m_bSendConfiguration;
 	bool m_bSendTimeStampList;
@@ -181,8 +182,9 @@ private:
 	void Calibrate();
 	void SetStatusMessage(std::wstring message, int time, bool priority);
 	void HandleSocket();
-	bool InitializeCamera();
-	bool CloseCamera();
+	bool StartCamera();
+	void StopCamera();
+	void DisposeDevice();
 	void SendPostSyncConfirmation(bool success);
 	void SendFrame(Point3s* vertices,int verticesSize, RGBA* RGB, bool live);
 	bool PostSyncPointclouds();

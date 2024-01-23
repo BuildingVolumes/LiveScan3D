@@ -14,15 +14,20 @@ public:
 
 	int GetAndLockDeviceIndex();
 	void ReleaseDeviceIndexLock();
-	bool Initialize(KinectConfiguration& configuration) override;
+
+	bool OpenDevice() override;
+	bool StartCamera(KinectConfiguration& configuration) override;
+	void StopCamera() override;
+	void DisposeDevice() override;
+	
 	bool AquireRawFrame() override;	
-	bool Close() override;
+
+	bool AquireSerialFromDevice() override;
 	int GetSyncJackState() override;
 	uint64_t GetTimeStamp() override;
 	void SetExposureState(bool enableAutoExposure, int exposureStep) override;
 	void SetWhiteBalanceState(bool enableAutoBalance, int kelvinValue) override;
 	bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size) override;
-	void SetConfiguration(KinectConfiguration& configuration);
 	bool LoadColorImagesfromDisk();
 	bool LoadDepthImagesfromDisk();
 

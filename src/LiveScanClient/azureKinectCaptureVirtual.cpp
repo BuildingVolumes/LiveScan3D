@@ -13,20 +13,29 @@ AzureKinectCaptureVirtual::AzureKinectCaptureVirtual()
 
 AzureKinectCaptureVirtual::~AzureKinectCaptureVirtual()
 {
+	DisposeDevice();
 	ReleaseDeviceIndexLock();
 }
 
-bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
+bool AzureKinectCaptureVirtual::OpenDevice()
 {
-
-	logBuffer.LogDebug("Starting Virtual Azure Kinect Device initialization");
-	bInitialized = false;
+	logBuffer.LogDebug("Opening Virtual Azure Kinect Device");
+	bOpen = false;
 
 	if (localDeviceIndex < 0)
 	{
-		logBuffer.LogFatal("Virtual Azure Kinect Device Index not set, can't initialize!");
-		return bInitialized;
+		logBuffer.LogFatal("Virtual Azure Kinect Device Index not set, can't open!");
+		return bOpen;
 	}
+	
+	bOpen = true;
+
+	AquireSerialFromDevice();
+}
+
+bool AzureKinectCaptureVirtual::StartCamera(KinectConfiguration& configuration)
+{
+	logBuffer.LogDebug("Starting Virtual Azure Kinect Camera");
 
 	//Load the calibration from disk
 	k4a_calibration_t calibration;
@@ -40,7 +49,7 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 	else
 	{
 		logBuffer.LogFatal("Could not load calibration from disk for Virtual Azure Kinect Device!");
-		return bInitialized;
+		return bStarted;
 	}
 
 	//Create the downscaled image
@@ -59,49 +68,33 @@ bool AzureKinectCaptureVirtual::Initialize(KinectConfiguration& configuration)
 	transformationColorDownscaled = k4a_transformation_create(&calibrationColorDownscaled);
 
 	SetConfiguration(configuration);
-	serialNumber = this->configuration.serialNumber;
 
 	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk())
 	{
 		logBuffer.LogFatal("Cannot open virtual device, images can't be loaded from the disk!");
-		return bInitialized;
+		return bStarted;
 	}
 
 	if (m_vVirtualColorImageSequence.size() != m_vVirtualDepthImageSequence.size())
 	{
 		logBuffer.LogFatal("The amount of the virtual color and depth images need to be the same!");
-		return bInitialized;
+		return bStarted;
 	}
 
 	m_lLastFrameTimeus = GetTimeStamp();
 
 	logBuffer.LogInfo("Virtual Device Initialization successful!");
-	bInitialized = true;
-	return bInitialized;
+	bStarted = true;
+	return bStarted;
 }
 
-/// <summary>
-/// We overwrite the values in the configuration file with values from our list of Virtual Kinect configurations.
-///	These configurations aim to cover a broad base of possible settings
-///	We only take non-device depedent settings from the server-provided config
-/// </summary>
-/// <param name="configuration"></param>
-void AzureKinectCaptureVirtual::SetConfiguration(KinectConfiguration& configuration)
-{
-	std::string serialNumber = "000000000000";
-	serialNumber += std::to_string(localDeviceIndex + 1);
-	configuration.SetSerialNumber(serialNumber);
-	this->configuration = configuration;
-}
 
-bool AzureKinectCaptureVirtual::Close()
+void AzureKinectCaptureVirtual::StopCamera()
 {
-	logBuffer.LogInfo("Closing Virtual Azure Kinect device");
+	if (!bStarted)
+		return;
 
-	if (!bInitialized)
-	{
-		return false;
-	}
+	logBuffer.LogInfo("Stopping Virtual Azure Kinect camera");
 
 	k4a_image_release(colorImageMJPG);
 	k4a_image_release(depthImage16Int);
@@ -112,9 +105,6 @@ bool AzureKinectCaptureVirtual::Close()
 	k4a_transformation_destroy(transformationColorDownscaled);
 	k4a_transformation_destroy(transformation);
 
-	//Simulate the hardware closing the device, ususally takes a short time
-	Sleep(300);
-
 	colorImageMJPG = NULL;
 	depthImage16Int = NULL;
 	pointCloudImage = NULL;
@@ -124,14 +114,23 @@ bool AzureKinectCaptureVirtual::Close()
 	transformationColorDownscaled = NULL;
 	transformation = NULL;
 
-	bInitialized = false;
+	bStarted = false;
+}
 
-	return true;
+void AzureKinectCaptureVirtual::DisposeDevice()
+{
+	if (!bOpen)
+		return;
+
+	StopCamera();
+	logBuffer.LogInfo("Disposing Virtual Azure Kinect camera");
+	Sleep(300); //Simulate the hardware closing the device, ususally takes a short time
+	bOpen = false;
 }
 
 bool AzureKinectCaptureVirtual::AquireRawFrame()
 {
-	if (!bInitialized)
+	if (!bStarted)
 	{
 		logBuffer.LogCaptureDebug("Trying to aquire a Frame, but virtual camera is not initialized");
 		return false;
@@ -155,7 +154,7 @@ bool AzureKinectCaptureVirtual::AquireRawFrame()
 		{
 			return false;
 		}
-	}	
+	}
 
 	long framesPassed = timeStamp / 33000;
 
@@ -178,7 +177,6 @@ bool AzureKinectCaptureVirtual::AquireRawFrame()
 	m_lLastFrameTimeus = timeStamp;
 
 	return true;
-
 }
 
 /// <summary>
@@ -297,7 +295,7 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 			k4a_image_release(m_vVirtualDepthImageSequence[i]);
 	}
 
-	m_vVirtualDepthImageSequence.clear();	
+	m_vVirtualDepthImageSequence.clear();
 
 	bool imagefound = true;
 	int imageIndex = 1;
@@ -330,7 +328,7 @@ bool AzureKinectCaptureVirtual::LoadDepthImagesfromDisk()
 		std::string imagePath = imageDirPath;
 		imagePath += "Depth_";
 		imagePath += std::to_string(imageIndex);
-		imagePath += ".tiff";		
+		imagePath += ".tiff";
 
 		k4a_image_t newImage;
 		cv::Mat cvImgDepth = cv::imread(imagePath, cv::ImreadModes::IMREAD_ANYDEPTH);
@@ -411,8 +409,18 @@ void AzureKinectCaptureVirtual::SetWhiteBalanceState(bool enableAutoBalance, int
 	kelvin = kelvinValue;
 }
 
+bool AzureKinectCaptureVirtual::AquireSerialFromDevice()
+{
+	if (!bOpen)
+		return false;
+
+	serialNumber = "000000000000";
+	serialNumber += std::to_string(localDeviceIndex + 1);
+	return true;
+}
+
 //Here, the first camera is always the master, the other ones subordinates
-int AzureKinectCaptureVirtual::GetSyncJackState() 
+int AzureKinectCaptureVirtual::GetSyncJackState()
 {
 	if (localDeviceIndex == 0)
 		return 0;

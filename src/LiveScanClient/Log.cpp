@@ -138,6 +138,11 @@ void LogBuffer::ClearMessageBuffer()
 /// Changes the name which should be used in the log display
 /// </summary>
 /// <param name="newName"></param>
+void LogBuffer::ChangeSerial(std::string newSerial)
+{
+	serial = newSerial;
+}
+
 void LogBuffer::ChangeName(std::string newName)
 {
 	name = newName;
@@ -212,7 +217,7 @@ void LogBuffer::LogError(std::string message)
 /// <param name="message"></param>
 void LogBuffer::LogFatal(std::string message)
 {
-	if (logLevel >= Log::LOGLEVEL_ERRORS)
+	if (logLevel >= Log::LOGLEVEL_ERRORS){}
 		AddLogEntry(message, "[FATAL]");
 }
 
@@ -226,7 +231,9 @@ void LogBuffer::AddLogEntry(std::string message, std::string loglevel)
 	time_t t = time(0);
 	struct tm* now = localtime(&t);
 
-	std::string newMessage = std::string("[") + name + std::string("]");
+	std::string newMessage = std::string("[") + serial + std::string("] ");
+	if (!name.empty())
+		newMessage += std::string("(") + name + std::string(") ");
 
 	std::string hour = std::to_string(now->tm_hour);
 	std::string min = std::to_string(now->tm_min);
