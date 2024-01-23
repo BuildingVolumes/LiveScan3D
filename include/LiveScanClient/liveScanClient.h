@@ -101,6 +101,7 @@ private:
 	bool m_bConfirmCameraInitialized;
 	bool m_bCameraError;
 	bool m_bUpdateSettings;
+	bool m_bUpdateFilters;
 	bool m_bRequestConfiguration;
 	bool m_bSendConfiguration;
 	bool m_bSendTimeStampList;

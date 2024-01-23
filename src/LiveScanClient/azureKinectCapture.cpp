@@ -431,6 +431,12 @@ void AzureKinectCapture::SetWhiteBalanceState(bool enableAutoBalance, int kelvin
 	}
 }
 
+void AzureKinectCapture::SetFilters(bool depthFilterEnabled, int depthFilterSize)
+{
+	configuration.filter_depth_map = depthFilterEnabled;
+	configuration.filter_depth_map_size = depthFilterSize;
+}
+
 bool AzureKinectCapture::AquireSerialFromDevice()
 {
 	logBuffer.LogDebug("Aquiring Serial Nnmber from device");

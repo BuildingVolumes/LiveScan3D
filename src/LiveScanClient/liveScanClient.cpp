@@ -216,6 +216,12 @@ void LiveScanClient::UpdateFrame()
 		m_bUpdateSettings = false;
 	}
 
+	if (m_bUpdateFilters)
+	{
+		pCapture->SetFilters(configuration.filter_depth_map, configuration.filter_depth_map_size);
+		m_bUpdateFilters = false;
+	}
+
 	if (m_bCloseCamera)
 	{
 		StopCamera();
@@ -659,6 +665,7 @@ void LiveScanClient::HandleSocket()
 
 			i += KinectConfiguration::byteLength;
 			configuration.SetFromBytes(message);
+			m_bUpdateFilters = true;
 			delete[] message;
 
 			i--;

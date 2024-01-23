@@ -33,6 +33,7 @@ public:
 	virtual bool GetIntrinsicsJSON(std::vector<uint8_t>& calibration_buffer, size_t& calibration_size);
 	virtual void SetConfiguration(KinectConfiguration& configuration);
 	virtual void SetWhiteBalanceState(bool enableAutoBalance, int kelvin);
+	virtual void SetFilters(bool enableDepthFilter, int depthFilterSize);
 
 protected:
 	k4a_device_t kinectSensor = NULL;
