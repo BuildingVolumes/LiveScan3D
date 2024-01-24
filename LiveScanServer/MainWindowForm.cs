@@ -18,6 +18,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using LiveScanServer.Properties;
 using System.Threading;
+using System.Reflection.Emit;
 
 namespace LiveScanServer
 {
@@ -47,7 +48,13 @@ namespace LiveScanServer
         Image loadAnimImage;
 
         bool updateUIRequest = false;
+        bool mBoxRequest = false;
         object oUpdateUILock = new object();
+        object oMBoxLock = new object();
+
+        MessageBoxIcon mBoxLevel = MessageBoxIcon.None;
+        string mBoxMessage = "";
+        bool mBoxQuitApp = false;
 
         public MainWindowForm()
         {
@@ -66,7 +73,7 @@ namespace LiveScanServer
         private void MainWindowForm_Load(object sender, EventArgs e)
         {
             StartUpdateTimers();
-            liveScanServer.UpdateUI();
+            liveScanServer.QueueUIUpdate();
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -82,6 +89,10 @@ namespace LiveScanServer
             lock (oUpdateUILock)
                 updateUIRequest = true;
         }
+        public void UIUpdateImmidiate()
+        {
+            SetUIState(liveScanServer.GetState());
+        }
 
         //For UI stuff that needs a regular, but not real-time update at 1 FPS 
         public void SlowUpdate()
@@ -93,19 +104,14 @@ namespace LiveScanServer
         //For UI Stuff that needs to update as fast as possible, running at 60 FPS
         private void FastUpdate()
         {
-            bool redrawUI = false;
-
-            lock (oUpdateUILock)
+            if (updateUIRequest)
             {
-                if (updateUIRequest)
-                {
-                    redrawUI = true;
+                lock (oUpdateUILock)
                     updateUIRequest = false;
-                }
+                SetUIState(liveScanServer.GetState());
             }
 
-            if (redrawUI)
-                SetUIState(liveScanServer.GetState());
+            ShowMessageBox();
 
             glLiveView.MakeCurrent();
             oOpenGLView.UpdateFrame();
@@ -176,6 +182,18 @@ namespace LiveScanServer
                 btRecord.Enabled = true;
             }
 
+            else
+            {
+                btRecord.Enabled = false;
+            }
+
+            //Apply buttons in KinectConfiguration
+            foreach (KeyValuePair<string, ClientConfigurationForm> ccf in clientConfigurationsForms)
+            {
+                ccf.Value.SetButtonsInteractive(newState.appState == appState.idle);
+            }
+
+
 
             //////////////
             //Set controls
@@ -207,7 +225,7 @@ namespace LiveScanServer
             for (int i = ccfsToClose.Count - 1; i >= 0; i--)
             {
                 ccfsToClose[i].CloseConfiguration();
-            }            
+            }
 
             //Temporal Sync
             if (newState.settings.eSyncMode == ClientSettings.SyncMode.Off)
@@ -234,6 +252,12 @@ namespace LiveScanServer
                 chNetworkSync.Checked = false;
             }
 
+            //Álso lock hardware sync button when the sensors are doing anything
+            if (newState.appState == appState.idle)
+                chHardwareSync.Enabled = true;
+
+            else
+                chHardwareSync.Enabled = false;
 
             //Exposure
             rExposureAuto.Checked = newState.settings.bAutoExposureEnabled;
@@ -320,38 +344,55 @@ namespace LiveScanServer
             }
         }
 
-        public void ShowMessageBox(MessageBoxIcon level, string message, bool quitApp = false)
+        public void RequestMessagBox(MessageBoxIcon level, string message, bool quitApp = false)
         {
-            string title = "";
-
-            switch (level)
+            lock (oMBoxLock)
             {
-                case MessageBoxIcon.Error:
-                    title = "Error!";
-                    Log.LogError(message);
-                    break;
-                case MessageBoxIcon.Warning:
-                    title = "Warning";
-                    Log.LogWarning(message);
-                    break;
-                case MessageBoxIcon.Information:
-                    title = "Info";
-                    Log.LogInfo(message);
-                    break;
-                default:
-                    break;
+                mBoxRequest = true;
+                mBoxLevel = level;
+                mBoxMessage = message;
+                mBoxQuitApp = quitApp;
             }
+        }
 
-            if (quitApp)
-                title = "Unrecoverable Error!";
-
-            Invoke(new Action(() =>
+        void ShowMessageBox()
+        {
+            if (mBoxRequest)
             {
-                MessageBox.Show(message, title, MessageBoxButtons.OK, level);
+                lock (oMBoxLock)
+                {
+                    mBoxRequest = false;
 
-                if (quitApp)
-                    Close();
-            }));
+                    string title = "";
+
+                    switch (mBoxLevel)
+                    {
+                        case MessageBoxIcon.Error:
+                            title = "Error!";
+                            Log.LogError(mBoxMessage);
+                            break;
+                        case MessageBoxIcon.Warning:
+                            title = "Warning";
+                            Log.LogWarning(mBoxMessage);
+                            break;
+                        case MessageBoxIcon.Information:
+                            title = "Info";
+                            Log.LogInfo(mBoxMessage);
+                            break;
+                        default:
+                            break;
+                    }
+
+                    if (mBoxQuitApp)
+                        title = "Unrecoverable Error!";
+
+                    MessageBox.Show(mBoxMessage, title, MessageBoxButtons.OK, mBoxLevel);
+
+                    if (mBoxQuitApp)
+                        Close();
+
+                }
+            }
         }
 
         public void AddClientConfigurationForm(string serial, ClientConfigurationForm form)
@@ -466,7 +507,7 @@ namespace LiveScanServer
         private void gvClients_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             //Nickname changed
-            if(e.ColumnIndex == 1)
+            if (e.ColumnIndex == 1)
             {
                 liveScanServer.SetNickname(liveScanServer.GetState().clients[e.RowIndex].configuration.SerialNumber, Convert.ToString(gvClients.Rows[e.RowIndex].Cells[1].Value));
             }
@@ -477,7 +518,7 @@ namespace LiveScanServer
             ClientConfigurationForm ccf;
             ccf = GetClientConfigurationForm(serialNumber);
 
-            if(ccf == null)
+            if (ccf == null)
             {
                 ccf = new ClientConfigurationForm(liveScanServer, serialNumber);
                 AddClientConfigurationForm(serialNumber, ccf);
@@ -487,6 +528,12 @@ namespace LiveScanServer
 
             else
                 ccf.Focus();
+        }
+
+        public void UpdateConfigurationsForms()
+        {
+            foreach (KeyValuePair<string, ClientConfigurationForm> ccf in clientConfigurationsForms)
+                ccf.Value.UpdateUI();
         }
 
         private void ConfigurationFormClosed(object sender, EventArgs e)

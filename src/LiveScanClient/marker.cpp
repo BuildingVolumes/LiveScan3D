@@ -80,7 +80,7 @@ bool MarkerDetector::GetMarker(cv::Mat* img, MarkerInfo &marker)
 			}
 			// HOGUE: UNCOMMENTED
 			//I have commented this out as it crashed for some people, if you want additional accuracy in calibration try to uncomment it.
-			//CornersSubPix(cornersFloat, contours[i], order);
+		    CornersSubPix(cornersFloat, contours[i], order);
 
 			vector<Point2f> cornersFloat2(nMarkerCorners);
 			vector<Point3f> points3D;			

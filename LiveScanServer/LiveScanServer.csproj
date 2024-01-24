@@ -72,7 +72,7 @@
     <Compile Include="MainWindowForm.Designer.cs">
       <DependentUpon>MainWindowForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ClientCommunication.cs" />
+    <Compile Include="ClientManager.cs" />
     <Compile Include="ClientSettings.cs" />
     <Compile Include="ClientSocket.cs" />
     <Compile Include="OpenGLView.cs" />

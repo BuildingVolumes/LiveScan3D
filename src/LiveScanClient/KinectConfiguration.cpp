@@ -149,6 +149,8 @@ void KinectConfiguration::Save()
 	content += std::to_string((int)config.depth_mode) + "\n";
 	content += std::to_string((int)config.color_resolution) + "\n";
 	content += std::to_string((int)config.camera_fps) + "\n";
+	content += std::to_string((bool)filter_depth_map) + "\n";
+	content += std::to_string((int)filter_depth_map_size) + "\n";
 
 	std::ofstream configFile;
 	configFile.open(path);
@@ -185,6 +187,10 @@ void KinectConfiguration::TryLoad()
 	config.color_resolution = (k4a_color_resolution_t)(content[i] - 48);
 	i+=2;
 	config.camera_fps = (k4a_fps_t)(content[i] - 48);
+	i += 2;
+	filter_depth_map = (bool)(content[i] - 48);
+	i += 2;
+	filter_depth_map_size = (int)(content[i] - 48);
 
 	
 

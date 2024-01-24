@@ -25,7 +25,7 @@ using System.Diagnostics;
 namespace LiveScanServer
 {
     public delegate void SocketListChangedHandler(List<ClientSocket> list);
-    public class ClientCommunication
+    public class ClientManager
     {
         Socket oServerSocket;
         bool bServerRunning = false;
@@ -43,7 +43,7 @@ namespace LiveScanServer
         object oFrameRequestLock = new object();
         const float networkTimeout = 5f;
 
-        public ClientCommunication(LiveScanServer server)
+        public ClientManager(LiveScanServer server)
         {
             this.server = server;
         }
@@ -200,7 +200,7 @@ namespace LiveScanServer
             }
         }
 
-        
+
         public List<ClientSocket> GetClientSockets()
         {
             return lClientSockets;
@@ -268,7 +268,7 @@ namespace LiveScanServer
                 //Probably another server already running
                 catch (SocketException se)
                 {
-                    MainUI.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Another Livescan Server Instance is already running!", true);
+                    MainUI.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Error, "Another Livescan Server Instance is already running!", true);
                     return false;
                 }
 
@@ -412,7 +412,7 @@ namespace LiveScanServer
 
             if (!socket.bConfigurationReceived)
             {
-                MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not set configuration file on client " + newConfig.SerialNumber + ", please check your network");
+                MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not set configuration file on client " + newConfig.SerialNumber + ", please check your network");
                 Log.LogError("Client " + newConfig.SerialNumber + " did not confirm that it has received configuration file");
                 return false;
             }
@@ -467,7 +467,7 @@ namespace LiveScanServer
                 if (clients[i].bCameraError)
                 {
                     Log.LogError("Camera close failed on a least one client");
-                    MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not close a kinect. Please reconnect the client and try again");
+                    MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not close a kinect. Please reconnect the client and try again");
                     clients[i].UpdateSocketState(" Close failed! ");
                     cameraError = true;
                 }
@@ -524,7 +524,7 @@ namespace LiveScanServer
                 if (clients[i].bCameraError)
                 {
                     Log.LogError("Could not initialize at least one camera on client");
-                    MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not initialize a kinect. Please reconnect the client and try again");
+                    MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not initialize a kinect. Please reconnect the client and try again");
                     clients[i].UpdateSocketState(" Initialization failed! ");
                     cameraError = true;
                 }
@@ -540,6 +540,12 @@ namespace LiveScanServer
             return true;
         }
 
+
+        /// <summary>
+        /// Restarts all Clients. If the clients are currently locked in hardware sync mode
+        /// they will be restarted in a special pattern.
+        /// </summary>
+        /// <returns></returns>
         public bool RestartAllClients()
         {
             Log.LogInfo("Restarting all client cameras");
@@ -551,8 +557,15 @@ namespace LiveScanServer
 
             else
                 return false;
+
         }
 
+        /// <summary>
+        /// Restart one specific client. If the clients are currently locked into a hardware sync mode
+        /// all clients will be restarted in a specific pattern
+        /// </summary>
+        /// <param name="serial"></param>
+        /// <returns></returns>
         public bool RestartClient(string serial)
         {
             ClientSocket client = GetSocketFromSerial(serial);
@@ -580,20 +593,23 @@ namespace LiveScanServer
             List<ClientSocket> subordinates = new List<ClientSocket>();
             List<ClientSocket> main = new List<ClientSocket>();
 
-            for (int i = 0; i < lClientSockets.Count; i++)
+            lock (oClientSocketLock)
             {
-                if (lClientSockets[i].configuration.eSoftwareSyncState == ClientConfiguration.SyncState.Subordinate)
-                    subordinates.Add(lClientSockets[i]);
+                for (int i = 0; i < lClientSockets.Count; i++)
+                {
+                    if (lClientSockets[i].configuration.eSoftwareSyncState == ClientConfiguration.SyncState.Subordinate)
+                        subordinates.Add(lClientSockets[i]);
 
-                if (lClientSockets[i].configuration.eSoftwareSyncState == ClientConfiguration.SyncState.Main)
-                    main.Add(lClientSockets[i]);
+                    if (lClientSockets[i].configuration.eSoftwareSyncState == ClientConfiguration.SyncState.Main)
+                        main.Add(lClientSockets[i]);
+                }
             }
 
             //First we need to close all cameras, and ensure no camera is running anymore
             if (!CloseClient(lClientSockets))
             {
                 Log.LogError("Could not close one or more client cameras");
-                MainUI.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not close one or more clients. Please try again");
+                MainUI.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not close one or more clients. Please try again");
                 return false;
             }
 
@@ -601,7 +617,7 @@ namespace LiveScanServer
             if (!InitializeClient(subordinates))
             {
                 Log.LogError("Could not initialize one or more subordinate cameras");
-                MainUI.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not restart one or more subordinate cameras. Please try again");
+                MainUI.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not restart one or more subordinate cameras. Please try again");
                 return false;
             }
 
@@ -609,7 +625,7 @@ namespace LiveScanServer
             if (!InitializeClient(main))
             {
                 Log.LogError("Could not initalize main camera");
-                MainUI.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not restart main camera. Please try again");
+                MainUI.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Warning, "Could not restart main camera. Please try again");
                 return false;
             }
 
@@ -635,26 +651,29 @@ namespace LiveScanServer
                 LiveScanState state = server.GetState();
                 state.settings.bAutoExposureEnabled = false;
                 state.settings.nExposureStep = -5;
-                server.SetState(state);
+                //server.SetState(state);
 
                 SendCurrentSettings(); //Send settings to update the exposure
 
                 if (SetTempSyncState(true) && RestartWithTemporalSyncPattern())
                 {
                     Log.LogInfo("Enabling Hardware Sync succesfull");
+                    state = server.GetState();
                     state.settings.eSyncMode = ClientSettings.SyncMode.Hardware;
+                    //server.SetState(state);
                     return true;
                 }
 
                 else
                 {
-                    MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Enabling Hardware Synchronisation failed!");
+                    MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Error, "Enabling Hardware Synchronisation failed!");
 
                     Log.LogInfo("Enabling Hardware Sync failed");
 
                     //Enabeling failed, we undo the Exposure Settings
+                    state = server.GetState();
                     state.settings.bAutoExposureEnabled = true;
-                    server.SetState(state);
+                    //server.SetState(state);
                     SendCurrentSettings(); //Send settings to update the exposure
 
                     return false;
@@ -663,7 +682,7 @@ namespace LiveScanServer
 
             else
             {
-                MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Information, "At least two client are needed for temporal hardware sync");
+                MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Information, "At least two client are needed for temporal hardware sync");
                 return false;
             }
         }
@@ -673,18 +692,17 @@ namespace LiveScanServer
             Log.LogInfo("Disabling Hardware Sync");
 
             LiveScanState state = server.GetState();
-            SendCurrentSettings(); //Send settings to update the exposure
+            state.settings.eSyncMode = ClientSettings.SyncMode.Off;
 
             if (SetTempSyncState(false) && RestartAllClients())
             {
                 Log.LogInfo("Disabling Hardware Sync successfull");
-                state.settings.eSyncMode = ClientSettings.SyncMode.Off;
                 return true;
             }
 
             else
             {
-                MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Disabling Hardware Synchronisation failed!");
+                MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Error, "Disabling Hardware Synchronisation failed!");
                 Log.LogInfo("Disabling Hardware Sync failed");
                 return false;
             }
@@ -706,12 +724,13 @@ namespace LiveScanServer
                 if (!GetConfigurations(lClientSockets))
                     return false;
 
+
+                int mainCount = 0;
+                int subordinateCount = 0;
+                int invalidCount = 0;
+
                 lock (oClientSocketLock)
                 {
-                    int mainCount = 0;
-                    int subordinateCount = 0;
-                    int invalidCount = 0;
-
                     //First we check if the devices have a valid sync wiring
                     for (int i = 0; i < lClientSockets.Count; i++)
                     {
@@ -730,33 +749,40 @@ namespace LiveScanServer
                         }
                     }
 
-                    if (mainCount != 1 || subordinateCount < 1 || invalidCount > 0)
-                    {
-                        //If not, we show a error message
-                        Log.LogError("Temporal sync cables are not propery connected");
-                        MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Warning, "Temporal Sync cables not connected properly");
-                        return false;
-                    }
                 }
+
+                if (mainCount != 1 || subordinateCount < 1 || invalidCount > 0)
+                {
+                    //If not, we show a error message
+                    Log.LogError("Temporal sync cables are not properly connected");
+                    MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Warning, "Temporal Sync cables not connected properly");
+                    return false;
+                }
+
 
                 byte syncOffSetCounter = 0;
 
-                for (int i = 0; i < lClientSockets.Count; i++)
+                List<ClientConfiguration> newConfigs = new List<ClientConfiguration>();
+
+                lock (oClientSocketLock)
                 {
-                    if (lClientSockets[i].configuration.eHardwareSyncState == ClientConfiguration.SyncState.Subordinate)
+                    for (int i = 0; i < lClientSockets.Count; i++)
                     {
-                        syncOffSetCounter++;
-                    }
+                        if (lClientSockets[i].configuration.eHardwareSyncState == ClientConfiguration.SyncState.Subordinate)
+                        {
+                            syncOffSetCounter++;
+                        }
 
-                    ClientConfiguration newConfig = lClientSockets[i].configuration;
-                    newConfig.eSoftwareSyncState = lClientSockets[i].configuration.eHardwareSyncState;
-                    newConfig.syncOffset = syncOffSetCounter;
-
-                    if (!SetAndConfirmConfig(newConfig))
-                    {
-                        return false;
+                        ClientConfiguration newConfig = lClientSockets[i].configuration;
+                        newConfig.eSoftwareSyncState = lClientSockets[i].configuration.eHardwareSyncState;
+                        newConfig.syncOffset = syncOffSetCounter;
+                        newConfigs.Add(newConfig);
                     }
                 }
+
+                foreach (ClientConfiguration config in newConfigs)
+                    if (!SetAndConfirmConfig(config))
+                        return false;
             }
 
             else
@@ -764,16 +790,25 @@ namespace LiveScanServer
                 if (!GetConfigurations(lClientSockets))
                     return false;
 
-                for (int i = 0; i < lClientSockets.Count; i++)
-                {
-                    ClientConfiguration newConfig = lClientSockets[i].configuration;
-                    newConfig.eSoftwareSyncState = ClientConfiguration.SyncState.Standalone;
-                    newConfig.syncOffset = 0;
+                List<ClientConfiguration> newConfigs = new List<ClientConfiguration>();
 
-                    if (!SetAndConfirmConfig(newConfig))
-                        return false;
+                lock (oClientSocketLock)
+                {
+                    for (int i = 0; i < lClientSockets.Count; i++)
+                    {
+                        ClientConfiguration newConfig = lClientSockets[i].configuration;
+                        newConfig.eSoftwareSyncState = ClientConfiguration.SyncState.Standalone;
+                        newConfig.syncOffset = 0;
+                        newConfigs.Add(newConfig);
+                    }
                 }
+
+                foreach (ClientConfiguration config in newConfigs)
+                    if (!SetAndConfirmConfig(config))
+                        return false;
             }
+
+            
 
             Log.LogDebug("Temporal Sync State set successfully");
 
@@ -837,7 +872,7 @@ namespace LiveScanServer
             if (takeIndex == -1)
             {
                 Log.LogError("Error reading takes.json");
-                MainUI.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Error reading takes.json. Please check or delete file");
+                MainUI.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Error, "Error reading takes.json. Please check or delete file");
                 return null;
             }
 
@@ -1020,7 +1055,7 @@ namespace LiveScanServer
                     if (!clients[i].bConfigurationReceived)
                     {
                         Log.LogError("Could not get configuration from client number: " + (i + 1));
-                        MainUI?.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, "Could not update configuration on one client, please check your network");
+                        MainUI?.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Error, "Could not update configuration on one client, please check your network");
                         return false;
                     }
                 }
@@ -1324,12 +1359,19 @@ namespace LiveScanServer
             {
                 return;
             }
+
             Socket newSocket = listener.EndAccept(ar);
 
             // Signal main thread to go ahead
             allDone.Set();
 
             ClientSocket newClient = new ClientSocket(newSocket);
+
+            if (server.GetState().settings.eSyncMode == ClientSettings.SyncMode.Hardware)
+            {
+                FatalClientError(newClient, "Clients can't connect while the hardware sync is active!", "Client tried to connect while hardware sync is enabled. Declining connection.");
+                return;
+            }
 
             //Stops the requests of new frames until the new client is ready to serve them
             lock (oFrameRequestLock)
@@ -1381,40 +1423,6 @@ namespace LiveScanServer
                 }
 
                 newClient.SendSettings(server.GetState().settings);
-
-                bool restartAsStandalone = false;
-                bool hardwareSyncEnabled = server.GetState().settings.eSyncMode == ClientSettings.SyncMode.Hardware;
-
-                if (!hardwareSyncEnabled && newConfig.eSoftwareSyncState != ClientConfiguration.SyncState.Standalone)
-                    restartAsStandalone = true;
-
-                if (SetTempSyncState(hardwareSyncEnabled))
-                {
-                    if (restartAsStandalone)
-                    {
-                        if (!CloseClient(newClient) || !InitializeClient(newClient))
-                        {
-                            FatalClientError(newClient, "Could not restart new client to match temporal sync settings, please reconnect", "Could not close or open new client");
-                            return;
-                        }
-                    }
-
-                    else if (hardwareSyncEnabled)
-                    {
-                        Log.LogInfo("New client connected while temporal sync was active. Restarting all clients");
-
-                        if (RestartWithTemporalSyncPattern())
-                        {
-                            newClient.UpdateSocketState("");
-                        }
-                    }
-                }
-
-                else
-                {
-                    FatalClientError(newClient, "Could not send Temp Sync State on client, please reconnect", "Could not set temp sync state on new client");
-                    return;
-                }
             }
         }
 
@@ -1422,7 +1430,7 @@ namespace LiveScanServer
         {
             Log.LogError(logMessage);
             DisconnectClient(client);
-            MainUI.ShowMessageBox(System.Windows.Forms.MessageBoxIcon.Error, userMessage);
+            MainUI.RequestMessagBox(System.Windows.Forms.MessageBoxIcon.Error, userMessage);
         }
 
         private void DisconnectClient(ClientSocket client)

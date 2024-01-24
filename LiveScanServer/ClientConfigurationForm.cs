@@ -192,6 +192,12 @@ namespace LiveScanServer
             displayedConfiguration.FilterDepthMapSize = size;
         }
 
+        public void SetButtonsInteractive(bool enabled)
+        {
+            btApplyAll.Enabled = enabled;
+            btApplyCurrentDevice.Enabled = enabled;
+        }
+
         public void CloseConfiguration()
         {
             Invoke(new Action(() => { Close(); })); //So that we can close the form from other threads as well

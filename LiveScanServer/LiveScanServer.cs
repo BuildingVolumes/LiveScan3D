@@ -7,6 +7,7 @@ using System.IO;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -37,7 +38,7 @@ namespace LiveScanServer
 
         MainWindowForm UI;
         LiveScanState state;
-        ClientCommunication oServer;
+        ClientManager clientManager;
         //TransferServer oTransferServer;
 
         BackgroundWorker previewWorker;
@@ -87,19 +88,19 @@ namespace LiveScanServer
 
             if (!Log.StartLog(loglevel))
             {
-                UI.ShowMessageBox(MessageBoxIcon.Error, "Could not access logging file, another Livescan Server instance is probably already open!", true);
+                UI.RequestMessagBox(MessageBoxIcon.Error, "Could not access logging file, another Livescan Server instance is probably already open!", true);
                 return;
             }
 
             Setup();
 
-            oServer = new ClientCommunication(this);
-            oServer.eSocketListChanged += new SocketListChangedHandler(ClientListChanged);
-            oServer.SetMainWindowForm(UI);
+            clientManager = new ClientManager(this);
+            clientManager.eSocketListChanged += new SocketListChangedHandler(ClientListChanged);
+            clientManager.SetMainWindowForm(UI);
 
             StartPreviewWorker();
 
-            if (!oServer.StartServer()) //If another Livescan Instance is already open, we terminate the app here
+            if (!clientManager.StartServer()) //If another Livescan Instance is already open, we terminate the app here
                 Terminate();
 
             Log.LogInfo("Starting Server");
@@ -116,7 +117,7 @@ namespace LiveScanServer
 
             catch (Exception)
             {
-                UI.ShowMessageBox(MessageBoxIcon.Error, "Could not create working directories, please restart Application!", true);
+                UI.RequestMessagBox(MessageBoxIcon.Error, "Could not create working directories, please restart Application!", true);
             }
 
             state = new LiveScanState();
@@ -164,8 +165,8 @@ namespace LiveScanServer
             formatter.Serialize(stream, state.settings);
             stream.Close();
 
-            if (oServer != null)
-                oServer.StopServer();
+            if (clientManager != null)
+                clientManager.StopServer();
 
             PreviewWorker_Cancel();
             ProcessingWorker_Cancel();
@@ -175,15 +176,28 @@ namespace LiveScanServer
 
         }
 
-        public void UpdateUI()
+        /// <summary>
+        /// Request a UI update which will be executed in the next frame.
+        /// Can be requested from any thread at any time.
+        /// </summary>
+        public void QueueUIUpdate()
         {
             UI.RequestUIUpdate();
+        }
+
+        /// <summary>
+        /// Update the UI right now. Should never be used from threads other than the main thread.
+        /// Should also not be used when resources are locked.
+        /// </summary>
+        public void ImmidiateUIUpdate()
+        {
+            UI.UIUpdateImmidiate();
         }
 
         public void ClientListChanged(List<ClientSocket> socketList)
         {
             state.clients = socketList;
-            UpdateUI();
+            QueueUIUpdate();
         }
 
         public LiveScanState GetState()
@@ -200,35 +214,43 @@ namespace LiveScanServer
         {
             //Todo: Need to lock settings?
             state.settings = newSettings;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
 
         }
 
         public void SetConfigurations(List<ClientConfiguration> newConfigs, bool restart)
         {
-            bool restartAll = false;
+            bool tempSyncEnabled = false;
 
             if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware)
-                restartAll = true;
+                tempSyncEnabled = true;
 
             for (int i = 0; i < newConfigs.Count; i++)
             {
-                oServer.SetAndConfirmConfig(newConfigs[i]);
+                clientManager.SetAndConfirmConfig(newConfigs[i]);
             }
 
-            Cursor.Current = Cursors.WaitCursor;
+            if (restart)
+            {
+                if (tempSyncEnabled)
+                    RestartAllClientsTempSync();
 
-            if (restart && newConfigs.Count == 1)
-                oServer.RestartClient(newConfigs[0].SerialNumber);
+                else
+                {
+                    if (newConfigs.Count == 1)
+                        RestartClient(newConfigs[0].SerialNumber);
 
-            if (restartAll || (restart && newConfigs.Count > 1))
-                oServer.RestartAllClients();
+                    else
+                        RestartAllClients();
+                }
+                
+            }
 
-            Cursor.Current = Cursors.Default;
-
-            UpdateUI();
+            UI.UpdateConfigurationsForms();
         }
+
+        
 
         public ClientConfiguration GetConfigFromSerial(string serialnumber)
         {
@@ -242,7 +264,7 @@ namespace LiveScanServer
             }
 
             if (config == null)
-                UI.ShowMessageBox(MessageBoxIcon.Error, "Configuration could not be updated, the client is probably disconnected");
+                UI.RequestMessagBox(MessageBoxIcon.Error, "Configuration could not be updated, the client is probably disconnected");
 
             return config;
         }
@@ -256,21 +278,21 @@ namespace LiveScanServer
             {
                 Log.LogInfo("Starting Calibration");
 
-                if (!oServer.Calibrate(true))
+                if (!clientManager.Calibrate(true))
                 {
-                    UI.ShowMessageBox(MessageBoxIcon.Information, "No clients connected!");
+                    UI.RequestMessagBox(MessageBoxIcon.Information, "No clients connected!");
                     return;
                 }
 
-                ProcessingWorker_Start(Calibration_DoWork, Calibration_Completed);
+                ProcessingWorker_Start(Calibration_DoWork, GenericWorker_Completed);
                 state.appState = appState.calibrating;
-                UpdateUI();
+                QueueUIUpdate();
             }
 
             else if (state.appState == appState.calibrating)
             {
                 Log.LogInfo("Canceling Calibration");
-                oServer.Calibrate(false);
+                clientManager.Calibrate(false);
                 ProcessingWorker_Cancel();
             }
 
@@ -280,21 +302,21 @@ namespace LiveScanServer
         {
             if (state.appState == appState.idle)
             {
-                if (oServer.nClientCount < 2)
+                if (clientManager.nClientCount < 2)
                 {
-                    UI.ShowMessageBox(MessageBoxIcon.Warning, "To refine calibration you need at least 2 connected devices.");
+                    UI.RequestMessagBox(MessageBoxIcon.Warning, "To refine calibration you need at least 2 connected devices.");
                     return;
                 }
 
-                if (oServer.bAllCalibrated == false)
+                if (clientManager.bAllCalibrated == false)
                 {
-                    UI.ShowMessageBox(MessageBoxIcon.Warning, "Not all of the devices are calibrated");
+                    UI.RequestMessagBox(MessageBoxIcon.Warning, "Not all of the devices are calibrated");
                     return;
                 }
 
                 ProcessingWorker_Start(RefinementWorker, RefinementWorker_Completed);
                 state.appState = appState.refinining;
-                UpdateUI();
+                QueueUIUpdate();
             }
 
             else if (state.appState == appState.refinining)
@@ -310,17 +332,17 @@ namespace LiveScanServer
             //Start recording
             if (state.appState == appState.idle)
             {
-                if (oServer.nClientCount < 1)
+                if (clientManager.nClientCount < 1)
                 {
-                    UI.ShowMessageBox(MessageBoxIcon.Warning, "At least one client needs to be connected for recording.");
+                    UI.RequestMessagBox(MessageBoxIcon.Warning, "At least one client needs to be connected for recording.");
                     return;
                 }
 
-                string takePath = oServer.CreateTakeDirectories(sequenceName);
+                string takePath = clientManager.CreateTakeDirectories(sequenceName);
 
                 if (takePath == null)
                 {
-                    UI.ShowMessageBox(MessageBoxIcon.Warning, "Error: Couldn't create take directory on either the server or the clients");
+                    UI.RequestMessagBox(MessageBoxIcon.Warning, "Error: Couldn't create take directory on either the server or the clients");
                     return;
                 }
 
@@ -328,12 +350,12 @@ namespace LiveScanServer
                 PreviewWorker_Cancel();
 
                 //Store the camera extrinsics
-                Utils.SaveExtrinsics(state.settings.eExtrinsicsFormat, takePath, oServer.GetClientSockets());
+                Utils.SaveExtrinsics(state.settings.eExtrinsicsFormat, takePath, clientManager.GetClientSockets());
 
                 ProcessingWorker_Start(Capture_DoWork, Capture_Complete);
                 state.settings.takePath = takePath;
                 state.appState = appState.recording;
-                UpdateUI();
+                QueueUIUpdate();
                 return;
             }
 
@@ -355,15 +377,36 @@ namespace LiveScanServer
         public void Sync()
         {
             state.appState = appState.syncing;
-            UpdateUI();
+            QueueUIUpdate();
             ProcessingWorker_Start(SyncWorker, Sync_Completed);
         }
 
         public void Save()
         {
             state.appState = appState.downloading;
-            UpdateUI();
+            QueueUIUpdate();
             ProcessingWorker_Start(SavingWorker, Saving_Completed);
+        }
+
+        public void RestartClient(string serial)
+        {
+            state.appState = appState.restartingClients;
+            QueueUIUpdate();
+            ProcessingWorker_Start(RestartClientWorker, GenericWorker_Completed, serial);
+        }
+
+        public void RestartAllClients()
+        {
+            state.appState = appState.restartingClients;
+            QueueUIUpdate();
+            ProcessingWorker_Start(RestartAllClientsWorker, GenericWorker_Completed);
+        }
+
+        public void RestartAllClientsTempSync()
+        {
+            state.appState = appState.restartingClients;
+            QueueUIUpdate();
+            ProcessingWorker_Start(RestartForTempSyncWorker, GenericWorker_Completed);
         }
 
         public void SetSyncMode(ClientSettings.SyncMode syncMode)
@@ -374,76 +417,78 @@ namespace LiveScanServer
             bool hwSyncWasEnabled = state.settings.eSyncMode == ClientSettings.SyncMode.Hardware;
 
             state.settings.eSyncMode = syncMode;
-            oServer.SendCurrentSettings();
+            clientManager.SendCurrentSettings();
 
-            Cursor.Current = Cursors.Default;
             //Check if we need to restart the cameras
             if (syncMode == ClientSettings.SyncMode.Hardware)
             {
-                if (!oServer.EnableTemporalSync())
-                    state.settings.eSyncMode = ClientSettings.SyncMode.Off;
-            }                
+                state.appState = appState.restartingClients;
+                QueueUIUpdate();
+                ProcessingWorker_Start(EnableTempSyncWorker, GenericWorker_Completed);
+            }
+                
 
             else if (syncMode == ClientSettings.SyncMode.Off && hwSyncWasEnabled)
-                    oServer.DisableTemporalSync();
-
-            Cursor.Current = Cursors.Default;
-            UpdateUI();
+            {
+                state.appState = appState.restartingClients;
+                QueueUIUpdate();
+                ProcessingWorker_Start(DisableTempSyncWorker, GenericWorker_Completed);
+            }
         }
 
         public void SetExposureMode(bool auto)
         {
             state.settings.bAutoExposureEnabled = auto;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
         }
 
         public void SetExposureValue(int step)
         {
             state.settings.nExposureStep = step;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
         }
 
         public void SetWhiteBalanceMode(bool auto)
         {
             state.settings.bAutoWhiteBalanceEnabled = auto;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
         }
 
         public void SetWhiteBalanceValue(int kelvin)
         {
             state.settings.nKelvin = kelvin;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
         }
 
         public void SetClientPreview(bool enabled)
         {
             state.settings.bPreviewEnabled = enabled;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
         }
 
         public void SetExportMode(ClientSettings.ExportMode exportMode)
         {
             state.settings.eExportMode = exportMode;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
         }
 
         public void SetMergeScans(bool merge)
         {
             state.settings.bMergeScansForSave = merge;
-            oServer.SendCurrentSettings();
-            UpdateUI();
+            clientManager.SendCurrentSettings();
+            QueueUIUpdate();
         }
 
         public void SetVisibility(int index, bool visible)
         {
             state.clients[index].bVisible = visible;
-            UpdateUI();
+            QueueUIUpdate();
         }
 
         public void SetNickname(string serial, string nickname)
@@ -466,9 +511,9 @@ namespace LiveScanServer
             Log.LogInfo("Setting nickname of device: " + serial + " to: " + formattedName);
             ClientConfiguration newConfig = GetConfigFromSerial(serial);
             newConfig.NickName = formattedName;
-            oServer.SetAndConfirmConfig(newConfig);
+            clientManager.SetAndConfirmConfig(newConfig);
 
-            UpdateUI();
+            QueueUIUpdate();
         }
 
 
@@ -476,15 +521,15 @@ namespace LiveScanServer
 
         #region Workers
 
-        private void ProcessingWorker_Start(DoWorkEventHandler worker, RunWorkerCompletedEventHandler workerCompleted)
+        private void ProcessingWorker_Start(DoWorkEventHandler worker, RunWorkerCompletedEventHandler workerCompleted, object argument = null)
         {
-            ProcessingWorker_Cancel(); //We can only have one processingworker doing work
+            ProcessingWorker_Cancel(); //We should only have one Processingworker doing work
             processingWorker = new BackgroundWorker();
             processingWorker.WorkerSupportsCancellation = true;
             processingWorker.DoWork += new DoWorkEventHandler(worker);
             processingWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(workerCompleted);
             processingWorkerComplete = false;
-            processingWorker.RunWorkerAsync();
+            processingWorker.RunWorkerAsync(argument);
         }
 
         private void ProcessingWorker_Cancel()
@@ -535,12 +580,6 @@ namespace LiveScanServer
             processingWorkerComplete = true;
         }
 
-        private void Calibration_Completed(object sender, RunWorkerCompletedEventArgs e)
-        {
-            state.appState = appState.idle;
-            UpdateUI();
-        }
-
         private void RefinementWorker(object sender, DoWorkEventArgs e)
         {
             Log.LogInfo("Start ICP pose refinement");
@@ -548,7 +587,7 @@ namespace LiveScanServer
             //Download a frame from each client.
             List<List<float>> lAllFrameVertices = new List<List<float>>();
             List<List<byte>> lAllFrameColors = new List<List<byte>>();
-            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices, true);
+            clientManager.GetLatestFrame(lAllFrameColors, lAllFrameVertices, true);
 
             //Initialize containers for the poses.
             List<float[]> Rs = new List<float[]>();
@@ -604,7 +643,7 @@ namespace LiveScanServer
 
             if (!processingWorker.CancellationPending)
             {
-                List<Matrix4x4> icpTransforms = oServer.lRefinementTransforms;
+                List<Matrix4x4> icpTransforms = clientManager.lRefinementTransforms;
 
                 for (int i = 0; i < icpTransforms.Count; i++)
                 {
@@ -636,7 +675,7 @@ namespace LiveScanServer
                     icpTransforms[i] = icpOffset;
                 }
 
-                oServer.lRefinementTransforms = icpTransforms;
+                clientManager.lRefinementTransforms = icpTransforms;
 
             }
 
@@ -645,11 +684,11 @@ namespace LiveScanServer
 
         private void RefinementWorker_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
-            oServer.UpdateMarkerTransforms();
-            oServer.SendRefinementData();
+            clientManager.UpdateMarkerTransforms();
+            clientManager.SendRefinementData();
 
             state.appState = appState.idle;
-            UpdateUI();
+            QueueUIUpdate();
         }
 
 
@@ -658,13 +697,13 @@ namespace LiveScanServer
         //The frames are downloaded from the clients and saved once recording is finished.
         private void Capture_DoWork(object sender, DoWorkEventArgs e)
         {
-            oServer.ClearStoredFrames();
-            oServer.SendAndConfirmPreRecordProcess();
+            clientManager.ClearStoredFrames();
+            clientManager.SendAndConfirmPreRecordProcess();
 
             //If we don't use a server-controlled sync method, we just let the clients capture as fast as possible
             if (state.settings.eSyncMode == ClientSettings.SyncMode.Hardware || state.settings.eSyncMode == ClientSettings.SyncMode.Off)
             {
-                oServer.SendCaptureFramesStart();
+                clientManager.SendCaptureFramesStart();
 
                 Stopwatch counter = new Stopwatch();
                 counter.Start();
@@ -677,11 +716,12 @@ namespace LiveScanServer
                     //UpdateUI();
                 }
 
+                state.stateIndicatorSuffix = "";
                 state.capturedFramesTotal = (int)counter.Elapsed.TotalSeconds * 30;
 
                 Log.LogInfo("Stopping Recording");
 
-                oServer.SendCaptureFramesStop();
+                clientManager.SendCaptureFramesStop();
                 counter.Stop();
 
             }
@@ -695,18 +735,19 @@ namespace LiveScanServer
 
                 while (!processingWorker.CancellationPending)
                 {
-                    oServer.CaptureSynchronizedFrame();
+                    clientManager.CaptureSynchronizedFrame();
                     nCaptured++;
                     state.stateIndicatorSuffix = "Frame " + (nCaptured).ToString() + ".";
                     //UpdateUI();
                 }
 
+                state.stateIndicatorSuffix = "";
                 state.capturedFramesTotal = nCaptured;
 
                 Log.LogInfo("Stopping Network-synced recording");
             }
 
-            oServer.SendAndConfirmPostRecordProcess();
+            clientManager.SendAndConfirmPostRecordProcess();
 
             processingWorkerComplete = true;
         }
@@ -724,26 +765,26 @@ namespace LiveScanServer
             {
                 Log.LogInfo("Starting Sync");
 
-                if (!oServer.GetTimestampLists())
+                if (!clientManager.GetTimestampLists())
                 {
                     Log.LogError("Could not get Timestamp List. Saved recording is unsychronized!");
-                    UI.ShowMessageBox(MessageBoxIcon.Error, "Could not get Timestamp List. Saved recording is unsychronized!");
+                    UI.RequestMessagBox(MessageBoxIcon.Error, "Could not get Timestamp List. Saved recording is unsychronized!");
                     e.Result = false;
                     return;
                 }
 
-                if (!oServer.CreatePostSyncList())
+                if (!clientManager.CreatePostSyncList())
                 {
                     Log.LogError("Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
-                    UI.ShowMessageBox(MessageBoxIcon.Error, "Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
+                    UI.RequestMessagBox(MessageBoxIcon.Error, "Could not match timestamps. Please check your Temporal Sync setup and Kinect firmware!");
                     e.Result = false;
                     return;
                 }
 
-                if (!oServer.ReorderSyncFramesOnClient())
+                if (!clientManager.ReorderSyncFramesOnClient())
                 {
                     Log.LogError("Could not reorganize files for sync on at least one device!");
-                    UI.ShowMessageBox(MessageBoxIcon.Error, "Could not reorganize files for sync on at least one device!");
+                    UI.RequestMessagBox(MessageBoxIcon.Error, "Could not reorganize files for sync on at least one device!");
                     e.Result = false;
                     return;
                 }
@@ -757,7 +798,7 @@ namespace LiveScanServer
         private void Sync_Completed(object sender, RunWorkerCompletedEventArgs e)
         {
             state.appState = appState.idle;
-            UpdateUI();
+            QueueUIUpdate();
 
             if ((bool)e.Result)
             {
@@ -767,7 +808,7 @@ namespace LiveScanServer
             else
             {
                 Log.LogError("Sync could not be completed!");
-                UI.ShowMessageBox(MessageBoxIcon.Warning, "Sync could not succesfully be completed. Don't worry, your files are still saved, please try syncing with the LiveScan Editor.");
+                UI.RequestMessagBox(MessageBoxIcon.Warning, "Sync could not succesfully be completed. Don't worry, your files are still saved, please try syncing with the LiveScan Editor.");
             }
         }
 
@@ -794,7 +835,7 @@ namespace LiveScanServer
                     List<List<byte>> lFrameBGRAllDevices = new List<List<byte>>();
                     List<List<float>> lFrameVertsAllDevices = new List<List<float>>();
 
-                    bool success = oServer.GetStoredFrame(lFrameBGRAllDevices, lFrameVertsAllDevices);
+                    bool success = clientManager.GetStoredFrame(lFrameBGRAllDevices, lFrameVertsAllDevices);
 
                     //This indicates that there are no more stored frames.
                     if (!success)
@@ -817,7 +858,7 @@ namespace LiveScanServer
                         lFrameVerts.AddRange(lFrameVertsAllDevices[i]);
 
                         //This is ran if the frames from each client are to be placed in separate files.
-                        if (state.settings.bMergeScansForSave)
+                        if (!state.settings.bMergeScansForSave)
                         {
                             string outputFilename = state.settings.takePath + "\\" + nFrames.ToString().PadLeft(5, '0') + i.ToString() + ".ply";
                             Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameBGRAllDevices[i], EColorMode.BGR, state.settings.bSaveAsBinaryPLY);
@@ -825,12 +866,14 @@ namespace LiveScanServer
                     }
 
                     //This is ran if the frames from all clients are to be placed in a single file.
-                    if (!state.settings.bMergeScansForSave)
+                    if (state.settings.bMergeScansForSave)
                     {
                         string outputFilename = state.settings.takePath + "\\" + nFrames.ToString().PadLeft(5, '0') + ".ply";
                         Utils.saveToPly(outputFilename, lFrameVerts, lFrameBGR, EColorMode.BGR, state.settings.bSaveAsBinaryPLY);
                     }
                 }
+
+                state.stateIndicatorSuffix = "";
 
             }
 
@@ -849,10 +892,41 @@ namespace LiveScanServer
                 Log.LogInfo("Saving cancelled");
             }
 
-            oServer.ClearStoredFrames();
+            clientManager.ClearStoredFrames();
             StartPreviewWorker();
             state.appState = appState.idle;
-            UpdateUI();
+            QueueUIUpdate();
+        }
+
+        private void RestartClientWorker(object sender, DoWorkEventArgs e)
+        {
+            clientManager.RestartClient((string)e.Argument);
+        }
+
+        private void RestartAllClientsWorker(object sender, DoWorkEventArgs e)
+        {
+            clientManager.RestartAllClients();
+        }
+
+        private void RestartForTempSyncWorker(object sender, DoWorkEventArgs e)
+        {
+            clientManager.RestartWithTemporalSyncPattern();
+        }
+
+        private void EnableTempSyncWorker(object sender, DoWorkEventArgs e)
+        {
+            clientManager.EnableTemporalSync();
+        }
+
+        private void DisableTempSyncWorker(object sender, DoWorkEventArgs e)
+        {
+            clientManager.DisableTemporalSync();
+        }
+
+        private void GenericWorker_Completed(object sender, RunWorkerCompletedEventArgs e)
+        {
+            state.appState = appState.idle;
+            QueueUIUpdate();
         }
 
         void StartPreviewWorker()
@@ -878,9 +952,9 @@ namespace LiveScanServer
                 Stopwatch timer = new Stopwatch();
                 timer.Start();
 
-                if (oServer != null)
+                if (clientManager != null)
                 {
-                    oServer.GetLatestFrame(lFramesRGB, lFramesVerts, false);
+                    clientManager.GetLatestFrame(lFramesRGB, lFramesVerts, false);
                     Log.LogDebugCapture("Getting latest frame for live view");
 
                     //Update the vertex and color lists that are common between this class and the OpenGLWindow.
@@ -897,8 +971,8 @@ namespace LiveScanServer
                             lAllColors.AddRange(lFramesRGB[i]);
                         }
 
-                        lAllCameraPoses.AddRange(oServer.lCameraPoses);
-                        lAllMarkerPoses.AddRange(oServer.lMarkerPoses);
+                        lAllCameraPoses.AddRange(clientManager.lCameraPoses);
+                        lAllMarkerPoses.AddRange(clientManager.lMarkerPoses);
 
                         timer.Stop();
 
