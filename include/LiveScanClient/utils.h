@@ -229,6 +229,14 @@ typedef struct RGBA
 	uint8_t green;
 	uint8_t red;
 	uint8_t alpha;
+
+	RGBA()
+	{
+		blue = 0;
+		green = 0;
+		red = 0;
+		alpha = 1;
+	}
 };
 
 typedef struct PreviewFrame

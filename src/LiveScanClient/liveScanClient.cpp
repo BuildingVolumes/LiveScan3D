@@ -1223,29 +1223,45 @@ void LiveScanClient::StoreFrame(k4a_image_t pointcloudImage, cv::Mat* colorImage
 	delete[] m_vLastFrameVertices;
 	delete[] m_vLastFrameRGB;
 
-	m_vLastFrameVertices = new Point3s[goodVerticesCount];
-	m_vLastFrameRGB = new RGBA[goodVerticesCount];
-	int validVerticesShortCounter = 0;
-
-	uchar* colorValues = colorImage->data;
-
-	//Copy all valid vertices into a clean vector 
-	for (unsigned int i = 0; i < m_nAllVerticesSize; i++)
+	if (goodVerticesCount > 0)
 	{
-		if (!m_pAllVertices[i].Invalid)
-		{
-			RGBA color;
-			color.red = colorValues[i * 4];
-			color.green = colorValues[(i * 4) + 1];
-			color.blue = colorValues[(i * 4) + 2];
+		m_vLastFrameVertices = new Point3s[goodVerticesCount];
+		m_vLastFrameRGB = new RGBA[goodVerticesCount];
+		m_vLastFrameVerticesSize = goodVerticesCount;
 
-			m_vLastFrameVertices[validVerticesShortCounter] = m_pAllVertices[i];
-			m_vLastFrameRGB[validVerticesShortCounter] = color;
-			validVerticesShortCounter++;
+		uchar* colorValues = colorImage->data;
+
+		//Copy all valid vertices into a clean vector
+		int j = 0;
+		for (unsigned int i = 0; i < m_nAllVerticesSize; i++)
+		{
+			if (!m_pAllVertices[i].Invalid)
+			{
+				RGBA color;
+				color.red = colorValues[i * 4];
+				color.green = colorValues[(i * 4) + 1];
+				color.blue = colorValues[(i * 4) + 2];
+
+				m_vLastFrameVertices[j] = m_pAllVertices[i];
+				m_vLastFrameRGB[j] = color;
+				j++;
+			}
 		}
 	}
 
-	m_vLastFrameVerticesSize = validVerticesShortCounter;
+	//If the pointcloud is empty, we can't have an array with zero elements
+	else
+	{
+		m_vLastFrameVertices = new Point3s[1];
+		Point3s point(0, 0, 0);
+		m_vLastFrameVertices[0] = point;
+		
+		m_vLastFrameRGB = new RGBA[1];
+		RGBA color;
+		m_vLastFrameRGB[0] = color;
+
+		m_vLastFrameVerticesSize = 1;
+	}	
 }
 
 void LiveScanClient::UpdateFPS()
