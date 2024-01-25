@@ -131,7 +131,7 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 		configuration.TryLoad();
 
 		res = pCapture->StartCamera(configuration);
-		
+
 		if (res)
 		{
 			logBuffer.ChangeSerial("Device: " + serial);
@@ -148,7 +148,7 @@ void LiveScanClient::RunClient(Log* logger, bool virtualDevice)
 		}
 	}
 
-	if(!res)
+	if (!res)
 	{
 		logBuffer.LogFatal("Device could not be initialized successfully");
 		SetStatusMessage(L"Error: Device could not be initialized!", 10000, true);
@@ -520,23 +520,13 @@ bool LiveScanClient::Connect(std::string ip)
 
 	m_sLastUsedIP = ip;
 
-	if (m_bConnected)
-	{
-		std::lock_guard<std::mutex> lockConnection(m_mConnection);
-		logBuffer.LogInfo("Disconnecting from server");
-		delete m_pClientSocket;
-		m_pClientSocket = NULL;
-		m_bConnected = false;
-		return true;
-	}
-	else
+	if (!m_bConnected)
 	{
 		try
 		{
 			logBuffer.LogInfo("Trying to connect to server");
 			m_pClientSocket = new SocketClient(ip, 48001); //This can potentially take some time, depending on the timeout settings
 
-			std::lock_guard<std::mutex> lockConnection(m_mConnection);
 			m_bConnected = true;
 			if (calibration.bCalibrated)
 				m_bSendCalibration = true;
@@ -545,9 +535,9 @@ bool LiveScanClient::Connect(std::string ip)
 			SetStatusMessage(L"", 1, true);
 			return true;
 		}
+
 		catch (...)
 		{
-			std::lock_guard<std::mutex> lockConnection(m_mConnection);
 			logBuffer.LogInfo("Couldn't connect to server");
 			SetStatusMessage(L"Failed to connect. Did you start the server?", 10000, true);
 			m_bConnected = false;
@@ -557,9 +547,22 @@ bool LiveScanClient::Connect(std::string ip)
 	}
 }
 
+bool LiveScanClient::Disconnect()
+{
+	std::lock_guard<std::mutex> lockSocket(m_mSocketThread);
+
+	if (m_bConnected)
+	{
+		logBuffer.LogInfo("Disconnecting from server");
+		delete m_pClientSocket;
+		m_pClientSocket = NULL;
+		m_bConnected = false;
+		return true;
+	}
+}
+
 bool LiveScanClient::GetConnectedTS()
 {
-	std::lock_guard<std::mutex> lockConnection(m_mConnection);
 	return m_bConnected;
 }
 

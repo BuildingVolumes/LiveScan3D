@@ -40,10 +40,10 @@ private:
 	bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 	void ManagePreviewWindowInitialization(int width, int height);
 	void HandleConnectButton(LPSTR address);
+	void HandleConnectAllButton(LPSTR adress);
 	void HandleTabSelection(int index);
 	void AddClient();
 	void RemoveClient(int index);
-	void HandleTabSelection();
 	void ShowFPS();
 	void ShowPreview();
 	void ShowStatus();
@@ -73,7 +73,6 @@ private:
 	std::vector<ClientUI> tabs;
 
 	bool m_bShowDepth;
-	bool m_bWaitForConnection;
 
 	Log log;
 	LogBuffer logBuffer;

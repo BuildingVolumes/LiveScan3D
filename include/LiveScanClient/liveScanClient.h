@@ -59,6 +59,7 @@ public:
 	void RunClient(Log* logger, bool virtualDevice);
 	void CloseClient();
 	bool Connect(std::string ip);
+	bool Disconnect();
 	void SetClientActive(bool active);
 	void SetPreviewMode(bool depth);
 
@@ -71,7 +72,6 @@ public:
 	DeviceStatus GetDeviceStatusTS();
 
 	std::mutex m_mRunning;
-	std::mutex m_mConnection;
 	std::mutex m_mPreviewResources;
 	std::mutex m_mFPS;
 	std::mutex m_mStatus;

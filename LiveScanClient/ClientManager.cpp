@@ -58,7 +58,21 @@ void ClientManager::RemoveClient(int index)
 
 void ClientManager::ConnectClient(std::string adress, int index)
 {
-	m_vClients[index]->Connect(adress);
+	if(GetClientConnected(index))
+		m_vClients[index]->Disconnect();
+	else
+		m_vClients[index]->Connect(adress);
+}
+
+void ClientManager::ConnectAllClients(bool connect, std::string adress)
+{
+	for (int i = 0; i < m_vClients.size(); i++)
+	{
+		if (connect)
+			m_vClients[i]->Connect(adress);
+		else
+			m_vClients[i]->Disconnect();
+	}
 }
 
 void ClientManager::SetActiveClient(int index)
@@ -98,6 +112,17 @@ std::string ClientManager::GetClientIP(int index)
 bool ClientManager::GetClientConnected(int index)
 {
 	return m_vClients[index]->GetConnectedTS();
+}
+
+bool ClientManager::GetAllClientsConnected()
+{
+	bool allConnected = true;
+
+	for (int i = 0; i < m_vClients.size(); i++)
+		if (!m_vClients[i]->GetConnectedTS())
+			allConnected = false;
+
+	return allConnected;
 }
 
 PreviewFrame ClientManager::GetClientColor(int index)

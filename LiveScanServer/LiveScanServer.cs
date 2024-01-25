@@ -416,7 +416,6 @@ namespace LiveScanServer
 
             bool hwSyncWasEnabled = state.settings.eSyncMode == ClientSettings.SyncMode.Hardware;
 
-            state.settings.eSyncMode = syncMode;
             clientManager.SendCurrentSettings();
 
             //Check if we need to restart the cameras

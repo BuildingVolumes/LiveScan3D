@@ -220,9 +220,14 @@ void UI::CheckConnection()
 {
 	if(m_cClientManager->GetClientConnected(m_nTabSelected))
 		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Disconnect");
-
 	else
 		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT, "Connect");
+
+	if (m_cClientManager->GetAllClientsConnected())
+		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT_ALL, "Disconnect All");
+	else
+		SetDlgItemTextA(m_hWnd, IDC_BUTTON_CONNECT_ALL, "Connect All");
+
 }
 
 void UI::UpdateDeviceStatus()
@@ -322,7 +327,11 @@ void UI::ManagePreviewWindowInitialization(int width, int height)
 void UI::HandleConnectButton(LPSTR address)
 {
 	m_cClientManager->ConnectClient(address, m_nTabSelected);
-	m_bWaitForConnection = true;
+}
+
+void UI::HandleConnectAllButton(LPSTR adress)
+{
+	m_cClientManager->ConnectAllClients(!m_cClientManager->GetAllClientsConnected(), adress);
 }
 
 void UI::HandleTabSelection(int index)
@@ -499,6 +508,7 @@ void UI::UpdateUILayout()
 	::SetWindowPos(GetDlgItem(m_hWnd, IDC_STATIC), HWND_TOP, paddingHorizontal, buttonBarPosY + 2, buttonWidth, buttonHeight, NULL);
 	::SetWindowPos(GetDlgItem(m_hWnd, IDC_IP), HWND_TOP, paddingHorizontal + buttonWidth, buttonBarPosY, buttonWidth, buttonHeight, NULL);
 	::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_CONNECT), HWND_TOP, paddingHorizontal * 3 + buttonWidth * 2, buttonBarPosY, buttonWidth, buttonHeight, NULL);
+	::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_CONNECT_ALL), HWND_TOP, paddingHorizontal * 4 + buttonWidth * 3, buttonBarPosY, buttonWidth, buttonHeight, NULL);
 
 	::SetWindowPos(GetDlgItem(m_hWnd, IDC_BUTTON_SWITCH), HWND_TOP, windowWidth - paddingHorizontal * 3 - buttonWidth, buttonBarPosY, buttonWidth, buttonHeight, NULL);
 
@@ -705,6 +715,13 @@ LRESULT CALLBACK UI::DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 				char address[20];
 				GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
 				HandleConnectButton(address);
+			}
+
+			if (IDC_BUTTON_CONNECT_ALL == LOWORD(wParam))
+			{
+				char address[20];
+				GetDlgItemTextA(m_hWnd, IDC_IP, address, 20);
+				HandleConnectAllButton(address);
 			}
 
 			if (IDC_BUTTON_SWITCH == LOWORD(wParam))
