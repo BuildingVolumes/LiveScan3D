@@ -111,8 +111,9 @@ bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 
 	m_cClientManager = new ClientManager(&log, virtualDevice);
 	
+	int devicesAvailable = m_cClientManager->GetAvailableSensors();
 
-	//Add our first client tab and a tab which acts as a "add tab" button
+	//Add a tab which acts as a "add tab" button
 	LPWSTR addTabText = L"  +";	
 	m_uiPlusTab.pszText = addTabText;
 	m_uiPlusTab.cchTextMax = sizeof(addTabText);
@@ -120,7 +121,15 @@ bool UI::Initialize(Log::LOGLEVEL level, bool virtualDevice, HWND hWnd)
 	m_uiPlusTab.mask = TCIF_TEXT;
 	TabCtrl_InsertItem(GetDlgItem(hWnd, IDC_TAB), 0, &m_uiPlusTab);
 
-	AddClient();	
+	//Open all sensors that are currently available on this PC
+	//If none is available, we try to open one, to show the error to the user
+	AddClient();
+
+	if (devicesAvailable > 0)
+	{
+		for (int i = 0;  i < devicesAvailable - 1; i++)
+			AddClient();
+	}	
 
 	return true;
 }

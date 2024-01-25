@@ -23,6 +23,15 @@ ClientManager::~ClientManager()
 	m_vClients.clear();
 }
 
+/// <summary>
+/// Gets the amount of sensors connected to this PC that could be opened
+/// </summary>
+/// <returns></returns>
+int ClientManager::GetAvailableSensors()
+{
+	return k4a_device_get_installed_count();
+}
+
 void ClientManager::AddClient()
 {
 	//Create a new client and start it's update function in a new thread

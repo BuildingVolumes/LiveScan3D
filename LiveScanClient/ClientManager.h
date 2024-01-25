@@ -7,6 +7,8 @@ public:
 
 	ClientManager(Log* logger, bool virtualDevice);
 	~ClientManager();
+
+	int GetAvailableSensors();
 	
 	void AddClient();
 	void RemoveClient(int index);
