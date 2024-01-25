@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace LiveScanServer
 {
@@ -15,23 +17,29 @@ namespace LiveScanServer
 
         const string logFilePath = "logs/Log_Server.txt";
 
-        public enum LogLevel { All, DebugCapture, Debug, Normal, None}
+        public enum LogLevel { All, DebugCapture, Debug, Normal, None }
 
         static LogLevel logLevel;
 
+        static List<string> logBuffer;
         static FileStream fileStream;
         static StreamWriter streamWriter;
+        static object writeLock = new object();
 
+        static bool closeRequested = false;
+        static bool setup = false;
 
-        public static bool StartLog(LogLevel loglevel)
+        /// <summary>
+        /// Initiate the logger. You need to call RunLog() in it's own thread afterwards to start logging
+        /// </summary>
+        /// <param name="loglevel"></param>
+        /// <returns></returns>
+        public static bool SetupLog(LogLevel loglevel)
         {
 #if DEBUG
             if (loglevel > LogLevel.Debug)
                 loglevel = LogLevel.Debug;
 #endif
-
-            CloseLog();
-
             logLevel = loglevel;
 
             if (logLevel == LogLevel.None)
@@ -39,67 +47,98 @@ namespace LiveScanServer
 
             try
             {
-                if (!Directory.Exists("logs"))
-                    Directory.CreateDirectory("logs");
+                lock (writeLock)
+                {
+                    if (!Directory.Exists("logs"))
+                        Directory.CreateDirectory("logs");
 
-                fileStream = new FileStream(logFilePath, FileMode.Create);
-                streamWriter = new StreamWriter(fileStream);
+                    fileStream = new FileStream(logFilePath, FileMode.Create);
+                    streamWriter = new StreamWriter(fileStream);
+                }                
             }
 
-            catch(Exception e)
+            catch (Exception e)
             {
                 return false;
             }
 
+            closeRequested = false;
             streamWriter.AutoFlush = true;
+            logBuffer = new List<string>();
 
             if (logLevel <= LogLevel.Debug)
                 AllocConsole();
+
+            setup = true;
 
             LogInfo("Logging Started");
             return true;
         }
 
-        public static void CloseLog()
+        /// <summary>
+        /// Periodically writes the log to disk/console when new messages have appeared in the log buffer
+        /// Should be run in it's own thread.
+        /// </summary>
+        public static void RunLog()
         {
-            if(streamWriter != null)
+            if (!setup)
+                throw new Exception("Log has not been setup yet!");
+
+            while (!closeRequested)
             {
-                streamWriter.Close();
-                streamWriter = null;
+                if (logBuffer.Count > 0)
+                {
+                    WriteLogBuffer();
+                }
+
+                Thread.Sleep(1);
             }
 
-            if(fileStream != null)
-            {
-                fileStream.Close();
-                fileStream = null;
-            }
-            
+            DisposeLog();
         }
 
-        public static void WriteAndFlush(string message, string level)
+        public static void WriteLogBuffer()
         {
-            if(fileStream != null)
+            List<string> newLogs = new List<string>();
+
+            lock (logBuffer)
             {
-                if(streamWriter != null)
-                {
-                    string newLine = "[" +DateTime.Now.ToString("HH:mm:ss") + "] " + level + ": " + message;
-
-                    try
-                    {
-                        streamWriter.WriteLine(newLine);
-                    }
-
-                    //We can't write, but hey, no way to log this soooo...just keep the app running
-                    catch (Exception e)
-                    {}
-
-
-                    if (logLevel <= LogLevel.Debug)
-                        Console.WriteLine(newLine);
-                }
+                //Copy the log to a temporary list, so that we don't lock the buffer for too long
+                //during a possibly time-taking write
+                newLogs = new List<string>(logBuffer);
+                logBuffer.Clear();
             }
 
-            
+            WriteAndFlush(newLogs);
+        }
+
+        static void WriteAndFlush(List<string> buffer)
+        {
+            lock (writeLock)
+            {
+                if (fileStream != null)
+                {
+                    if (streamWriter != null)
+                    {
+                        string toWrite = "";
+
+                        for (int i = 0; i < buffer.Count; i++)
+                            toWrite += "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + ": " + buffer[i] + '\n';
+
+                        try
+                        {
+                            streamWriter.Write(toWrite);
+                        }
+
+                        //Write Error, but hey, no way to log this. Soooo...just keep the app running
+                        catch (Exception e)
+                        { }
+
+                        if (logLevel <= LogLevel.Debug)
+                            Console.Write(toWrite);
+                    }
+                }
+            }        
         }
 
         public static LogLevel GetLogLevel()
@@ -107,11 +146,18 @@ namespace LiveScanServer
             return logLevel;
         }
 
+        static void AddToLogBuffer(string message)
+        {
+            lock (logBuffer)
+                logBuffer.Add(message);
+        }
+
         public static void LogFatal(string message)
         {
-            if(logLevel <= LogLevel.Normal)
+            if (logLevel <= LogLevel.Normal)
             {
-                WriteAndFlush(message, "[FATAL]");
+                AddToLogBuffer("[FATAL] " + message);
+                WriteLogBuffer(); //Always write immediatly, as the app might crash after this
             }
         }
 
@@ -119,7 +165,8 @@ namespace LiveScanServer
         {
             if (logLevel <= LogLevel.Normal)
             {
-                WriteAndFlush(message, "[ERROR]");
+                AddToLogBuffer("[ERROR] " + message);
+                WriteLogBuffer(); //Also write immediatly, if the app becomes unstable
             }
         }
 
@@ -127,7 +174,7 @@ namespace LiveScanServer
         {
             if (logLevel <= LogLevel.Normal)
             {
-                WriteAndFlush(message, "[WARNING]");
+                AddToLogBuffer("[WARNING] " + message);
             }
         }
 
@@ -135,7 +182,7 @@ namespace LiveScanServer
         {
             if (logLevel <= LogLevel.Normal)
             {
-                WriteAndFlush(message, "[INFO]");
+                AddToLogBuffer("[INFO] " + message);
             }
         }
 
@@ -143,7 +190,7 @@ namespace LiveScanServer
         {
             if (logLevel <= LogLevel.Debug)
             {
-                WriteAndFlush(message, "[DEBUG]");
+                AddToLogBuffer("[DEBUG] " + message);
             }
         }
 
@@ -151,7 +198,7 @@ namespace LiveScanServer
         {
             if (logLevel <= LogLevel.DebugCapture)
             {
-                WriteAndFlush(message, "[DEBUG CAPTURE]");
+                AddToLogBuffer("[DEBUG CAPTURE] " + message);
             }
         }
 
@@ -159,8 +206,38 @@ namespace LiveScanServer
         {
             if (logLevel <= LogLevel.All)
             {
-                WriteAndFlush(message, "[TRACE]");
+                AddToLogBuffer("[TRACE]" + message);
             }
+        }
+
+        /// <summary>
+        /// Request to close the log. Finishes the remaining write operations,
+        /// and file operations. After calling this you can join the log thread.
+        /// </summary>
+        public static void CloseLog()
+        {
+            closeRequested = true;
+        }
+
+        private static void DisposeLog()
+        {
+            setup = false;
+
+            lock (writeLock)
+            {
+                if (streamWriter != null)
+                {
+                    streamWriter.Close();
+                    streamWriter = null;
+                }
+
+                if (fileStream != null)
+                {
+                    fileStream.Close();
+                    fileStream = null;
+                }
+            }         
+
         }
 
     }

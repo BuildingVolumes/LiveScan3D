@@ -41,6 +41,7 @@ namespace LiveScanServer
         ClientManager clientManager;
         //TransferServer oTransferServer;
 
+        Thread logThread;
         BackgroundWorker previewWorker;
         BackgroundWorker processingWorker;
         bool processingWorkerComplete = false;
@@ -86,11 +87,14 @@ namespace LiveScanServer
 
             }
 
-            if (!Log.StartLog(loglevel))
+            if (!Log.SetupLog(loglevel))
             {
                 UI.RequestMessagBox(MessageBoxIcon.Error, "Could not access logging file, another Livescan Server instance is probably already open!", true);
                 return;
             }
+
+            logThread = new Thread(() => { Log.RunLog(); });
+            logThread.Start();
 
             Setup();
 
@@ -172,7 +176,9 @@ namespace LiveScanServer
             ProcessingWorker_Cancel();
 
             Log.LogInfo("Programm termined normally, exiting");
+            Log.WriteLogBuffer();
             Log.CloseLog();
+            logThread.Join();
 
         }
 
@@ -718,8 +724,7 @@ namespace LiveScanServer
                 state.stateIndicatorSuffix = "";
                 state.capturedFramesTotal = (int)counter.Elapsed.TotalSeconds * 30;
 
-                Log.LogInfo("Stopping Recording");
-
+                Log.LogInfo("Stopping Recording on");
                 clientManager.SendCaptureFramesStop();
                 counter.Stop();
 
