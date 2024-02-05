@@ -87,7 +87,7 @@ namespace LiveScanServer
 
             }
 
-            if (!Log.SetupLog(loglevel))
+            if (!Log.SetupLog(loglevel, "Log_Server"))
             {
                 UI.RequestMessagBox(MessageBoxIcon.Error, "Could not access logging file, another Livescan Server instance is probably already open!", true);
                 return;

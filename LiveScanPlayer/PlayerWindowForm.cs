@@ -17,6 +17,7 @@ namespace LiveScanPlayer
     public partial class PlayerWindowForm : Form
     {
         OpenGLView oOpenGLWindow = null;
+        Thread logThread;
         System.Windows.Forms.Timer tLiveViewTimer;
         float fTargetFPS = 30f;
         long lActualFPS = 30;
@@ -48,6 +49,10 @@ namespace LiveScanPlayer
             updateWorker.RunWorkerAsync();
             lFrameFilesListView.Columns.Add("Files:", 300);
             this.Icon = Properties.Resources.Player_Icon;
+
+            Log.SetupLog(Log.LogLevel.Debug, "Log_Player");
+            logThread = new Thread(() => { Log.RunLog(); });
+            logThread.Start();
         }
 
         private void PlayerWindowForm_Load(object sender, EventArgs e)
@@ -57,6 +62,10 @@ namespace LiveScanPlayer
 
         private void PlayerWindowForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            Log.LogInfo("Programm termined normally, exiting");
+            Log.WriteLogBuffer();
+            Log.CloseLog();
+            logThread.Join();
             bAppOpen = false;
             StopUpdateWorker();
         }

@@ -232,7 +232,7 @@ namespace LiveScanServer
 
     public enum EColorMode { RGB, BGR };
 
-    public class Utils
+    public static class Utils
     {
         public static void saveToPly(string filename, List<Single> vertices, List<byte> colors, EColorMode colorMode,bool binary)
         {

@@ -10,12 +10,12 @@ using System.Windows.Forms;
 
 namespace LiveScanServer
 {
-    static class Log
+    public static class Log
     {
         [DllImport("kernel32.dll", EntryPoint = "AllocConsole", SetLastError = true, CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall)]
         private static extern int AllocConsole();
 
-        const string logFilePath = "logs/Log_Server.txt";
+        static string logFilePath = "Log";
 
         public enum LogLevel { All, DebugCapture, Debug, Normal, None }
 
@@ -34,7 +34,7 @@ namespace LiveScanServer
         /// </summary>
         /// <param name="loglevel"></param>
         /// <returns></returns>
-        public static bool SetupLog(LogLevel loglevel)
+        public static bool SetupLog(LogLevel loglevel, string logFileName)
         {
 #if DEBUG
             if (loglevel > LogLevel.Debug)
@@ -44,6 +44,8 @@ namespace LiveScanServer
 
             if (logLevel == LogLevel.None)
                 return true;
+
+            logFilePath = "logs/" + logFileName + ".txt";
 
             try
             {
