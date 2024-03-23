@@ -201,7 +201,6 @@ takes.json
 settings.bin
 LiveScanClient/lastIP.txt
 /LiveScanClient/Debug/
-/LiveScanClient/external/
 /LiveScanClient/x64/
 /LiveScanClient/out/
 /LiveScanClient/*.txt
