@@ -1,14 +1,10 @@
-using OpenTK.Input;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
-using System.Security.Policy;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -35,6 +31,9 @@ namespace LiveScanServer
     {
         [DllImport("ICP.dll")]
         static extern float ICP(IntPtr verts1, IntPtr verts2, int nVerts1, int nVerts2, float[] R, float[] t, int maxIter = 200);
+
+        [DllImport("ImageProcessing.dll")]
+        static extern int testAdd(int a, int b);
 
         MainWindowForm UI;
         LiveScanState state;
@@ -108,6 +107,7 @@ namespace LiveScanServer
                 Terminate();
 
             Log.LogInfo("Starting Server");
+
         }
 
         private void Setup()

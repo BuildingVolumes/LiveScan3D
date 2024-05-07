@@ -159,7 +159,7 @@ xcopy /y /i /e  "$(ProjectDir)resources\" "$(OutDir)resources\"
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(KINECTSDK20_DIR)\inc;$(SolutionDir)\include\LiveScanClient;$(SolutionDir)\include;$(ProjectDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(KINECTSDK20_DIR)\inc;$(SolutionDir)\include\LiveScanClient;$(SolutionDir)\include;$(ProjectDir);$(SolutionDir)\ImageProcessing</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_UNICODE;UNICODE;_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING;_VIRTUAL_DEVICE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
