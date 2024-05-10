@@ -149,6 +149,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="ImageToPointcloud.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
