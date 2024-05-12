@@ -192,8 +192,6 @@ void KinectConfiguration::TryLoad()
 	i += 2;
 	filter_depth_map_size = (int)(content[i] - 48);
 
-	
-
 }
 
 void KinectConfiguration::InitializeDefaults()
