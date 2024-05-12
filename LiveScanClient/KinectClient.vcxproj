@@ -144,7 +144,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;$(SolutionDir)lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world455d.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world455d.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;ImageProcessing.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>NotSet</SubSystem>
     </Link>
     <PreBuildEvent>
@@ -168,7 +168,7 @@ xcopy /y /i /e  "$(ProjectDir)resources\" "$(OutDir)resources\"
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;$(SolutionDir)lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world455d.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world455d.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;ImageProcessing.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>NotSet</SubSystem>
     </Link>
     <PreBuildEvent>
@@ -197,7 +197,7 @@ xcopy /y /d /s /i  "$(SolutionDir)TestData\virtualdevice" "$(OutDir)resources\te
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opencv_world455.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world455.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;ImageProcessing.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;$(SolutionDir)lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
@@ -225,7 +225,7 @@ xcopy /y /i /e  "$(ProjectDir)resources\" "$(OutDir)resources\"
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opencv_world455.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world455.lib;libzstd.lib;jpeg.lib;turbojpeg.lib;ImageProcessing.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;$(SolutionDir)lib</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>

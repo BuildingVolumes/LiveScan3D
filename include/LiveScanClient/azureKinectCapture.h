@@ -3,6 +3,8 @@
 #include <opencv2/opencv.hpp>
 #include "turbojpeg/turbojpeg.h"
 #include <chrono>
+#include "ImageToPointcloud.h";
+
 
 class AzureKinectCapture : public ICapture
 {
@@ -20,7 +22,6 @@ public:
 
 	virtual bool AquireRawFrame();
 	void DecodeRawColor();
-	void DownscaleColorImgToDepthImgSize();
 	void MapDepthToColor();
 	void GeneratePointcloud();
 	void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints);
@@ -39,15 +40,10 @@ protected:
 	k4a_device_t kinectSensor = NULL;
 	int32_t captureTimeoutMs = 1000;
 	k4a_image_t depthImageInColor = NULL;
-	k4a_image_t colorImageDownscaled = NULL;
-	k4a_transformation_t transformationColorDownscaled = NULL;
 	k4a_transformation_t transformation = NULL;  
 	LogBuffer logBuffer;
 	Log* log;
 	std::string serialNumber;
-
-	int colorImageDownscaledWidth;
-	int colorImageDownscaledHeight;
 
 	bool syncInConnected = false;
 	bool syncOutConnected = false;

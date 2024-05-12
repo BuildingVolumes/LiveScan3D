@@ -1,18 +1,13 @@
 #pragma once
+#include "turbojpeg/turbojpeg.h"
+#include "opencv2/opencv.hpp"
+#include "types.h"
 
 #ifdef IM2PC_EXPORTS
 #define IM2PC_API __declspec(dllexport)
 #else
 #define IM2PC_API __declspec(dllimport)
 #endif
-
-//Forward-Declaration of functions/classes used from other headers
-//This way, we can include this header in another project, without
-//the project having to access the other headers
-
-typedef struct Point3f;
-typedef struct ImageSet;
-
 
 
 //++++ Initialization

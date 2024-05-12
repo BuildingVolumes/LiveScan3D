@@ -129,28 +129,6 @@ bool AzureKinectCapture::StartCamera(KinectConfiguration& configuration)
 	transformation = k4a_transformation_create(&calibration);
 
 
-	//It's crucial for this program to output accurately mapped Pointclouds. The highest accuracy mapping is achieved
-	//by using the k4a_transformation_depth_image_to_color_camera function. However this converts a small depth image 
-	//to a larger size, equivalent to the the color image size. This means more points to process and higher processing costs
-	//We can however scale the color image to the depth images size beforehand, to reduce proccesing power. 
-
-	//We calculate the minimum size that the color Image can be, while preserving its aspect ration
-	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetDepthCameraHeight();
-	colorImageDownscaledWidth = calibration.color_camera_calibration.resolution_width / rescaleRatio;
-	colorImageDownscaledHeight = calibration.color_camera_calibration.resolution_height / rescaleRatio;
-
-	//We don't only need the size in pixels of the downscaled color image, but also a new k4a_calibration_t which fits the new 
-	//sizes
-	k4a_calibration_t calibrationColorDownscaled;
-	memcpy(&calibrationColorDownscaled, &calibration, sizeof(k4a_calibration_t));
-	calibrationColorDownscaled.color_camera_calibration.resolution_width /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.resolution_height /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.cx /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.cy /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.fx /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.fy /= rescaleRatio;
-	transformationColorDownscaled = k4a_transformation_create(&calibrationColorDownscaled);
-
 	//If this device is a subordinate, it is expected to start capturing at a later time (When the master has started), so we skip this check  
 	//Is this really neccessary?
 	if (configuration.eSoftwareSyncState != Subordinate)
@@ -194,8 +172,6 @@ void AzureKinectCapture::StopCamera()
 	k4a_image_release(pointCloudImage);
 	k4a_image_release(depthImageInColor);
 	k4a_image_release(transformedDepthImage);
-	k4a_image_release(colorImageDownscaled);
-	k4a_transformation_destroy(transformationColorDownscaled);
 	k4a_transformation_destroy(transformation);
 
 	colorImageMJPG = NULL;
@@ -203,8 +179,6 @@ void AzureKinectCapture::StopCamera()
 	pointCloudImage = NULL;
 	transformedDepthImage = NULL;
 	depthImageInColor = NULL;
-	colorImageDownscaled = NULL;
-	transformationColorDownscaled = NULL;
 	transformation = NULL;
 
 	bStarted = false;
@@ -292,18 +266,6 @@ void AzureKinectCapture::DecodeRawColor()
 	/*int colorSizeKB = colorSize / 1000;
 	int depthSizeKB = depthSize / 1000;
 	std::cout << "Decoded color + depth size KB = " << std::to_string((colorSizeKB + depthSizeKB)) << std::endl;*/
-}
-
-void AzureKinectCapture::DownscaleColorImgToDepthImgSize()
-{
-
-	//Resize the k4a_image to the precalculated size, so that we later save on resources while transforming the image
-	//--> Nice idea, however resizing takes so long, that it's not worth it. 
-	//Might only be useful for very high res color recordings in Pointcloud Mode, but that doesn't make sense
-	cv::resize(colorBGR, colorBGR, cv::Size(colorImageDownscaledWidth, colorImageDownscaledHeight), cv::INTER_LINEAR);
-
-	nColorFrameHeight = colorBGR.rows;
-	nColorFrameWidth = colorBGR.cols;
 }
 
 

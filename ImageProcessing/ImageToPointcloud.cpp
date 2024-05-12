@@ -1,9 +1,10 @@
 #include "pch.h"
 #include "ImageToPointcloud.h"
+#include "turbojpeg/turbojpeg.h"
+#include "opencv2/opencv.hpp"
+#include "types.h"
 
 static tjhandle turboJpeg;
-
-
 
 void InitImageProcessing()
 {
@@ -22,7 +23,6 @@ extern "C" IM2PC_API ImageSet * CreateImageSet()
 	ImageSet* newImageSet = new ImageSet();
 	return newImageSet;
 }
-
 
 extern "C" IM2PC_API bool ChangeJPEGFromBuffer(ImageSet* imgsetPtr, int jpegWidth, int jpegHeight, char* jpegBuffer, int jpegSize)
 {
@@ -80,11 +80,19 @@ extern "C" IM2PC_API bool ChangeCalibrationFromBuffer(ImageSet * imgsetPtr, char
 extern "C" IM2PC_API bool CreatePointcloudFromImages(ImageSet* imgsetPtr)
 {
 	if (!imgsetPtr->jpegConvertedToBGRA)
-		JPEG2BGRA32(imgsetPtr);
+		if (!JPEG2BGRA32(imgsetPtr))
+			return false;
 
-	MapDepthToColor(imgsetPtr);
-	GeneratePointcloud(imgsetPtr);
-	PointCloudImageToPoint3f(imgsetPtr);
+	if (!MapDepthToColor(imgsetPtr))
+		return false;
+	
+	if (!GeneratePointcloud(imgsetPtr))
+		return false;
+
+	if (!PointCloudImageToPoint3f(imgsetPtr))
+		return false;
+
+	return true;
 }
 
 /// <summary>
