@@ -4,15 +4,14 @@
 
 AzureKinectCapture::AzureKinectCapture()
 {
-	turboJpeg = tjInitDecompress();
+	ImageProcessing::InitImageProcessing();
 }
 
 AzureKinectCapture::~AzureKinectCapture()
 {
 	DisposeDevice();
 
-	if (turboJpeg)
-		tjDestroy(turboJpeg);
+	ImageProcessing::CloseImageProcessing();
 
 	if (log)
 		log->UnRegisterBuffer(&logBuffer);
@@ -152,6 +151,15 @@ bool AzureKinectCapture::StartCamera(KinectConfiguration& configuration)
 
 	GetIntrinsicsJSON(calibrationBuffer, nCalibrationSize);
 
+	imageset = ImageProcessing::CreateImageSet();
+
+	size_t calibrationSize = 0;
+	k4a_device_get_raw_calibration(kinectSensor, NULL, &calibrationSize);
+	uint8_t* calibrationBuffer = new uint8_t[calibrationSize];
+	k4a_device_get_raw_calibration(kinectSensor, calibrationBuffer, &calibrationSize);
+	ImageProcessing::ChangeCalibrationFromBuffer(imageset, reinterpret_cast<char*>(calibrationBuffer), calibrationSize, calibration.color_resolution, calibration.depth_mode);
+	delete[] calibrationBuffer;
+
 	logBuffer.LogInfo("Initialization successfull");
 
 	return bStarted;
@@ -169,16 +177,11 @@ void AzureKinectCapture::StopCamera()
 	//We release the resources here, as the might change dimensions on new start
 	k4a_image_release(colorImageMJPG);
 	k4a_image_release(depthImage16Int);
-	k4a_image_release(pointCloudImage);
-	k4a_image_release(depthImageInColor);
-	k4a_image_release(transformedDepthImage);
 	k4a_transformation_destroy(transformation);
+	ImageProcessing::DisposeImageSet(imageset);
 
 	colorImageMJPG = NULL;
 	depthImage16Int = NULL;
-	pointCloudImage = NULL;
-	transformedDepthImage = NULL;
-	depthImageInColor = NULL;
 	transformation = NULL;
 
 	bStarted = false;
@@ -242,6 +245,9 @@ bool AzureKinectCapture::AquireRawFrame()
 
 	k4a_capture_release(capture);
 
+	ImageProcessing::ChangeJPEGFromBuffer(imageset, k4a_image_get_width_pixels(colorImageMJPG), k4a_image_get_height_pixels(colorImageMJPG), reinterpret_cast<char*>(k4a_image_get_buffer(colorImageMJPG)), k4a_image_get_size(colorImageMJPG));
+	ImageProcessing::ChangeDepthFromBuffer(imageset, k4a_image_get_width_pixels(depthImage16Int), k4a_image_get_height_pixels(depthImage16Int), reinterpret_cast<char*>(k4a_image_get_buffer(depthImage16Int)));
+
 	return true;
 
 }
@@ -251,50 +257,19 @@ bool AzureKinectCapture::AquireRawFrame()
 /// </summary>
 void AzureKinectCapture::DecodeRawColor()
 {
+	ImageProcessing::JPEG2BGRA32(imageset);
 
-	nColorFrameHeight = k4a_image_get_height_pixels(colorImageMJPG);
-	nColorFrameWidth = k4a_image_get_width_pixels(colorImageMJPG);
-
-	if (colorBGR.cols != nColorFrameWidth || colorBGR.rows != nColorFrameHeight) //If we use downscaling again, we need to seperate the downscaled and non-downscaled images into seperate buffers
-		colorBGR = cv::Mat(nColorFrameHeight, nColorFrameWidth, CV_8UC4);
-
-	tjDecompress2(turboJpeg, k4a_image_get_buffer(colorImageMJPG), static_cast<unsigned long>(k4a_image_get_size(colorImageMJPG)), colorBGR.data, nColorFrameWidth, 0, nColorFrameHeight, TJPF_BGRA, TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE);
-
-	int colorSize = colorBGR.total() * colorBGR.elemSize();
-	int depthSize = k4a_image_get_size(depthImage16Int);
-
-	/*int colorSizeKB = colorSize / 1000;
-	int depthSizeKB = depthSize / 1000;
-	std::cout << "Decoded color + depth size KB = " << std::to_string((colorSizeKB + depthSizeKB)) << std::endl;*/
+	if(colorBGR.total() * colorBGR.elemSize() != ImageProcessing::GetColorImageSize(imageset))
+		colorBGR = cv::Mat(ImageProcessing::GetColorImageHeight(imageset), ImageProcessing::GetColorImageWidth(imageset), CV_8UC4, ImageProcessing::GetColorImageBuffer(imageset));
 }
 
 
 void AzureKinectCapture::MapDepthToColor()
 {
-	//fix depth image here
 	if (configuration.filter_depth_map)
-	{
-		cv::Mat cImgD = cv::Mat(k4a_image_get_height_pixels(depthImage16Int), k4a_image_get_width_pixels(depthImage16Int), CV_16UC1, k4a_image_get_buffer(depthImage16Int));
-		cv::Mat cImgD2 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage16Int), k4a_image_get_width_pixels(depthImage16Int)), CV_16UC1);// k4a_image_get_buffer(depthImage));
-		cv::Mat cImgD3 = cv::Mat::zeros(cv::Size(k4a_image_get_height_pixels(depthImage16Int), k4a_image_get_width_pixels(depthImage16Int)), CV_16UC1);// k4a_image_get_buffer(depthImage));
+		ImageProcessing::ErodeDepthImageFilter(imageset, configuration.filter_depth_map_size);
 
-		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size));
-
-		//cv::medianBlur(cImgD, cImgD2, 5);
-		int CLOSING = 3;
-		// 4 will do a good edge detection if you threshold after as well
-		//cv::morphologyEx(cImgD, cImgD2, CLOSING, kernel);
-		cv::erode(cImgD, cImgD, kernel);
-		//cv::GaussianBlur(cImgD3, cImgD, cv::Size(configuration.filter_depth_map_size, configuration.filter_depth_map_size), 0);
-	}
-
-	if (transformedDepthImage == NULL)
-	{
-		k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * (int)sizeof(uint16_t), &transformedDepthImage);
-	}
-
-	k4a_result_t res = k4a_transformation_depth_image_to_color_camera(transformation, depthImage16Int, transformedDepthImage);
-
+	ImageProcessing::MapDepthToColor(imageset);
 }
 
 /// <summary>
@@ -302,15 +277,8 @@ void AzureKinectCapture::MapDepthToColor()
 /// </summary>
 void AzureKinectCapture::GeneratePointcloud()
 {
-
-	if (pointCloudImage == NULL)
-	{
-		k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, nColorFrameWidth, nColorFrameHeight, nColorFrameWidth * 3 * (int)sizeof(int16_t), &pointCloudImage);
-	}
-
-	k4a_transformation_depth_image_to_point_cloud(transformation, transformedDepthImage, K4A_CALIBRATION_TYPE_COLOR, pointCloudImage);
+	ImageProcessing::GeneratePointcloud(imageset);
 }
-
 
 ///<summary>
 ///Translates the k4a_image_t pointcloud into a easier to handle Point3f array. Make sure to run MapDepthToColorFrame & GeneratePointcloud before calling this function
@@ -318,17 +286,10 @@ void AzureKinectCapture::GeneratePointcloud()
 ///<param name="pCameraSpacePoints"></param>
 void AzureKinectCapture::PointCloudImageToPoint3f(Point3f* pCameraSpacePoints)
 {
-	int16_t* pointCloudData = (int16_t*)k4a_image_get_buffer(pointCloudImage);
+	ImageProcessing::PointCloudImageToPoint3f(imageset);
 
-	for (int i = 0; i < nColorFrameHeight; i++)
-	{
-		for (int j = 0; j < nColorFrameWidth; j++)
-		{
-			pCameraSpacePoints[j + i * nColorFrameWidth].X = pointCloudData[3 * (j + i * nColorFrameWidth) + 0] / 1000.0f;
-			pCameraSpacePoints[j + i * nColorFrameWidth].Y = pointCloudData[3 * (j + i * nColorFrameWidth) + 1] / 1000.0f;
-			pCameraSpacePoints[j + i * nColorFrameWidth].Z = pointCloudData[3 * (j + i * nColorFrameWidth) + 2] / 1000.0f;
-		}
-	}
+	if()
+
 }
 
 /// <summary>

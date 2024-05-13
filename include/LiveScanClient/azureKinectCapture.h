@@ -3,7 +3,6 @@
 #include <opencv2/opencv.hpp>
 #include "turbojpeg/turbojpeg.h"
 #include <chrono>
-#include "ImageToPointcloud.h";
 
 
 class AzureKinectCapture : public ICapture
@@ -39,7 +38,6 @@ public:
 protected:
 	k4a_device_t kinectSensor = NULL;
 	int32_t captureTimeoutMs = 1000;
-	k4a_image_t depthImageInColor = NULL;
 	k4a_transformation_t transformation = NULL;  
 	LogBuffer logBuffer;
 	Log* log;

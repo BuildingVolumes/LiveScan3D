@@ -17,7 +17,7 @@
 #include <KinectConfiguration.h>
 #include "k4a/k4a.h"
 #include "opencv2/opencv.hpp"
-//#include <stdint.h>
+#include "ImageToPointcloud.h"
 #include "Log.h" 
 
 struct Joint
@@ -54,7 +54,6 @@ public:
 
 	virtual bool AquireRawFrame() = 0;
 	virtual void DecodeRawColor() = 0;
-	virtual void DownscaleColorImgToDepthImgSize() = 0;
 	virtual void MapDepthToColor() = 0;
 	virtual void GeneratePointcloud() = 0;
 	virtual void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints) = 0;
@@ -76,9 +75,9 @@ public:
 
 	k4a_image_t colorImageMJPG;
 	k4a_image_t depthImage16Int;
-	k4a_image_t transformedDepthImage;
-	k4a_image_t pointCloudImage;
 	cv::Mat colorBGR;
+
+	ImageProcessing::ImageSet* imageset;
 
 	std::vector<uint8_t> calibrationBuffer;
 	size_t nCalibrationSize;
