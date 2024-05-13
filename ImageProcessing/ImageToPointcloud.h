@@ -68,8 +68,8 @@ namespace ImageProcessing
 	extern "C" IM2PC_API bool MapDepthToColor(ImageSet * imgsetPtr);
 	extern "C" IM2PC_API bool GeneratePointcloud(ImageSet * imgsetPtr);
 	extern "C" IM2PC_API bool PointCloudToPointcloud3f(ImageSet * imgsetPtr);
-	extern "C" IM2PC_API bool Pointcloud3fTransformToWorld(ImageSet * imgsetPtr, float* Matrix4x4);
-	extern "C" IM2PC_API bool Pointcloud3fMinify(ImageSet * imgsetPtr, float* boundingBox);
+	extern "C" IM2PC_API void Pointcloud3fTransformToWorld(ImageSet * imgsetPtr, float* Matrix4x4);
+	extern "C" IM2PC_API void Pointcloud3fMinify(ImageSet * imgsetPtr, float* boundingBox);
 
 	extern "C" IM2PC_API int GetColorImageWidth(ImageSet * imgsetPtr);
 	extern "C" IM2PC_API int GetColorImageHeight(ImageSet * imgsetPtr);

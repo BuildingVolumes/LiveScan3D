@@ -219,95 +219,84 @@ namespace ImageProcessing
 				imgsetPtr->pointcloud3f[j + i * imgsetPtr->colorImageWidth].X = pointCloudData[3 * (j + i * imgsetPtr->colorImageWidth) + 0];
 				imgsetPtr->pointcloud3f[j + i * imgsetPtr->colorImageWidth].Y = pointCloudData[3 * (j + i * imgsetPtr->colorImageWidth) + 1];
 				imgsetPtr->pointcloud3f[j + i * imgsetPtr->colorImageWidth].Z = pointCloudData[3 * (j + i * imgsetPtr->colorImageWidth) + 2];
+
+				//We mark all vertices with a distance of 0 as invalid
+				if (imgsetPtr->pointcloud3f[j + i * imgsetPtr->colorImageWidth].Z < 1)
+					imgsetPtr->pointcloud3f[j + i * imgsetPtr->colorImageWidth].Invalid = true;
 			}
 		}
 	}
 
 
-	extern "C" IM2PC_API bool Pointcloud3fTransformToWorld(ImageSet * imgsetPtr, float* transformationMatrix4x4)
+	extern "C" IM2PC_API void Pointcloud3fTransformToWorld(ImageSet * imgsetPtr, float* transformationMatrix4x4)
 	{
 		//Scale Pointcloud to meters
-		Matrix4x4 scale = Matrix4x4(
+		Matrix4x4 scaleToMeters = Matrix4x4(
 			0.001f, 0.0f, 0.0f, 0.0f,
 			0.0f, 0.001f, 0.0f, 0.0f,
 			0.0f, 0.0f, 0.001f, 0.0f,
 			0.0f, 0.0f, 0.0f, 1.0f);
 
-		Matrix4x4 rotation = Matrix4x4(transformationMatrix4x4);
-		Matrix4x4 toWorld = calibration.worldTransform * scale;
+		Matrix4x4 transformation = Matrix4x4(transformationMatrix4x4);
+		Matrix4x4 toWorld = transformation * scaleToMeters;
 
 		for (size_t i = 0; i < imgsetPtr->colorImageWidth * imgsetPtr->colorImageHeight; i++)
 		{
 			imgsetPtr->pointcloud3f[i] = toWorld * imgsetPtr->pointcloud3f[i];
 		}
 	}
-	
-	
-	extern "C" IM2PC_API bool Pointcloud3fMinify(ImageSet * imgsetPtr, float* boundingBox)
+
+
+	extern "C" IM2PC_API void Pointcloud3fMinify(ImageSet * imgsetPtr, float* boundingBox)
 	{
-		int allVerticesNewSize = pCapture->nColorFrameHeight * pCapture->nColorFrameWidth;
-
-		if (m_nAllVerticesSize != allVerticesNewSize)
-		{
-			m_nAllVerticesSize = allVerticesNewSize;
-			delete[] m_pAllVertices;
-			m_pAllVertices = new Point3f[m_nAllVerticesSize];
-		}
-
 		Point3f invalidPoint = Point3f(0, 0, 0, true);
-		Point3f temp = Point3f(0, 0, 0);
-
 		int goodVerticesCount = 0;
 
-		for (unsigned int vertexIndex = 0; vertexIndex < m_nAllVerticesSize; vertexIndex++)
+		Point3f* pointcloud = imgsetPtr->pointcloud3f;
+
+		for (unsigned int vertexIndex = 0; vertexIndex < imgsetPtr->colorImageWidth * imgsetPtr->colorImageHeight; vertexIndex++)
 		{
-			//As the resizing function doesn't return a valid RGB-Reserved value which indicates that this pixel is invalid,
-			//we cut all vertices under a distance of 0.0001mm, as the invalid vertices always have a Z-Value of 0
-			if (pointCloudImageData[3 * vertexIndex + 2] >= 0.0001) // TODO: Needed? && colorInDepth->data[vertexIndex] == 255)
+			Point3f* vertex = &pointcloud[vertexIndex];
+
+			if (!vertex->Invalid)
 			{
-				if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]
-					|| temp.Y < m_vBounds[1] || temp.Y > m_vBounds[4]
-					|| temp.Z < m_vBounds[2] || temp.Z > m_vBounds[5])
+				if (vertex->X < boundingBox[0] || vertex->X > boundingBox[3]
+					|| vertex->Y < boundingBox[1] || vertex->Y > boundingBox[4]
+					|| vertex->Z < boundingBox[2] || vertex->Z > boundingBox[5])
 				{
-					m_pAllVertices[vertexIndex] = invalidPoint;
+					vertex->Invalid = true;
 					continue;
 				}
 
-				m_pAllVertices[vertexIndex] = temp;
 				goodVerticesCount++;
-			}
-
-			else
-			{
-				m_pAllVertices[vertexIndex] = invalidPoint;
 			}
 		}
 
 
-		delete[] m_vLastFrameVertices;
-		delete[] m_vLastFrameRGB;
+		delete[] imgsetPtr->pointcloudMinified;
+		delete[] imgsetPtr->colorMinified;
 
 		if (goodVerticesCount > 0)
 		{
-			m_vLastFrameVertices = new Point3s[goodVerticesCount];
-			m_vLastFrameRGB = new RGBA[goodVerticesCount];
-			m_vLastFrameVerticesSize = goodVerticesCount;
+			imgsetPtr->pointcloudMinified = new Point3s[goodVerticesCount];
+			imgsetPtr->colorMinified = new RGBA[goodVerticesCount];
+			imgsetPtr->minifiedPointcloudSize = goodVerticesCount;
 
-			uchar* colorValues = colorImage->data;
+			char* colorValues = reinterpret_cast<char*>(k4a_image_get_buffer(imgsetPtr->colorImage));
 
 			//Copy all valid vertices into a clean vector
 			int j = 0;
-			for (unsigned int i = 0; i < m_nAllVerticesSize; i++)
+			for (unsigned int i = 0; i < imgsetPtr->colorImageWidth * imgsetPtr->colorImageHeight; i++)
 			{
-				if (!m_pAllVertices[i].Invalid)
+				if (!pointcloud[i].Invalid)
 				{
 					RGBA color;
 					color.red = colorValues[i * 4];
 					color.green = colorValues[(i * 4) + 1];
 					color.blue = colorValues[(i * 4) + 2];
 
-					m_vLastFrameVertices[j] = m_pAllVertices[i];
-					m_vLastFrameRGB[j] = color;
+					imgsetPtr->pointcloudMinified[j] = pointcloud[i];
+					imgsetPtr->colorMinified[j] = color;
 					j++;
 				}
 			}
@@ -316,112 +305,101 @@ namespace ImageProcessing
 		//If the pointcloud is empty, we can't have an array with zero elements
 		else
 		{
-			m_vLastFrameVertices = new Point3s[1];
+			imgsetPtr->pointcloudMinified = new Point3s[1];
 			Point3s point(0, 0, 0);
-			m_vLastFrameVertices[0] = point;
+			imgsetPtr->pointcloudMinified[0] = point;
 
-			m_vLastFrameRGB = new RGBA[1];
+			imgsetPtr->colorMinified = new RGBA[1];
 			RGBA color;
-			m_vLastFrameRGB[0] = color;
+			imgsetPtr->colorMinified[0] = color;
 
-			m_vLastFrameVerticesSize = 1;
+			imgsetPtr->minifiedPointcloudSize = 1;
 		}
-
 	}
+}
 
 
 
-		
+extern "C" IM2PC_API int GetColorImageWidth(ImageSet * imgsetPtr)
+{
+	return imgsetPtr->colorImageWidth;
+}
+
+extern "C" IM2PC_API int GetColorImageHeight(ImageSet * imgsetPtr)
+{
+	return imgsetPtr->colorImageHeight;
+}
+
+extern "C" IM2PC_API int GetColorImageSize(ImageSet * imgsetPtr)
+{
+	return imgsetPtr->colorImageWidth * imgsetPtr->colorImageHeight * 4 * sizeof(int8_t);
+}
+
+extern "C" IM2PC_API int GetDepthImageWidth(ImageSet * imgsetPtr)
+{
+	return imgsetPtr->colorImageWidth;
+}
+
+extern "C" IM2PC_API int GetDepthImageSize(ImageSet * imgsetPtr)
+{
+	return imgsetPtr->colorImageHeight;
+
+}
+
+extern "C" IM2PC_API int GetPointcloud3fSize(ImageSet * imgsetPtr)
+{
+	return imgsetPtr->pointcloud3fSize;
+}
+
+extern "C" IM2PC_API Point3f * GetPointCloudBuffer(ImageSet * imgsetPtr)
+{
+	return imgsetPtr->pointcloud3f;
+}
+
+extern "C" IM2PC_API char* GetColorImageBuffer(ImageSet * imgsetPtr)
+{
+	return reinterpret_cast<char*>(k4a_image_get_buffer(imgsetPtr->colorImage));
+}
 
 
-
-
-
-		return true;
-	}
-
-
-
-	extern "C" IM2PC_API int GetColorImageWidth(ImageSet * imgsetPtr)
+extern "C" IM2PC_API void DisposeImageSet(ImageSet * imgsetPtr)
+{
+	if (imgsetPtr->colorImageJPEG != NULL)
 	{
-		return imgsetPtr->colorImageWidth;
+		k4a_image_release(imgsetPtr->colorImageJPEG);
+		imgsetPtr->colorImageJPEG = NULL;
 	}
 
-	extern "C" IM2PC_API int GetColorImageHeight(ImageSet * imgsetPtr)
+	if (imgsetPtr->colorImage != NULL)
 	{
-		return imgsetPtr->colorImageHeight;
+		k4a_image_release(imgsetPtr->colorImage);
+		imgsetPtr->colorImage = NULL;
 	}
 
-	extern "C" IM2PC_API int GetColorImageSize(ImageSet * imgsetPtr)
+	if (imgsetPtr->depthImage != NULL)
 	{
-		return imgsetPtr->colorImageWidth * imgsetPtr->colorImageHeight * 4 * sizeof(int8_t);
+		k4a_image_release(imgsetPtr->depthImage);
+		imgsetPtr->depthImage = NULL;
 	}
 
-	extern "C" IM2PC_API int GetDepthImageWidth(ImageSet * imgsetPtr)
+	if (imgsetPtr->transformedDepthImage != NULL)
 	{
-		return imgsetPtr->colorImageWidth;
+		k4a_image_release(imgsetPtr->transformedDepthImage);
+		imgsetPtr->transformedDepthImage = NULL;
 	}
 
-	extern "C" IM2PC_API int GetDepthImageSize(ImageSet * imgsetPtr)
+	if (imgsetPtr->pointcloud != NULL)
 	{
-		return imgsetPtr->colorImageHeight;
-
+		k4a_image_release(imgsetPtr->pointcloud);
+		imgsetPtr->pointcloud = NULL;
 	}
 
-	extern "C" IM2PC_API int GetPointcloud3fSize(ImageSet * imgsetPtr)
-	{
-		return imgsetPtr->pointcloud3fSize;
-	}
+	delete[] imgsetPtr->pointcloud3f;
+	k4a_transformation_destroy(imgsetPtr->transformation);
 
-	extern "C" IM2PC_API Point3f * GetPointCloudBuffer(ImageSet * imgsetPtr)
-	{
-		return imgsetPtr->pointcloud3f;
-	}
-
-	extern "C" IM2PC_API char* GetColorImageBuffer(ImageSet * imgsetPtr)
-	{
-		return reinterpret_cast<char*>(k4a_image_get_buffer(imgsetPtr->colorImage));
-	}
-
-
-	extern "C" IM2PC_API void DisposeImageSet(ImageSet * imgsetPtr)
-	{
-		if (imgsetPtr->colorImageJPEG != NULL)
-		{
-			k4a_image_release(imgsetPtr->colorImageJPEG);
-			imgsetPtr->colorImageJPEG = NULL;
-		}
-
-		if (imgsetPtr->colorImage != NULL)
-		{
-			k4a_image_release(imgsetPtr->colorImage);
-			imgsetPtr->colorImage = NULL;
-		}
-
-		if (imgsetPtr->depthImage != NULL)
-		{
-			k4a_image_release(imgsetPtr->depthImage);
-			imgsetPtr->depthImage = NULL;
-		}
-
-		if (imgsetPtr->transformedDepthImage != NULL)
-		{
-			k4a_image_release(imgsetPtr->transformedDepthImage);
-			imgsetPtr->transformedDepthImage = NULL;
-		}
-
-		if (imgsetPtr->pointcloud != NULL)
-		{
-			k4a_image_release(imgsetPtr->pointcloud);
-			imgsetPtr->pointcloud = NULL;
-		}
-
-		delete[] imgsetPtr->pointcloud3f;
-		k4a_transformation_destroy(imgsetPtr->transformation);
-
-		delete imgsetPtr;
-		imgsetPtr = NULL;
-	}
+	delete imgsetPtr;
+	imgsetPtr = NULL;
+}
 }
 
 

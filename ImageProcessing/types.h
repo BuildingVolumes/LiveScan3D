@@ -138,6 +138,23 @@ namespace ImageProcessing
 		}
 	} Matrix4x4;
 
+
+	typedef struct RGBA
+	{
+		uint8_t blue;
+		uint8_t green;
+		uint8_t red;
+		uint8_t alpha;
+
+		RGBA()
+		{
+			blue = 0;
+			green = 0;
+			red = 0;
+			alpha = 1;
+		}
+	};
+
 	typedef struct ImageSet
 	{
 		int colorImageWidth;
@@ -152,9 +169,10 @@ namespace ImageProcessing
 		k4a_image_t transformedDepthImage;
 		k4a_image_t pointcloud;
 		Point3f* pointcloud3f;
-		Point3s pointcloudMinified;
-		cv::Mat colorMinified;
 		size_t pointcloud3fSize = 0;
+		Point3s* pointcloudMinified;
+		RGBA* colorMinified;
+		size_t minifiedPointcloudSize = 0;
 		k4a_transformation_t transformation;
 		k4a_calibration_t calibration;
 
