@@ -272,7 +272,7 @@ namespace ImageProcessing
 			}
 		}
 
-
+		//The size of the pointcloud changes every frame, so we can dump the old buffers
 		delete[] imgsetPtr->pointcloudMinified;
 		delete[] imgsetPtr->colorMinified;
 
@@ -316,90 +316,93 @@ namespace ImageProcessing
 			imgsetPtr->minifiedPointcloudSize = 1;
 		}
 	}
-}
 
-
-
-extern "C" IM2PC_API int GetColorImageWidth(ImageSet * imgsetPtr)
-{
-	return imgsetPtr->colorImageWidth;
-}
-
-extern "C" IM2PC_API int GetColorImageHeight(ImageSet * imgsetPtr)
-{
-	return imgsetPtr->colorImageHeight;
-}
-
-extern "C" IM2PC_API int GetColorImageSize(ImageSet * imgsetPtr)
-{
-	return imgsetPtr->colorImageWidth * imgsetPtr->colorImageHeight * 4 * sizeof(int8_t);
-}
-
-extern "C" IM2PC_API int GetDepthImageWidth(ImageSet * imgsetPtr)
-{
-	return imgsetPtr->colorImageWidth;
-}
-
-extern "C" IM2PC_API int GetDepthImageSize(ImageSet * imgsetPtr)
-{
-	return imgsetPtr->colorImageHeight;
-
-}
-
-extern "C" IM2PC_API int GetPointcloud3fSize(ImageSet * imgsetPtr)
-{
-	return imgsetPtr->pointcloud3fSize;
-}
-
-extern "C" IM2PC_API Point3f * GetPointCloudBuffer(ImageSet * imgsetPtr)
-{
-	return imgsetPtr->pointcloud3f;
-}
-
-extern "C" IM2PC_API char* GetColorImageBuffer(ImageSet * imgsetPtr)
-{
-	return reinterpret_cast<char*>(k4a_image_get_buffer(imgsetPtr->colorImage));
-}
-
-
-extern "C" IM2PC_API void DisposeImageSet(ImageSet * imgsetPtr)
-{
-	if (imgsetPtr->colorImageJPEG != NULL)
+	extern "C" IM2PC_API int GetColorImageWidth(ImageSet * imgsetPtr)
 	{
-		k4a_image_release(imgsetPtr->colorImageJPEG);
-		imgsetPtr->colorImageJPEG = NULL;
+		return imgsetPtr->colorImageWidth;
 	}
 
-	if (imgsetPtr->colorImage != NULL)
+	extern "C" IM2PC_API int GetColorImageHeight(ImageSet * imgsetPtr)
 	{
-		k4a_image_release(imgsetPtr->colorImage);
-		imgsetPtr->colorImage = NULL;
+		return imgsetPtr->colorImageHeight;
 	}
 
-	if (imgsetPtr->depthImage != NULL)
+	extern "C" IM2PC_API int GetColorImageSize(ImageSet * imgsetPtr)
 	{
-		k4a_image_release(imgsetPtr->depthImage);
-		imgsetPtr->depthImage = NULL;
+		return imgsetPtr->colorImageWidth * imgsetPtr->colorImageHeight * 4 * sizeof(int8_t);
 	}
 
-	if (imgsetPtr->transformedDepthImage != NULL)
+	extern "C" IM2PC_API int GetDepthImageWidth(ImageSet * imgsetPtr)
 	{
-		k4a_image_release(imgsetPtr->transformedDepthImage);
-		imgsetPtr->transformedDepthImage = NULL;
+		return imgsetPtr->colorImageWidth;
 	}
 
-	if (imgsetPtr->pointcloud != NULL)
+	extern "C" IM2PC_API int GetDepthImageSize(ImageSet * imgsetPtr)
 	{
-		k4a_image_release(imgsetPtr->pointcloud);
-		imgsetPtr->pointcloud = NULL;
+		return imgsetPtr->colorImageHeight;
+
 	}
 
-	delete[] imgsetPtr->pointcloud3f;
-	k4a_transformation_destroy(imgsetPtr->transformation);
+	extern "C" IM2PC_API int GetPointcloud3fSize(ImageSet * imgsetPtr)
+	{
+		return imgsetPtr->pointcloud3fSize;
+	}
 
-	delete imgsetPtr;
-	imgsetPtr = NULL;
+	extern "C" IM2PC_API Point3f * GetPointCloudBuffer(ImageSet * imgsetPtr)
+	{
+		return imgsetPtr->pointcloud3f;
+	}
+
+	extern "C" IM2PC_API char* GetColorImageBuffer(ImageSet * imgsetPtr)
+	{
+		return reinterpret_cast<char*>(k4a_image_get_buffer(imgsetPtr->colorImage));
+	}
+
+
+	extern "C" IM2PC_API void DisposeImageSet(ImageSet * imgsetPtr)
+	{
+		if (imgsetPtr->colorImageJPEG != NULL)
+		{
+			k4a_image_release(imgsetPtr->colorImageJPEG);
+			imgsetPtr->colorImageJPEG = NULL;
+		}
+
+		if (imgsetPtr->colorImage != NULL)
+		{
+			k4a_image_release(imgsetPtr->colorImage);
+			imgsetPtr->colorImage = NULL;
+		}
+
+		if (imgsetPtr->depthImage != NULL)
+		{
+			k4a_image_release(imgsetPtr->depthImage);
+			imgsetPtr->depthImage = NULL;
+		}
+
+		if (imgsetPtr->transformedDepthImage != NULL)
+		{
+			k4a_image_release(imgsetPtr->transformedDepthImage);
+			imgsetPtr->transformedDepthImage = NULL;
+		}
+
+		if (imgsetPtr->pointcloud != NULL)
+		{
+			k4a_image_release(imgsetPtr->pointcloud);
+			imgsetPtr->pointcloud = NULL;
+		}
+
+		delete[] imgsetPtr->pointcloud3f;
+		k4a_transformation_destroy(imgsetPtr->transformation);
+
+		delete[] imgsetPtr->pointcloudMinified;
+		delete[] imgsetPtr->colorMinified;
+
+		delete imgsetPtr;
+		imgsetPtr = NULL;
+	}
 }
-}
+
+
+
 
 
