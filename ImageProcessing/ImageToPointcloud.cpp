@@ -247,7 +247,7 @@ namespace ImageProcessing
 	}
 
 
-	extern "C" IM2PC_API void Pointcloud3fMinify(ImageSet * imgsetPtr, float* boundingBox)
+	extern "C" IM2PC_API void Pointcloud3fExcludeOutliers(ImageSet * imgsetPtr, float* boundingBox)
 	{
 		Point3f invalidPoint = Point3f(0, 0, 0, true);
 		int goodVerticesCount = 0;

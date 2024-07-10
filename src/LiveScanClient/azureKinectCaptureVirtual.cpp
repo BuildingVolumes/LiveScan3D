@@ -7,13 +7,16 @@
 
 AzureKinectCaptureVirtual::AzureKinectCaptureVirtual()
 {
-	turboJpeg = tjInitDecompress();
+	ImageProcessing::InitImageProcessing();
 	localDeviceIndex = GetAndLockDeviceIndex();
 }
 
 AzureKinectCaptureVirtual::~AzureKinectCaptureVirtual()
 {
 	DisposeDevice();
+
+	ImageProcessing::CloseImageProcessing();
+
 	ReleaseDeviceIndexLock();
 }
 
@@ -52,21 +55,6 @@ bool AzureKinectCaptureVirtual::StartCamera(KinectConfiguration& configuration)
 		return bStarted;
 	}
 
-	//Create the downscaled image
-	float rescaleRatio = (float)calibration.color_camera_calibration.resolution_height / (float)configuration.GetDepthCameraHeight();
-	colorImageDownscaledWidth = calibration.color_camera_calibration.resolution_width / rescaleRatio;
-	colorImageDownscaledHeight = calibration.color_camera_calibration.resolution_height / rescaleRatio;
-
-	k4a_calibration_t calibrationColorDownscaled;
-	memcpy(&calibrationColorDownscaled, &calibration, sizeof(k4a_calibration_t));
-	calibrationColorDownscaled.color_camera_calibration.resolution_width /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.resolution_height /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.cx /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.cy /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.fx /= rescaleRatio;
-	calibrationColorDownscaled.color_camera_calibration.intrinsics.parameters.param.fy /= rescaleRatio;
-	transformationColorDownscaled = k4a_transformation_create(&calibrationColorDownscaled);
-
 	SetConfiguration(configuration);
 
 	if (!LoadColorImagesfromDisk() || !LoadDepthImagesfromDisk())
@@ -98,20 +86,11 @@ void AzureKinectCaptureVirtual::StopCamera()
 
 	k4a_image_release(colorImageMJPG);
 	k4a_image_release(depthImage16Int);
-	k4a_image_release(pointCloudImage);
-	k4a_image_release(depthImageInColor);
-	k4a_image_release(transformedDepthImage);
-	k4a_image_release(colorImageDownscaled);
-	k4a_transformation_destroy(transformationColorDownscaled);
 	k4a_transformation_destroy(transformation);
+	ImageProcessing::DisposeImageSet(imageset);
 
 	colorImageMJPG = NULL;
 	depthImage16Int = NULL;
-	pointCloudImage = NULL;
-	transformedDepthImage = NULL;
-	depthImageInColor = NULL;
-	colorImageDownscaled = NULL;
-	transformationColorDownscaled = NULL;
 	transformation = NULL;
 
 	bStarted = false;
@@ -172,6 +151,9 @@ bool AzureKinectCaptureVirtual::AquireRawFrame()
 	int step = k4a_image_get_stride_bytes(m_vVirtualDepthImageSequence[imageSequenceIndex]);
 	k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, width, height, step, &depthImage16Int);
 	memcpy(k4a_image_get_buffer(depthImage16Int), k4a_image_get_buffer(m_vVirtualDepthImageSequence[imageSequenceIndex]), step * height);
+
+	ImageProcessing::ChangeJPEGFromBuffer(imageset, k4a_image_get_width_pixels(colorImageMJPG), k4a_image_get_height_pixels(colorImageMJPG), reinterpret_cast<char*>(k4a_image_get_buffer(colorImageMJPG)), k4a_image_get_size(colorImageMJPG));
+	ImageProcessing::ChangeDepthFromBuffer(imageset, k4a_image_get_width_pixels(depthImage16Int), k4a_image_get_height_pixels(depthImage16Int), reinterpret_cast<char*>(k4a_image_get_buffer(depthImage16Int)));
 
 	currentTimeStamp = timeStamp;
 	m_lLastFrameTimeus = timeStamp;

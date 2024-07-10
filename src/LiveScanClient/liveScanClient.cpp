@@ -484,7 +484,7 @@ void LiveScanClient::Calibrate()
 	logBuffer.LogCaptureDebug("Start Calibration process");
 
 	Point3f* pCameraCoordinates = new Point3f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
-	pCapture->PointCloudImageToPoint3f(pCameraCoordinates);
+	pCapture->ProcessPointcloud(pCameraCoordinates);
 
 	bool res = calibration.Calibrate(&pCapture->colorBGR, pCameraCoordinates, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 
@@ -502,8 +502,6 @@ void LiveScanClient::Calibrate()
 		logBuffer.LogCaptureDebug("Calibration unsuccessfull");
 
 }
-
-
 
 void LiveScanClient::SocketThreadFunction()
 {

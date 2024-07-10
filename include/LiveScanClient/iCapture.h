@@ -56,9 +56,10 @@ public:
 	virtual void DecodeRawColor() = 0;
 	virtual void MapDepthToColor() = 0;
 	virtual void GeneratePointcloud() = 0;
-	virtual void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints) = 0;
+	virtual void ProcessPointcloud() = 0;
 
 	virtual bool AquireSerialFromDevice() = 0;
+	virtual ImageProcessing::ImageSet GetImageset() = 0;
 	virtual std::string GetSerial() = 0;
 	virtual int GetSyncJackState() = 0;
 	virtual uint64_t GetTimeStamp() = 0;

@@ -23,7 +23,7 @@ public:
 	void DecodeRawColor();
 	void MapDepthToColor();
 	void GeneratePointcloud();
-	void PointCloudImageToPoint3f(Point3f* pCameraSpacePoints);
+	void ProcessPointcloud(Point3f* pCameraSpacePoints);
 
 	virtual bool AquireSerialFromDevice();
 	virtual std::string GetSerial();

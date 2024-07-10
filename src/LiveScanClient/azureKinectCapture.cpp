@@ -284,12 +284,9 @@ void AzureKinectCapture::GeneratePointcloud()
 ///Translates the k4a_image_t pointcloud into a easier to handle Point3f array. Make sure to run MapDepthToColorFrame & GeneratePointcloud before calling this function
 ///</summary>
 ///<param name="pCameraSpacePoints"></param>
-void AzureKinectCapture::PointCloudImageToPoint3f(Point3f* pCameraSpacePoints)
+void AzureKinectCapture::ProcessPointcloud()
 {
 	ImageProcessing::PointCloudImageToPoint3f(imageset);
-
-	if()
-
 }
 
 /// <summary>

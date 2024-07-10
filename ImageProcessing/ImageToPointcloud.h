@@ -11,7 +11,6 @@ namespace ImageProcessing
 	//Forward-Declaration of functions/classes used from other headers
 	//This way, we can include this header in another project, without
 	//the project having to access the other headers
-
 	typedef struct Point3f;
 	typedef struct ImageSet;
 	typedef struct Matrix4x4;
@@ -69,7 +68,7 @@ namespace ImageProcessing
 	extern "C" IM2PC_API bool GeneratePointcloud(ImageSet * imgsetPtr);
 	extern "C" IM2PC_API bool PointCloudToPointcloud3f(ImageSet * imgsetPtr);
 	extern "C" IM2PC_API void Pointcloud3fTransformToWorld(ImageSet * imgsetPtr, float* Matrix4x4);
-	extern "C" IM2PC_API void Pointcloud3fMinify(ImageSet * imgsetPtr, float* boundingBox);
+	extern "C" IM2PC_API void Pointcloud3fExcludeOutliers(ImageSet * imgsetPtr, float* boundingBox);
 
 	extern "C" IM2PC_API int GetColorImageWidth(ImageSet * imgsetPtr);
 	extern "C" IM2PC_API int GetColorImageHeight(ImageSet * imgsetPtr);
